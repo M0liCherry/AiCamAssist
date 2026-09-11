@@ -56,7 +56,7 @@ export function NitroApp() {
       try {
         await Promise.all([loadSettings(), loadTree()]);
       } catch (error) {
-        setBootError(errorMessage(error, "NitroAI could not start."));
+        setBootError(errorMessage(error, "VerityAI could not start."));
       }
     })();
   }, [loadSettings, loadTree]);

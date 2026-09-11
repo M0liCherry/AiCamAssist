@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: { params: Promise<{ policy: s
   const { policy } = await params;
   if (!(policy in policies)) return {};
   const item = policies[policy as PolicyKey];
-  return { title: `${item.title} | NitroAI`, description: item.summary };
+  return { title: `${item.title} | VerityAI`, description: item.summary };
 }
 
 export default async function PolicyPage({ params }: { params: Promise<{ policy: string }> }) {

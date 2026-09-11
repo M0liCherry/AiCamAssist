@@ -149,7 +149,7 @@ async function fetchRemote(url: string, timeoutMs = 20_000) {
       signal: controller.signal,
       redirect: "follow",
       headers: {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NitroAI/1.0 study-import",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VerityAI/1.0 study-import",
         accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,text/plain;q=0.8,*/*;q=0.5",
         "accept-language": "en",
       },

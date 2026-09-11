@@ -26,7 +26,7 @@ export type ScopeScores = {
   quiz?: QuizScoreData;
 };
 
-const STORAGE_KEY = "nitroai_study_scores_v1";
+const STORAGE_KEY = "VerityAI_study_scores_v1";
 
 export function getStoredScores(): Record<string, ScopeScores> {
   if (typeof window === "undefined") return {};
@@ -197,21 +197,21 @@ export function getChapterScores(chapterId: number, subject?: Subject) {
   return {
     flashcards: fc
       ? {
-          mastered: fc.mastered,
-          total: fc.total,
-          score: fc.score,
-          maxScore: fc.maxScore,
-          percentage: fc.percentage,
-          summary: `${fc.mastered}/${fc.total} Mastered`,
-        }
+        mastered: fc.mastered,
+        total: fc.total,
+        score: fc.score,
+        maxScore: fc.maxScore,
+        percentage: fc.percentage,
+        summary: `${fc.mastered}/${fc.total} Mastered`,
+      }
       : null,
     quiz: quiz
       ? {
-          bestScore: quiz.bestScore,
-          total: quiz.total,
-          percentage: quiz.percentage,
-          attemptsCount: quiz.attemptsCount,
-        }
+        bestScore: quiz.bestScore,
+        total: quiz.total,
+        percentage: quiz.percentage,
+        attemptsCount: quiz.attemptsCount,
+      }
       : null,
   };
 }

@@ -93,15 +93,15 @@ async function loadTree(db: Database) {
 
         const flashcards = fcData && fcData.total > 0
           ? {
-              mastered: fcData.mastered,
-              learning: fcData.learning,
-              newCount: fcData.newCount,
-              total: fcData.total,
-              score: fcData.mastered * 2 + fcData.learning * 1,
-              maxScore: fcData.total * 2,
-              percentage: Math.round(((fcData.mastered * 2 + fcData.learning * 1) / (fcData.total * 2)) * 100),
-              summary: `${fcData.mastered}/${fcData.total} Mastered`,
-            }
+            mastered: fcData.mastered,
+            learning: fcData.learning,
+            newCount: fcData.newCount,
+            total: fcData.total,
+            score: fcData.mastered * 2 + fcData.learning * 1,
+            maxScore: fcData.total * 2,
+            percentage: Math.round(((fcData.mastered * 2 + fcData.learning * 1) / (fcData.total * 2)) * 100),
+            summary: `${fcData.mastered}/${fcData.total} Mastered`,
+          }
           : undefined;
 
         return {
@@ -160,21 +160,21 @@ async function loadTree(db: Database) {
     const subjectMetrics = {
       flashcards: subjectFcTotal > 0
         ? {
-            mastered: subjectFcMastered,
-            total: subjectFcTotal,
-            score: subjectFcScore,
-            maxScore: subjectFcMaxScore,
-            percentage: subjectFcMaxScore > 0 ? Math.round((subjectFcScore / subjectFcMaxScore) * 100) : 0,
-            summary: `${subjectFcMastered}/${subjectFcTotal} Mastered`,
-          }
+          mastered: subjectFcMastered,
+          total: subjectFcTotal,
+          score: subjectFcScore,
+          maxScore: subjectFcMaxScore,
+          percentage: subjectFcMaxScore > 0 ? Math.round((subjectFcScore / subjectFcMaxScore) * 100) : 0,
+          summary: `${subjectFcMastered}/${subjectFcTotal} Mastered`,
+        }
         : undefined,
       quiz: subjectQuizTotal > 0
         ? {
-            bestScore: subjectQuizBest,
-            total: subjectQuizTotal,
-            percentage: Math.round((subjectQuizBest / subjectQuizTotal) * 100),
-            attemptsCount: subjectQuizAttempts,
-          }
+          bestScore: subjectQuizBest,
+          total: subjectQuizTotal,
+          percentage: Math.round((subjectQuizBest / subjectQuizTotal) * 100),
+          attemptsCount: subjectQuizAttempts,
+        }
         : undefined,
     };
 
@@ -226,13 +226,13 @@ async function exportBundle(db: Database, kind: string, id: number, format: stri
   }
 
   const stamp = new Date().toISOString().slice(0, 10);
-  const base = kind === "all" ? "nitroai-library" : `nitroai-${kind}-${id}`;
+  const base = kind === "all" ? "VerityAI-library" : `VerityAI-${kind}-${id}`;
   if (format === "md") {
     return new Response(markdown.join("\n"), {
       headers: { "content-type": "text/markdown; charset=utf-8", "content-disposition": `attachment; filename="${base}-${stamp}.md"` },
     });
   }
-  return new Response(JSON.stringify({ app: "NitroAI", exportedAt: new Date().toISOString(), subjects: bundle }, null, 2), {
+  return new Response(JSON.stringify({ app: "VerityAI", exportedAt: new Date().toISOString(), subjects: bundle }, null, 2), {
     headers: { "content-type": "application/json; charset=utf-8", "content-disposition": `attachment; filename="${base}-${stamp}.json"` },
   });
 }

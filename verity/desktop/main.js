@@ -1,4 +1,4 @@
-// NitroAI desktop shell (Electron main process).
+// VerityAI desktop shell (Electron main process).
 // Responsibilities: start the bundled Next.js server on a loopback port with
 // the user's local data directory, open a hardened BrowserWindow, and provide
 // native menus. No telemetry or crash reporter is initialised.
@@ -10,8 +10,8 @@ const http = require("node:http");
 const net = require("node:net");
 const path = require("node:path");
 
-const APP_ID = "com.nitroai.desktop";
-const PRODUCT = "NitroAI";
+const APP_ID = "com.VerityAI.desktop";
+const PRODUCT = "VerityAI";
 const isDev = !app.isPackaged;
 
 app.setAppUserModelId(APP_ID);
@@ -66,7 +66,7 @@ function waitForHealth(url, timeoutMs = 90_000) {
       request.setTimeout(2000, () => request.destroy(new Error("timeout")));
     };
     const retry = () => {
-      if (Date.now() - started > timeoutMs) return reject(new Error("The local NitroAI service did not become ready in time."));
+      if (Date.now() - started > timeoutMs) return reject(new Error("The local VerityAI service did not become ready in time."));
       setTimeout(attempt, 400);
     };
     attempt();
@@ -98,7 +98,7 @@ async function startServer() {
   delete env.DATABASE_URL;
   delete env.ELECTRON_RUN_AS_NODE;
 
-  server = utilityProcess.fork(entry, [], { cwd: root, env, stdio: "pipe", serviceName: "nitroai-server" });
+  server = utilityProcess.fork(entry, [], { cwd: root, env, stdio: "pipe", serviceName: "VerityAI-server" });
   server.stdout?.on("data", (chunk) => log(`[server] ${chunk}`));
   server.stderr?.on("data", (chunk) => log(`[server:err] ${chunk}`));
   server.on("exit", (code) => {

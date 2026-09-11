@@ -5,7 +5,7 @@ import { dataDirectory, getDb } from "@/db";
 import { settings, type Settings } from "@/db/schema";
 import { migrateModelId, PROVIDER_PRESETS, ProviderError, type Provider, type ProviderConfig } from "@/lib/ai/provider";
 
-/** Root folder for local data: %AppData%\NitroAI on desktop, ./.nitro otherwise. */
+/** Root folder for local data: %AppData%\VerityAI on desktop, ./.nitro otherwise. */
 export { dataDirectory };
 
 export function diagnosticsLogPath() {
@@ -39,7 +39,7 @@ function keyMaterial(): Buffer {
     return key;
   } catch (error) {
     console.warn("Data directory is not writable; using a derived encryption key.", error);
-    cachedKey = crypto.createHash("sha256").update(`nitroai:${process.env.DATABASE_URL ?? ""}`).digest();
+    cachedKey = crypto.createHash("sha256").update(`VerityAI:${process.env.DATABASE_URL ?? ""}`).digest();
     return cachedKey;
   }
 }

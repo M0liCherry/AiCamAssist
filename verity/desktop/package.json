@@ -1,13 +1,13 @@
 {
-  "name": "nitroai-desktop",
-  "productName": "NitroAI",
+  "name": "VerityAI-desktop",
+  "productName": "VerityAI",
   "version": "1.0.0",
   "description": "Local-first AI study and note-taking workspace for Windows.",
   "private": true,
   "main": "main.js",
   "author": {
-    "name": "NitroAI Project",
-    "email": "support@nitroai.example"
+    "name": "VerityAI Project",
+    "email": "support@VerityAI.example"
   },
   "license": "SEE LICENSE IN ../LICENSE.md",
   "scripts": {
@@ -22,9 +22,9 @@
     "electron-builder": "^26.0.0"
   },
   "build": {
-    "appId": "com.nitroai.desktop",
-    "productName": "NitroAI",
-    "copyright": "Copyright © 2026 NitroAI Project",
+    "appId": "com.VerityAI.desktop",
+    "productName": "VerityAI",
+    "copyright": "Copyright © 2026 VerityAI Project",
     "asar": true,
     "directories": {
       "output": "dist",
@@ -39,16 +39,28 @@
       {
         "from": "../.next/standalone",
         "to": "app",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "appx", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "appx",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.png",
-      "publisherName": "NitroAI Project",
+      "publisherName": "VerityAI Project",
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "nsis": {
@@ -57,16 +69,18 @@
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false,
       "license": "../LICENSE.md",
-      "shortcutName": "NitroAI"
+      "shortcutName": "VerityAI"
     },
     "appx": {
-      "identityName": "NitroAI.Desktop",
-      "publisher": "CN=NitroAI Project",
-      "publisherDisplayName": "NitroAI Project",
-      "applicationId": "NitroAI",
-      "displayName": "NitroAI",
+      "identityName": "VerityAI.Desktop",
+      "publisher": "CN=VerityAI Project",
+      "publisherDisplayName": "VerityAI Project",
+      "applicationId": "VerityAI",
+      "displayName": "VerityAI",
       "backgroundColor": "#0e0f14",
-      "languages": ["en-US"]
+      "languages": [
+        "en-US"
+      ]
     }
   }
 }

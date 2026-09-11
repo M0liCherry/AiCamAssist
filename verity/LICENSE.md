@@ -1,8 +1,8 @@
-# NitroAI End User License Agreement
+# VerityAI End User License Agreement
 
 Version 1.0 — effective March 24, 2026
 
-This agreement is between you and the publisher identified in the application's Settings → About screen ("Publisher"). Installing or using NitroAI ("Software") means you accept it.
+This agreement is between you and the publisher identified in the application's Settings → About screen ("Publisher"). Installing or using VerityAI ("Software") means you accept it.
 
 ## 1. License
 The Publisher grants you a personal, non-exclusive, non-transferable, revocable license to install and use the Software on Windows devices you own or control for personal study, note-taking, and content generation.
@@ -32,7 +32,7 @@ THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIE
 TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE PUBLISHER IS NOT LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, LOSS OF DATA, LOSS OF ACADEMIC STANDING, OR THIRD-PARTY CHARGES ARISING FROM USE OF THE SOFTWARE. Where liability cannot be excluded, it is limited to the amount you paid for the Software (zero for this edition) or the minimum permitted by law.
 
 ## 10. Termination
-This license ends automatically if you breach it. You may end it at any time by uninstalling the Software and deleting its data folder (%AppData%\NitroAI).
+This license ends automatically if you breach it. You may end it at any time by uninstalling the Software and deleting its data folder (%AppData%\VerityAI).
 
 ## 11. Governing law
 Unless a distributor's terms specify otherwise, this agreement is governed by the mandatory consumer-protection law of your place of habitual residence, and disputes may be brought in the courts competent there.

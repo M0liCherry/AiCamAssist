@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-NitroAI bundles or downloads the following components. Each remains under its own license; full license texts ship with the respective packages in `node_modules` and are reproduced by the installer under Help → Open-source licenses.
+VerityAI bundles or downloads the following components. Each remains under its own license; full license texts ship with the respective packages in `node_modules` and are reproduced by the installer under Help → Open-source licenses.
 
 | Component | License | Source |
 | --- | --- | --- |
@@ -23,6 +23,6 @@ NitroAI bundles or downloads the following components. Each remains under its ow
 ## Assets
 - Icons: Lucide (ISC). No proprietary icon fonts or icon packs.
 - Fonts: operating-system font stack only (Segoe UI on Windows). No web fonts are bundled or fetched.
-- Application icon: original artwork created for NitroAI.
+- Application icon: original artwork created for VerityAI.
 - Audio: no bundled audio samples. Podcast playback uses the operating system's speech-synthesis voices.
 - Models: LLMs pulled through Ollama or served by llama.cpp/LM Studio are downloaded by the user under each model's own license (Qwen 2.5 / Qwen 3: Apache-2.0).

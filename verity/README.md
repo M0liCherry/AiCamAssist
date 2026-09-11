@@ -1,13 +1,13 @@
-# NitroAI — local-first AI study workspace for Windows
+# VerityAI — local-first AI study workspace for Windows
 
-NitroAI turns lecture recordings, PDFs, slides, and web articles into a searchable knowledge base with a source-grounded assistant, two-voice podcasts, spaced-repetition flashcards, and topic-tracked quizzes — all stored on the user's PC.
+VerityAI turns lecture recordings, PDFs, slides, and web articles into a searchable knowledge base with a source-grounded assistant, two-voice podcasts, spaced-repetition flashcards, and topic-tracked quizzes — all stored on the user's PC.
 
 ## Architecture
 
 ```
 ┌──────────────────────────── Electron shell (desktop/) ────────────────────────────┐
 │ main.js  → spawns the Next.js standalone server on 127.0.0.1:<free port>          │
-│          → NITRO_DATA_DIR=%AppData%\NitroAI, hardened BrowserWindow, native menus │
+│          → NITRO_DATA_DIR=%AppData%\VerityAI, hardened BrowserWindow, native menus │
 └───────────────────────────────────────────────────────────────────────────────────┘
                      │ HTTP (loopback only)
 ┌────────────────────▼──────────── Next.js App Router (src/) ───────────────────────┐
@@ -28,7 +28,7 @@ NitroAI turns lecture recordings, PDFs, slides, and web articles into a searchab
 ```
 
 * **Universal inference** — the backend chosen at first launch powers RAG search, summaries, podcast scripts, flashcards, and quizzes (`src/lib/ai/provider.ts`).
-* **Persistence** — notes, chunks + embeddings, chats, generated assets, review schedules, and quiz attempts live in one PostgreSQL-dialect schema (`src/db/schema.ts`). On desktop the engine is PGlite in `%AppData%\NitroAI\database`; nothing is re-parsed when a collection is reopened.
+* **Persistence** — notes, chunks + embeddings, chats, generated assets, review schedules, and quiz attempts live in one PostgreSQL-dialect schema (`src/db/schema.ts`). On desktop the engine is PGlite in `%AppData%\VerityAI\database`; nothing is re-parsed when a collection is reopened.
 * **Scope model** — every AI feature runs against a *chapter* or an *entire subject* (all chapters aggregated).
 * **Zero pre-loaded data** — the library starts empty with guided zero states.
 
@@ -46,7 +46,7 @@ npm run dev
 ```bash
 cd desktop
 npm install                 # electron + electron-builder (dev-only)
-npm run dist                # → desktop/dist/NitroAI-Setup-1.0.0.exe and NitroAI-1.0.0.appx
+npm run dist                # → desktop/dist/VerityAI-Setup-1.0.0.exe and VerityAI-1.0.0.appx
 ```
 
 `scripts/build-renderer.mjs` builds Next.js with `NITRO_DESKTOP_BUILD=1` (standalone output) and copies static assets, `public/`, and the `drizzle/` migrations next to `server.js`. electron-builder packages that folder as `resources/app`.
@@ -55,7 +55,7 @@ npm run dist                # → desktop/dist/NitroAI-Setup-1.0.0.exe and Nitro
 * **MSIX/AppX** — for Store or sideloading; set a real `publisher` (`CN=…` matching your code-signing certificate) in `desktop/package.json` before signing.
 * Code signing: supply `CSC_LINK`/`CSC_KEY_PASSWORD` (or Azure Trusted Signing) to electron-builder; unsigned builds trigger SmartScreen warnings.
 
-## Local data layout (`%AppData%\NitroAI`)
+## Local data layout (`%AppData%\VerityAI`)
 
 | Path | Contents |
 | --- | --- |

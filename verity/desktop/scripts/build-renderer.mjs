@@ -18,7 +18,7 @@ function run(command, args) {
   }
 }
 
-console.log("▸ Building NitroAI renderer (Next.js standalone)…");
+console.log("▸ Building VerityAI renderer (Next.js standalone)…");
 rmSync(path.join(root, ".next"), { recursive: true, force: true });
 run("npx", ["next", "build"]);
 

@@ -5,9 +5,9 @@ import { Pool } from "pg";
 import * as schema from "./schema";
 
 /**
- * NitroAI runs against two interchangeable PostgreSQL-dialect engines:
+ * VerityAI runs against two interchangeable PostgreSQL-dialect engines:
  *  - Embedded PGlite (default): a local database folder, no server to install.
- *    Used on the desktop (%AppData%\NitroAI via NITRO_DATA_DIR) and whenever
+ *    Used on the desktop (%AppData%\VerityAI via NITRO_DATA_DIR) and whenever
  *    DATABASE_URL is not configured (falls back to ./.nitro).
  *  - PostgreSQL server: used when DATABASE_URL is set and NITRO_DATA_DIR is not.
  * Both share the same Drizzle schema and query code.
@@ -55,7 +55,7 @@ async function createEmbedded(): Promise<Database> {
   } catch (error) {
     const err = error as { message?: string; cause?: { message?: string } };
     const reason = [err?.message, err?.cause?.message].filter(Boolean).join(" — ") || String(error);
-    throw new Error(`The embedded database in ${dataDir} could not be opened: ${reason}. Check that the folder is writable, close other NitroAI instances using it, or delete its "database" sub-folder to start fresh.`);
+    throw new Error(`The embedded database in ${dataDir} could not be opened: ${reason}. Check that the folder is writable, close other VerityAI instances using it, or delete its "database" sub-folder to start fresh.`);
   }
 }
 

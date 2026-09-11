@@ -1,4 +1,4 @@
-/** Third-party components bundled with or downloaded by NitroAI, with licenses. */
+/** Third-party components bundled with or downloaded by VerityAI, with licenses. */
 export type ThirdPartyItem = { name: string; license: string; url: string; note?: string };
 
 export const THIRD_PARTY: ThirdPartyItem[] = [
@@ -17,6 +17,6 @@ export const THIRD_PARTY: ThirdPartyItem[] = [
   { name: "Electron", license: "MIT", url: "https://github.com/electron/electron" },
   { name: "electron-builder", license: "MIT", url: "https://github.com/electron-userland/electron-builder" },
   { name: "Tailwind CSS", license: "MIT", url: "https://github.com/tailwindlabs/tailwindcss" },
-  { name: "Interface typography", license: "System fonts only", url: "", note: "NitroAI uses the operating system font stack (Segoe UI on Windows). No web fonts are bundled or fetched." },
+  { name: "Interface typography", license: "System fonts only", url: "", note: "VerityAI uses the operating system font stack (Segoe UI on Windows). No web fonts are bundled or fetched." },
   { name: "Local LLMs pulled through Ollama (e.g. Qwen 2.5 / Qwen 3)", license: "Per model card (Qwen: Apache-2.0)", url: "https://ollama.com/library", note: "Model weights are downloaded by the user on demand and governed by their own licenses." },
 ];

@@ -316,7 +316,7 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
   const mentionCandidates = scopeNotes.filter((item) => !refs.some((r) => r.id === item.id)).slice(0, 8);
 
   return (
-    <aside className="assistant-panel" aria-label="Nitro AI assistant">
+    <aside className="assistant-panel" aria-label="Verity AI assistant">
       <div className="assistant-head">
         <span className="nitro-orb" aria-hidden="true"><Sparkles size={17} /></span>
         <div><strong>Nitro</strong><small><span className={`status-dot ${aiReady ? "ok" : "bad"}`} aria-hidden="true" /> {aiReady ? providerName : "No AI backend"}</small></div>

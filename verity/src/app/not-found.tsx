@@ -3,7 +3,7 @@ import { ArrowLeft, FileQuestion, Sparkles } from "lucide-react";
 export default function NotFound() {
   return (
     <main className="not-found-page">
-      <div className="not-found-brand"><Sparkles size={17} aria-hidden="true" />NitroAI</div>
+      <div className="not-found-brand"><Sparkles size={17} aria-hidden="true" />VerityAI</div>
       <section>
         <span aria-hidden="true"><FileQuestion size={34} /></span>
         <p className="eyebrow">404 error</p>
