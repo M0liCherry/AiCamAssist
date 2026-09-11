@@ -1,6 +1,6 @@
 "use client";
 
-import { FileCheck2, FileText, Headphones, Layers3, LayoutDashboard, ListChecks, Menu, Moon, PanelLeftClose, PanelLeftOpen, RefreshCw, Settings, Sparkles, Sun, X } from "lucide-react";
+import { FileCheck2, FileText, Headphones, Layers3, LayoutDashboard, ListChecks, Menu, Moon, Palette, PanelLeftClose, PanelLeftOpen, RefreshCw, Settings, Sparkles, Sun, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, describeScope, errorMessage } from "./client";
 import { Dashboard } from "./Dashboard";
@@ -8,7 +8,7 @@ import { EditorView } from "./EditorView";
 import { Onboarding } from "./Onboarding";
 import { SettingsView } from "./SettingsView";
 import { FlashcardsView, PodcastsView, QuizzesView } from "./StudyViews";
-import type { PublicSettings, Scope, SettingsResponse, Subject, ToastMessage, WorkspaceView } from "./types";
+import type { FontPreference, PublicSettings, Scope, SettingsResponse, Subject, ThemeName, ToastMessage, WorkspaceView } from "./types";
 
 const NAV: { id: WorkspaceView; label: string; icon: typeof FileText }[] = [
   { id: "hub", label: "Notes hub", icon: LayoutDashboard },
@@ -18,8 +18,26 @@ const NAV: { id: WorkspaceView; label: string; icon: typeof FileText }[] = [
   { id: "quizzes", label: "Quizzes", icon: ListChecks },
 ];
 
-function applyTheme(theme: "dark" | "light") {
+const THEME_CYCLE: ThemeName[] = ["mocha", "macchiato", "frappe", "latte"];
+
+function applyTheme(theme: ThemeName) {
+  if (typeof document === "undefined") return;
   document.documentElement.dataset.theme = theme;
+  document.body.dataset.theme = theme;
+  try {
+    localStorage.setItem("verity_theme", theme);
+    localStorage.setItem("nitro_theme", theme);
+  } catch {}
+}
+
+function applyFont(font: FontPreference) {
+  if (typeof document === "undefined") return;
+  document.documentElement.dataset.font = font;
+  document.body.dataset.font = font;
+  try {
+    localStorage.setItem("verity_font_preference", font);
+    localStorage.setItem("nitro_font_preference", font);
+  } catch {}
 }
 
 export function NitroApp() {
@@ -31,6 +49,7 @@ export function NitroApp() {
   const [view, setView] = useState<WorkspaceView>("hub");
   const [collapsed, setCollapsed] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [font, setFont] = useState<FontPreference>("sans");
 
   const notify = useCallback((text: string, tone: ToastMessage["tone"] = "success") => {
     const id = Date.now() + Math.random();
@@ -56,7 +75,7 @@ export function NitroApp() {
       try {
         await Promise.all([loadSettings(), loadTree()]);
       } catch (error) {
-        setBootError(errorMessage(error, "NitroAI could not start."));
+        setBootError(errorMessage(error, "Verity could not start."));
       }
     })();
   }, [loadSettings, loadTree]);
@@ -68,8 +87,12 @@ export function NitroApp() {
         .then((data) => notify(`AI backend updated: ${data.settings.provider !== "none" ? `${data.presets[data.settings.provider].shortLabel} · ${data.settings.model}` : "none"}`, "info"))
         .catch(() => undefined);
     };
+    window.addEventListener("verity:settings-changed", onChanged);
     window.addEventListener("nitro:settings-changed", onChanged);
-    return () => window.removeEventListener("nitro:settings-changed", onChanged);
+    return () => {
+      window.removeEventListener("verity:settings-changed", onChanged);
+      window.removeEventListener("nitro:settings-changed", onChanged);
+    };
   }, [loadSettings, notify]);
 
   useEffect(() => {
@@ -99,12 +122,27 @@ export function NitroApp() {
     [],
   );
 
+  useEffect(() => {
+    try {
+      const saved = (localStorage.getItem("verity_font_preference") || localStorage.getItem("nitro_font_preference")) as FontPreference | null;
+      if (saved && ["sans", "mono", "dyslexic"].includes(saved)) {
+        setFont(saved);
+        applyFont(saved);
+      }
+    } catch {
+      // localStorage might fail in private browsing
+    }
+  }, []);
+
   const toggleTheme = async () => {
     if (!settings) return;
-    const next = settings.theme === "dark" ? "light" : "dark";
+    const currentTheme = settings.theme === "dark" ? "mocha" : settings.theme === "light" ? "latte" : settings.theme;
+    const currentIdx = THEME_CYCLE.indexOf(currentTheme);
+    const next = currentIdx >= 0 ? THEME_CYCLE[(currentIdx + 1) % THEME_CYCLE.length] : "mocha";
     applyTheme(next);
     try {
       await updateSettings({ theme: next });
+      notify(`Theme: ${next.charAt(0).toUpperCase() + next.slice(1)}`, "info");
     } catch (error) {
       notify(errorMessage(error), "error");
     }
@@ -121,7 +159,7 @@ export function NitroApp() {
       <main className="boot-screen">
         <div className="boot-card" role="alert">
           <span className="hero-mark" aria-hidden="true"><Sparkles size={20} /></span>
-          <h1>NitroAI could not start</h1>
+          <h1>Verity could not start</h1>
           <p>{bootError}</p>
           <p className="help-text">The local database service may still be starting. Check the desktop log in your data folder if this persists.</p>
           <button type="button" className="primary-button" onClick={() => window.location.reload()}><RefreshCw size={15} aria-hidden="true" />Retry</button>
@@ -132,7 +170,7 @@ export function NitroApp() {
   if (!boot || !settings) {
     return (
       <main className="boot-screen" aria-busy="true">
-        <div className="boot-card" role="status"><span className="hero-mark pulse" aria-hidden="true"><Sparkles size={20} /></span><p>Starting NitroAI…</p></div>
+        <div className="boot-card" role="status"><span className="hero-mark pulse" aria-hidden="true"><Sparkles size={20} /></span><p>Starting Verity…</p></div>
       </main>
     );
   }
@@ -153,16 +191,39 @@ export function NitroApp() {
       case "quizzes":
         return <QuizzesView subjects={subjects} scope={scope} onScope={setScope} scopeTitle={scopeInfo.title} aiReady={aiReady} providerName={providerName} onConfigureAi={() => setView("settings")} onGoHub={() => setView("hub")} notify={notify} />;
       default:
-        return <SettingsView boot={boot} onSettings={(next) => setBoot((current) => (current ? { ...current, settings: next } : current))} onReload={loadSettings} onTreeChanged={loadTree} notify={notify} />;
+        return (
+          <SettingsView
+            boot={boot}
+            font={font}
+            onFontChange={(nextFont) => {
+              setFont(nextFont);
+              applyFont(nextFont);
+              try {
+                localStorage.setItem("verity_font_preference", nextFont);
+                localStorage.setItem("nitro_font_preference", nextFont);
+              } catch {
+                // ignore
+              }
+              notify(`Font updated: ${nextFont === "mono" ? "Monospace" : nextFont === "dyslexic" ? "High Legibility" : "System Sans"}`);
+            }}
+            onSettings={(next) => {
+              setBoot((current) => (current ? { ...current, settings: next } : current));
+              applyTheme(next.theme);
+            }}
+            onReload={loadSettings}
+            onTreeChanged={loadTree}
+            notify={notify}
+          />
+        );
     }
   };
 
   return (
-    <div className={`nitro-app ${collapsed ? "sidebar-collapsed" : ""}`}>
+    <div className={`nitro-app verity-app ${collapsed ? "sidebar-collapsed" : ""}`}>
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <aside className="app-sidebar" aria-label="Primary navigation">
         <div className="brand-row">
-          <button type="button" className="brand" onClick={() => setView("hub")} aria-label="NitroAI notes hub"><span><Sparkles size={18} aria-hidden="true" /></span><b>Nitro<span>AI</span></b></button>
+          <button type="button" className="brand" onClick={() => setView("hub")} aria-label="Verity notes hub"><span><Sparkles size={18} aria-hidden="true" /></span><b>Verity</b></button>
           <button type="button" className="collapse-button" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"} aria-expanded={!collapsed}>{collapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}</button>
         </div>
         <nav className="primary-nav" aria-label="Workspace views">
@@ -177,13 +238,23 @@ export function NitroApp() {
         </nav>
         <div className="sidebar-footer">
           <div className="scope-indicator" title={scopeInfo.title}><span className={`status-dot ${aiReady ? "ok" : "bad"}`} aria-hidden="true" /><span>{providerName}</span></div>
-          <button type="button" onClick={toggleTheme} aria-label={`Switch to ${settings.theme === "dark" ? "light" : "dark"} theme`}>{settings.theme === "dark" ? <Moon size={18} aria-hidden="true" /> : <Sun size={18} aria-hidden="true" />}<span>{settings.theme === "dark" ? "Dark theme" : "Light theme"}</span><small>Theme</small></button>
+          <button type="button" onClick={toggleTheme} aria-label={`Theme: ${settings.theme}. Click to switch theme.`}>
+            {settings.theme === "latte" || settings.theme === "light" ? (
+              <Sun size={18} aria-hidden="true" />
+            ) : settings.theme === "frappe" || settings.theme === "macchiato" ? (
+              <Palette size={18} aria-hidden="true" />
+            ) : (
+              <Moon size={18} aria-hidden="true" />
+            )}
+            <span>{settings.theme.charAt(0).toUpperCase() + settings.theme.slice(1)} theme</span>
+            <small>Theme</small>
+          </button>
           <button type="button" className="profile-button" onClick={() => setView("settings")}><span className="profile-avatar" aria-label="Your profile">Y</span><span><strong>You</strong><small>Local workspace · v{boot.environment.version}</small></span></button>
         </div>
       </aside>
       <div className="mobile-topbar">
         <button type="button" className="icon-button" onClick={() => setCollapsed((value) => !value)} aria-label="Toggle navigation"><Menu size={20} aria-hidden="true" /></button>
-        <button type="button" className="brand" onClick={() => setView("hub")}><span><Sparkles size={17} aria-hidden="true" /></span><b>NitroAI</b></button>
+        <button type="button" className="brand" onClick={() => setView("hub")}><span><Sparkles size={17} aria-hidden="true" /></span><b>Verity</b></button>
       </div>
       <div className="app-content" id="main-content" tabIndex={-1}>{renderView()}</div>
       <div className="toast-region" aria-live="polite">

@@ -173,7 +173,7 @@ export function ImportModal({ type, subjects, defaultChapterId, onClose, onCreat
           <span>
             <strong>Processing notice</strong>
             {type === "website"
-              ? "NitroAI fetches the address you provide. Only import pages you are permitted to use for study."
+              ? "Verity fetches the address you provide. Only import pages you are permitted to use for study."
               : type === "audio"
                 ? "Audio is decoded and transcribed on this computer. The transcript becomes a note and is indexed with your chosen AI backend."
                 : "Files are parsed on this computer. Extracted text is stored locally and indexed with your chosen AI backend (cloud providers receive text only for embeddings if selected)."}

@@ -5,7 +5,7 @@ import { dataDirectory, getDb } from "@/db";
 import { settings, type Settings } from "@/db/schema";
 import { migrateModelId, PROVIDER_PRESETS, ProviderError, type Provider, type ProviderConfig } from "@/lib/ai/provider";
 
-/** Root folder for local data: %AppData%\NitroAI on desktop, ./.nitro otherwise. */
+/** Root folder for local data: %AppData%\Verity on desktop, ./.verity otherwise. */
 export { dataDirectory };
 
 export function diagnosticsLogPath() {
@@ -17,8 +17,9 @@ let cachedKey: Buffer | null = null;
 /** AES-256-GCM key kept outside the database so a copied DB file alone cannot reveal API keys. */
 function keyMaterial(): Buffer {
   if (cachedKey) return cachedKey;
-  if (process.env.NITRO_KEY_SECRET) {
-    cachedKey = crypto.createHash("sha256").update(process.env.NITRO_KEY_SECRET).digest();
+  const keySecret = process.env.VERITY_KEY_SECRET || process.env.NITRO_KEY_SECRET;
+  if (keySecret) {
+    cachedKey = crypto.createHash("sha256").update(keySecret).digest();
     return cachedKey;
   }
   const file = path.join(dataDirectory(), "local.key");
@@ -39,7 +40,7 @@ function keyMaterial(): Buffer {
     return key;
   } catch (error) {
     console.warn("Data directory is not writable; using a derived encryption key.", error);
-    cachedKey = crypto.createHash("sha256").update(`nitroai:${process.env.DATABASE_URL ?? ""}`).digest();
+    cachedKey = crypto.createHash("sha256").update(`verity:${process.env.DATABASE_URL ?? ""}`).digest();
     return cachedKey;
   }
 }
@@ -135,6 +136,6 @@ export function publicSettings(row: Settings) {
     privacyConsentAt: row.privacyConsentAt,
     providerConsentAt: row.providerConsentAt,
     diagnosticsOptIn: row.diagnosticsOptIn,
-    theme: row.theme === "light" ? "light" : "dark",
+    theme: (["mocha", "macchiato", "frappe", "latte", "dark", "light"].includes(row.theme) ? row.theme : "mocha") as "mocha" | "macchiato" | "frappe" | "latte" | "dark" | "light",
   };
 }

@@ -153,6 +153,54 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
         </label>
       </header>
 
+      {hasLibrary && results === null && (
+        <div className="hub-stats-overview" aria-label="Library overview statistics">
+          <div className="stat-pill-card">
+            <div className="stat-pill-icon" style={{ backgroundColor: "rgba(137, 180, 250, 0.15)", color: "var(--ctp-blue, var(--violet))" }}>
+              <FileText size={18} aria-hidden="true" />
+            </div>
+            <div className="stat-pill-info">
+              <span className="stat-pill-label">Documents</span>
+              <span className="stat-pill-value">{subjects.reduce((n, s) => n + s.noteCount, 0)} Notes</span>
+              <small style={{ fontSize: 10, color: "var(--muted)" }}>{notes.reduce((acc, n) => acc + (n.wordCount || 0), 0).toLocaleString()} words loaded</small>
+            </div>
+          </div>
+
+          <div className="stat-pill-card">
+            <div className="stat-pill-icon" style={{ backgroundColor: "rgba(249, 226, 175, 0.15)", color: "var(--ctp-yellow, var(--amber))" }}>
+              <BookOpen size={18} aria-hidden="true" />
+            </div>
+            <div className="stat-pill-info">
+              <span className="stat-pill-label">Knowledge Base</span>
+              <span className="stat-pill-value">{subjects.length} {subjects.length === 1 ? "Subject" : "Subjects"}</span>
+              <small style={{ fontSize: 10, color: "var(--muted)" }}>{subjects.reduce((n, s) => n + s.chapters.length, 0)} chapters</small>
+            </div>
+          </div>
+
+          <div className="stat-pill-card">
+            <div className="stat-pill-icon" style={{ backgroundColor: "rgba(166, 227, 161, 0.15)", color: "var(--ctp-green, var(--green))" }}>
+              <Layers size={18} aria-hidden="true" />
+            </div>
+            <div className="stat-pill-info">
+              <span className="stat-pill-label">Study Tools</span>
+              <span className="stat-pill-value">Active Recall</span>
+              <small style={{ fontSize: 10, color: "var(--muted)" }}>Flashcards &amp; Quizzes</small>
+            </div>
+          </div>
+
+          <div className="stat-pill-card">
+            <div className="stat-pill-icon" style={{ backgroundColor: "rgba(180, 190, 254, 0.15)", color: "var(--ctp-lavender, var(--violet-strong))" }}>
+              <AudioLines size={18} aria-hidden="true" />
+            </div>
+            <div className="stat-pill-info">
+              <span className="stat-pill-label">Synthesized Audio</span>
+              <span className="stat-pill-value">Audio Studio</span>
+              <small style={{ fontSize: 10, color: "var(--muted)" }}>Podcasts &amp; Whisper STT</small>
+            </div>
+          </div>
+        </div>
+      )}
+
       {results !== null ? (
         <section className="search-results" aria-live="polite" aria-label="Search results">
           <div className="section-heading"><h2>Results for “{search.trim()}”</h2><button type="button" className="text-button" onClick={() => setSearch("")}>Clear</button></div>

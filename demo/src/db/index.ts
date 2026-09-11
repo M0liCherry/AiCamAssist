@@ -5,33 +5,35 @@ import { Pool } from "pg";
 import * as schema from "./schema";
 
 /**
- * NitroAI runs against two interchangeable PostgreSQL-dialect engines:
+ * Verity runs against two interchangeable PostgreSQL-dialect engines:
  *  - Embedded PGlite (default): a local database folder, no server to install.
- *    Used on the desktop (%AppData%\NitroAI via NITRO_DATA_DIR) and whenever
- *    DATABASE_URL is not configured (falls back to ./.nitro).
- *  - PostgreSQL server: used when DATABASE_URL is set and NITRO_DATA_DIR is not.
+ *    Used on the desktop (%AppData%\Verity via VERITY_DATA_DIR / NITRO_DATA_DIR) and whenever
+ *    DATABASE_URL is not configured (falls back to ./.verity or ./.nitro).
+ *  - PostgreSQL server: used when DATABASE_URL is set and data dir is not.
  * Both share the same Drizzle schema and query code.
  */
 export type Database = NodePgDatabase<typeof schema>;
 
 const globalForDb = globalThis as typeof globalThis & {
+  __verityDb?: Promise<Database>;
+  __verityPool?: Pool;
   __nitroDb?: Promise<Database>;
   __nitroPool?: Pool;
 };
 
 /** Local data directory (database, encryption key, model cache, logs). */
 export function dataDirectory() {
-  return path.resolve(process.env.NITRO_DATA_DIR || ".nitro");
+  return path.resolve(process.env.VERITY_DATA_DIR || process.env.NITRO_DATA_DIR || (fs.existsSync(".verity") ? ".verity" : fs.existsSync(".nitro") ? ".nitro" : ".verity"));
 }
 
 /** True when running inside the Electron shell (or with an explicit data dir). */
 export function isDesktopMode() {
-  return process.env.NITRO_DESKTOP === "1" || Boolean(process.env.NITRO_DATA_DIR);
+  return process.env.VERITY_DESKTOP === "1" || process.env.NITRO_DESKTOP === "1" || Boolean(process.env.VERITY_DATA_DIR || process.env.NITRO_DATA_DIR);
 }
 
 /** True when the embedded PGlite engine is used instead of a PostgreSQL server. */
 export function usesEmbeddedDatabase() {
-  return Boolean(process.env.NITRO_DATA_DIR) || !process.env.DATABASE_URL;
+  return Boolean(process.env.VERITY_DATA_DIR || process.env.NITRO_DATA_DIR) || !process.env.DATABASE_URL;
 }
 
 async function createEmbedded(): Promise<Database> {
@@ -46,7 +48,7 @@ async function createEmbedded(): Promise<Database> {
     const client = new PGlite(databaseDir);
     await client.waitReady;
     const db = drizzle(client, { schema });
-    const migrationsFolder = process.env.NITRO_MIGRATIONS_DIR || path.join(process.cwd(), "drizzle");
+    const migrationsFolder = process.env.VERITY_MIGRATIONS_DIR || process.env.NITRO_MIGRATIONS_DIR || path.join(process.cwd(), "drizzle");
     if (!fs.existsSync(migrationsFolder)) {
       throw new Error(`migrations folder not found at ${migrationsFolder}`);
     }
@@ -55,24 +57,30 @@ async function createEmbedded(): Promise<Database> {
   } catch (error) {
     const err = error as { message?: string; cause?: { message?: string } };
     const reason = [err?.message, err?.cause?.message].filter(Boolean).join(" — ") || String(error);
-    throw new Error(`The embedded database in ${dataDir} could not be opened: ${reason}. Check that the folder is writable, close other NitroAI instances using it, or delete its "database" sub-folder to start fresh.`);
+    throw new Error(`The embedded database in ${dataDir} could not be opened: ${reason}. Check that the folder is writable, close other Verity instances using it, or delete its "database" sub-folder to start fresh.`);
   }
 }
 
 async function createDatabase(): Promise<Database> {
   if (usesEmbeddedDatabase()) return createEmbedded();
-  const pool = globalForDb.__nitroPool ?? new Pool({ connectionString: process.env.DATABASE_URL });
+  const pool = globalForDb.__verityPool ?? globalForDb.__nitroPool ?? new Pool({ connectionString: process.env.DATABASE_URL });
+  globalForDb.__verityPool = pool;
   globalForDb.__nitroPool = pool;
   return drizzleNodePg(pool, { schema });
 }
 
 /** Lazily initialises (and migrates, in embedded mode) the shared database. */
 export function getDb(): Promise<Database> {
-  if (!globalForDb.__nitroDb) {
-    globalForDb.__nitroDb = createDatabase().catch((error) => {
+  const cached = globalForDb.__verityDb ?? globalForDb.__nitroDb;
+  if (!cached) {
+    const dbPromise = createDatabase().catch((error) => {
+      globalForDb.__verityDb = undefined;
       globalForDb.__nitroDb = undefined;
       throw error;
     });
+    globalForDb.__verityDb = dbPromise;
+    globalForDb.__nitroDb = dbPromise;
+    return dbPromise;
   }
-  return globalForDb.__nitroDb;
+  return cached;
 }

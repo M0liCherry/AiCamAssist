@@ -3,16 +3,16 @@ One camera, one profile, full independence — Bit N Build Track 1: Access & Inc
 
 Covers 01 Public Space Navigation, 02 Adaptive Educational Tech, 03 Inclusive Digital Services in one 3-tab PWA + Rust API.
 
-## Quick start
-- Backend: `cargo run` in `backend/` → `:3001/api/station`
-- Frontend: `npm run dev` in `frontend/` → 01 Navigate / 02 Learn / 03 Services
-- See `CHANGES.md` for what changed.
+## Main Project: `demo`
+The application is located in the `demo/` folder: a local-first study workspace powered by Next.js, local RAG semantic search, on-device Whisper speech-to-text, and Catppuccin themes (Mocha, Macchiato, Frappé, Latte).
 
-## Structure
-- `frontend/src/features/navigate/` — M1, camera + spatial audio
-- `frontend/src/features/learn/` — M2, adaptive text + TTS
-- `frontend/src/features/services/` + `backend/src/main.rs` — M3, station API + voice guide
-- `frontend/src/context/`, `types.ts`, `App.tsx` — M4 shell
+### Quick start
+```bash
+cd demo
+npm run dev
+```
+
+Visit [http://localhost:3000](http://localhost:3000).
 
 ## Team
 im molicherry btw

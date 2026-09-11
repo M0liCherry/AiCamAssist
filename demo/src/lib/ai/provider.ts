@@ -1,5 +1,5 @@
 /**
- * Unified inference layer. Every AI feature in NitroAI (RAG chat, summaries,
+ * Unified inference layer. Every AI feature in Verity (RAG chat, summaries,
  * podcast scripts, flashcards, quizzes, embeddings) goes through this module so
  * the user's chosen backend powers all of them.
  *
@@ -76,7 +76,7 @@ export const PROVIDER_PRESETS: Record<Exclude<Provider, "none">, ProviderPreset>
     models: ["qwen3:8b", "qwen3:4b", "qwen2.5:7b-instruct", "qwen2.5:3b-instruct", "llama3.1:8b", "gemma3:4b"],
     embeddingModels: ["nomic-embed-text", "bge-m3", "all-minilm"],
     keyUrl: "https://ollama.com/download",
-    description: "Fully offline inference on this PC. Download GGUF builds of Qwen 2.5 / Qwen 3 and other models directly from NitroAI.",
+    description: "Fully offline inference on this PC. Download GGUF builds of Qwen 2.5 / Qwen 3 and other models directly from Verity.",
   },
   llamacpp: {
     label: "llama.cpp server / LM Studio",
@@ -89,7 +89,7 @@ export const PROVIDER_PRESETS: Record<Exclude<Provider, "none">, ProviderPreset>
     models: [],
     embeddingModels: [],
     keyUrl: "https://github.com/ggml-org/llama.cpp",
-    description: "Any OpenAI-compatible local server (llama-server, LM Studio, Jan). Load a GGUF model there and point NitroAI at its endpoint.",
+    description: "Any OpenAI-compatible local server (llama-server, LM Studio, Jan). Load a GGUF model there and point Verity at its endpoint.",
   },
 };
 
@@ -143,7 +143,7 @@ export const providerLabel = (provider: Provider) =>
 export const supportsEmbeddings = (cfg: ProviderConfig) =>
   cfg.provider === "gemini" || cfg.provider === "ollama" || cfg.provider === "llamacpp";
 
-export const LOCAL_CONTEXT_TOKENS = Math.max(4096, Number(process.env.NITRO_LOCAL_CONTEXT ?? 8192) || 8192);
+export const LOCAL_CONTEXT_TOKENS = Math.max(4096, Number(process.env.VERITY_LOCAL_CONTEXT ?? process.env.NITRO_LOCAL_CONTEXT ?? 8192) || 8192);
 
 /** Character budget for source material per request, sized to the backend's context window. */
 export function contextBudgetChars(cfg: ProviderConfig) {

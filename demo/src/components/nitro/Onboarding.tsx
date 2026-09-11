@@ -218,7 +218,7 @@ export function ProviderForm({ boot, mode, onSaved, onSkip }: { boot: SettingsRe
               <input type={showKey ? "text" : "password"} value={apiKey} onChange={(event) => { setApiKey(event.target.value); setCatalog(null); setCatalogNotice(null); }} onBlur={() => { if (apiKey.trim().length > 12 && !catalog) void loadModels(); }} autoComplete="off" spellCheck={false} placeholder={keyStored ? "Enter a new key to replace the saved one" : "Paste your API key"} aria-describedby="key-help" />
               <button type="button" className="icon-button" onClick={() => setShowKey((v) => !v)} aria-label={showKey ? "Hide API key" : "Show API key"} aria-pressed={showKey}>{showKey ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}</button>
             </span>
-            <small id="key-help">Keys are encrypted with AES-256-GCM and stored only in your local NitroAI data folder. Get a key at <a href={preset.keyUrl} target="_blank" rel="noreferrer">{preset.keyUrl.replace(/^https?:\/\//, "")}<span className="sr-only"> (opens in a new tab)</span></a>.</small>
+            <small id="key-help">Keys are encrypted with AES-256-GCM and stored only in your local Verity data folder. Get a key at <a href={preset.keyUrl} target="_blank" rel="noreferrer">{preset.keyUrl.replace(/^https?:\/\//, "")}<span className="sr-only"> (opens in a new tab)</span></a>.</small>
           </label>
         )}
 
@@ -238,7 +238,7 @@ export function ProviderForm({ boot, mode, onSaved, onSkip }: { boot: SettingsRe
               <button type="button" className="text-button" onClick={checkOllama} disabled={checkingOllama}><RefreshCw size={14} aria-hidden="true" />Re-check</button>
             </div>
             {ollama && !ollama.running && (
-              <InlineAlert tone="warning">Install Ollama from <a href={preset.keyUrl} target="_blank" rel="noreferrer">ollama.com/download</a>, open it, then re-check. NitroAI never sends data outside this PC when Ollama is selected.</InlineAlert>
+              <InlineAlert tone="warning">Install Ollama from <a href={preset.keyUrl} target="_blank" rel="noreferrer">ollama.com/download</a>, open it, then re-check. Verity never sends data outside this PC when Ollama is selected.</InlineAlert>
             )}
             {ollama?.running && ollama.models.length > 0 && (
               <div className="model-list" aria-label="Installed models">
@@ -362,7 +362,7 @@ export function Onboarding({ boot, onComplete }: { boot: SettingsResponse; onCom
           <span className="hero-mark" aria-hidden="true"><Sparkles size={22} /></span>
           <div>
             <p className="eyebrow">First launch · v{boot.environment.version}</p>
-            <h1 id="onboarding-title">{steps[step] === "Welcome" ? "Welcome to NitroAI" : steps[step]}</h1>
+            <h1 id="onboarding-title">{steps[step] === "Welcome" ? "Welcome to Verity" : steps[step]}</h1>
           </div>
         </header>
         <ol className="onboarding-steps" aria-label="Setup progress">
@@ -376,9 +376,9 @@ export function Onboarding({ boot, onComplete }: { boot: SettingsResponse; onCom
         <div className="onboarding-body">
           {step === 0 && (
             <>
-              <p className="lead">NitroAI is a local-first study workspace. Your notes, collections, embeddings, transcripts, and generated study material are stored on this computer in <code>{boot.environment.dataDir}</code>.</p>
+              <p className="lead">Verity is a local-first study workspace. Your notes, collections, embeddings, transcripts, and generated study material are stored on this computer in <code>{boot.environment.dataDir}</code>.</p>
               <ul className="feature-list">
-                <li><HardDrive size={17} aria-hidden="true" /><span><strong>Everything stays local by default.</strong> There is no NitroAI account, cloud sync, or telemetry endpoint.</span></li>
+                <li><HardDrive size={17} aria-hidden="true" /><span><strong>Everything stays local by default.</strong> There is no Verity account, cloud sync, or telemetry endpoint.</span></li>
                 <li><Cpu size={17} aria-hidden="true" /><span><strong>You choose the AI engine.</strong> Bring a Gemini or Claude key, or run Qwen and other GGUF models fully offline with Ollama or llama.cpp.</span></li>
                 <li><ShieldCheck size={17} aria-hidden="true" /><span><strong>Explicit consent for any transmission.</strong> Note text leaves this PC only when you pick a cloud provider and trigger an AI action.</span></li>
               </ul>
@@ -393,7 +393,7 @@ export function Onboarding({ boot, onComplete }: { boot: SettingsResponse; onCom
           {step === 1 && <ProviderForm boot={boot} mode="onboarding" onSaved={(saved) => { setConfigured(saved); setStep(2); }} onSkip={() => setStep(2)} />}
           {step === 2 && (
             <>
-              <p className="lead">Crash and error diagnostics are <strong>off by default</strong>. If you opt in, NitroAI appends error details to a log file on this computer so you can attach it to a support request. Nothing is uploaded automatically.</p>
+              <p className="lead">Crash and error diagnostics are <strong>off by default</strong>. If you opt in, Verity appends error details to a log file on this computer so you can attach it to a support request. Nothing is uploaded automatically.</p>
               <label className="toggle-row" htmlFor="diagnostics-toggle">
                 <span><strong>Local diagnostics log</strong><small>{boot.environment.logPath}</small></span>
                 <input id="diagnostics-toggle" type="checkbox" role="switch" aria-checked={diagnostics} checked={diagnostics} onChange={(event) => setDiagnostics(event.target.checked)} />
@@ -415,7 +415,7 @@ export function Onboarding({ boot, onComplete }: { boot: SettingsResponse; onCom
               {error && <InlineAlert tone="error">{error}</InlineAlert>}
               <div className="onboarding-actions">
                 <button type="button" className="text-button" onClick={() => setStep(2)}>Back</button>
-                <button type="button" className="primary-button" onClick={finish} disabled={finishing}>{finishing ? "Opening workspace…" : "Open NitroAI"}<ArrowRight size={16} aria-hidden="true" /></button>
+                <button type="button" className="primary-button" onClick={finish} disabled={finishing}>{finishing ? "Opening workspace…" : "Open Verity"}<ArrowRight size={16} aria-hidden="true" /></button>
               </div>
             </>
           )}

@@ -14,6 +14,9 @@ export type ProviderPreset = {
   description: string;
 };
 
+export type ThemeName = "mocha" | "macchiato" | "frappe" | "latte" | "dark" | "light";
+export type FontPreference = "sans" | "mono" | "dyslexic";
+
 export type PublicSettings = {
   id: number;
   provider: Provider;
@@ -27,7 +30,7 @@ export type PublicSettings = {
   privacyConsentAt: string | null;
   providerConsentAt: string | null;
   diagnosticsOptIn: boolean;
-  theme: "dark" | "light";
+  theme: ThemeName;
 };
 
 export type Environment = { desktop: boolean; dataDir: string; database: string; version: string; platform: string; node: string; logPath: string };

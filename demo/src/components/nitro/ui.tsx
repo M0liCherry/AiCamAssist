@@ -22,7 +22,7 @@ export function Modal({ open, title, description, onClose, children, wide = fals
       <section className={`modal-card ${wide ? "modal-card--wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? `${titleId}-desc` : undefined}>
         <div className="modal-head">
           <div>
-            <p className="eyebrow">NitroAI</p>
+            <p className="eyebrow">Verity</p>
             <h2 id={titleId}>{title}</h2>
             {description && <p id={`${titleId}-desc`}>{description}</p>}
           </div>
@@ -135,7 +135,13 @@ export function Spinner({ label }: { label: string }) {
 export function InlineAlert({ tone, children }: { tone: "error" | "success" | "info" | "warning"; children: ReactNode }) {
   return (
     <div className={`inline-alert inline-alert--${tone}`} role={tone === "error" ? "alert" : "status"}>
-      {tone === "success" ? <Check size={15} aria-hidden="true" /> : <Sparkles size={15} aria-hidden="true" />}
+      {tone === "success" ? (
+        <Check size={15} aria-hidden="true" />
+      ) : tone === "error" || tone === "warning" ? (
+        <AlertTriangle size={15} aria-hidden="true" />
+      ) : (
+        <Sparkles size={15} aria-hidden="true" />
+      )}
       <span>{children}</span>
     </div>
   );

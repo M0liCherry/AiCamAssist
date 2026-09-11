@@ -56,13 +56,13 @@ async function exportBundle(db: Database, kind: string, id: number, format: stri
   }
 
   const stamp = new Date().toISOString().slice(0, 10);
-  const base = kind === "all" ? "nitroai-library" : `nitroai-${kind}-${id}`;
+  const base = kind === "all" ? "verity-library" : `verity-${kind}-${id}`;
   if (format === "md") {
     return new Response(markdown.join("\n"), {
       headers: { "content-type": "text/markdown; charset=utf-8", "content-disposition": `attachment; filename="${base}-${stamp}.md"` },
     });
   }
-  return new Response(JSON.stringify({ app: "NitroAI", exportedAt: new Date().toISOString(), subjects: bundle }, null, 2), {
+  return new Response(JSON.stringify({ app: "Verity", exportedAt: new Date().toISOString(), subjects: bundle }, null, 2), {
     headers: { "content-type": "application/json; charset=utf-8", "content-disposition": `attachment; filename="${base}-${stamp}.json"` },
   });
 }

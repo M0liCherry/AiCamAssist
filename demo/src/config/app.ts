@@ -5,9 +5,9 @@
  * time without editing source. Defaults are deliberately explicit about being
  * unconfigured rather than presenting fabricated company information.
  */
-export const APP_NAME = "NitroAI";
+export const APP_NAME = "Verity";
 export const APP_VERSION = "1.0.0";
-export const APP_ID = "com.nitroai.desktop";
+export const APP_ID = "com.verity.desktop";
 
 export type Publisher = {
   name: string;
@@ -19,15 +19,15 @@ export type Publisher = {
 };
 
 export const PUBLISHER: Publisher = {
-  name: process.env.NEXT_PUBLIC_PUBLISHER_NAME || "NitroAI Project (independent developer build)",
+  name: process.env.NEXT_PUBLIC_PUBLISHER_NAME || "Verity Project (independent developer build)",
   legalEntity:
     process.env.NEXT_PUBLIC_PUBLISHER_ENTITY ||
     "No registered legal entity configured — set NEXT_PUBLIC_PUBLISHER_ENTITY before distribution",
   address:
     process.env.NEXT_PUBLIC_PUBLISHER_ADDRESS ||
     "Business address not configured — set NEXT_PUBLIC_PUBLISHER_ADDRESS before distribution",
-  supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@nitroai.example",
-  privacyEmail: process.env.NEXT_PUBLIC_PRIVACY_EMAIL || "privacy@nitroai.example",
+  supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@verity.example",
+  privacyEmail: process.env.NEXT_PUBLIC_PRIVACY_EMAIL || "privacy@verity.example",
   website: process.env.NEXT_PUBLIC_PUBLISHER_WEBSITE || "",
 };
 

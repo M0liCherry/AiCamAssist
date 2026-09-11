@@ -1,18 +1,20 @@
 "use client";
 
-import { Accessibility, ChevronRight, Cpu, Database, Download, HardDrive, Info, Mic, Moon, Palette, RefreshCw, ShieldCheck, Sun, Trash2 } from "lucide-react";
+import { Accessibility, Check, ChevronRight, Cpu, Database, Download, HardDrive, Info, Mic, Moon, Palette, RefreshCw, ShieldCheck, Sun, Trash2 } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { api, downloadFile, errorMessage } from "./client";
 import { ProviderForm } from "./Onboarding";
-import type { PublicSettings, SettingsResponse } from "./types";
+import type { FontPreference, PublicSettings, SettingsResponse } from "./types";
 import { InlineAlert, Modal } from "./ui";
 
-export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify }: {
+export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify, font = "sans", onFontChange }: {
   boot: SettingsResponse;
   onSettings: (settings: PublicSettings) => void;
   onReload: () => Promise<unknown>;
   onTreeChanged: () => Promise<unknown>;
   notify: (text: string, tone?: "success" | "info" | "error") => void;
+  font?: FontPreference;
+  onFontChange: (font: FontPreference) => void;
 }) {
   const { settings, environment, publisher, presets, sttModels } = boot;
   const [eraseOpen, setEraseOpen] = useState(false);
@@ -24,6 +26,12 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
       const data = await api<{ settings: PublicSettings }>("/api/settings", { method: "PUT", json: patch });
       onSettings(data.settings);
       document.documentElement.dataset.theme = data.settings.theme;
+      if (typeof document !== "undefined") {
+        document.body.dataset.theme = data.settings.theme;
+        try {
+          localStorage.setItem("verity_theme", data.settings.theme);
+        } catch {}
+      }
       notify(message);
     } catch (error) {
       notify(errorMessage(error), "error");
@@ -83,7 +91,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
         </section>
 
         <section className="settings-card" aria-labelledby="diag-title">
-          <div className="settings-card-head"><span><ShieldCheck size={20} aria-hidden="true" /></span><div><h2 id="diag-title">Privacy &amp; diagnostics</h2><p>NitroAI has no analytics, tracking, or crash-upload endpoint. Diagnostics, if enabled, are written to a local file only.</p></div></div>
+          <div className="settings-card-head"><span><ShieldCheck size={20} aria-hidden="true" /></span><div><h2 id="diag-title">Privacy &amp; diagnostics</h2><p>Verity has no analytics, tracking, or crash-upload endpoint. Diagnostics, if enabled, are written to a local file only.</p></div></div>
           <label className="toggle-row" htmlFor="diagnostics-setting">
             <span><strong>Local diagnostics log</strong><small>{environment.logPath}</small></span>
             <input id="diagnostics-setting" type="checkbox" role="switch" aria-checked={settings.diagnosticsOptIn} checked={settings.diagnosticsOptIn} onChange={(event) => void update({ diagnosticsOptIn: event.target.checked }, event.target.checked ? "Local diagnostics enabled." : "Diagnostics disabled.")} />
@@ -91,11 +99,73 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
           <p className="help-text">Privacy Policy accepted {settings.privacyConsentAt ? new Date(settings.privacyConsentAt).toLocaleString() : "—"}.{settings.providerConsentAt ? ` API transmission consent given ${new Date(settings.providerConsentAt).toLocaleString()}.` : ""}</p>
         </section>
 
-        <section className="settings-card" aria-labelledby="theme-title">
-          <div className="settings-card-head"><span><Palette size={20} aria-hidden="true" /></span><div><h2 id="theme-title">Appearance</h2><p>High-contrast palettes tested against WCAG 2.1 AA for text and controls.</p></div></div>
-          <button type="button" className="theme-choice" onClick={() => void update({ theme: settings.theme === "dark" ? "light" : "dark" }, "Theme updated.")}>
-            <span>{settings.theme === "dark" ? <Moon size={20} aria-hidden="true" /> : <Sun size={20} aria-hidden="true" />}<span><strong>{settings.theme === "dark" ? "Dark" : "Light"} theme</strong><small>Switch to {settings.theme === "dark" ? "light" : "dark"}</small></span></span><ChevronRight size={18} aria-hidden="true" />
-          </button>
+        <section className="settings-card settings-card--wide" aria-labelledby="theme-title">
+          <div className="settings-card-head"><span><Palette size={20} aria-hidden="true" /></span><div><h2 id="theme-title">Appearance &amp; Themes</h2><p>Catppuccin color palettes and high-legibility typography from the frontend workspace.</p></div></div>
+
+          <div style={{ marginTop: 14 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>Catppuccin theme palette</span>
+            <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--muted)" }}>Select your preferred theme flavor. Applied across the entire application.</p>
+            <div className="theme-grid-selector" role="radiogroup" aria-label="Theme selection">
+              {[
+                { id: "mocha" as const, name: "Mocha (Dark)", accent: "#89b4fa", bg: "#1e1e2e", text: "#cdd6f4" },
+                { id: "macchiato" as const, name: "Macchiato", accent: "#8aadf4", bg: "#24273a", text: "#cad3f5" },
+                { id: "frappe" as const, name: "Frappé", accent: "#8caaee", bg: "#303446", text: "#c6d0f5" },
+                { id: "latte" as const, name: "Latte (Light)", accent: "#1e66f5", bg: "#eff1f5", text: "#4c4f69" },
+              ].map((th) => {
+                const isSelected = settings.theme === th.id || (th.id === "mocha" && settings.theme === "dark") || (th.id === "latte" && settings.theme === "light");
+                return (
+                  <button
+                    type="button"
+                    key={th.id}
+                    className={`theme-card-option ${isSelected ? "active" : ""}`}
+                    onClick={() => void update({ theme: th.id }, `Theme updated to ${th.name}.`)}
+                    style={{ backgroundColor: th.bg, color: th.text, border: isSelected ? "2px solid var(--violet)" : "2px solid var(--line)", outline: "none" }}
+                    role="radio"
+                    aria-checked={isSelected}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                        <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: th.accent, display: "inline-block" }} />
+                        <strong style={{ fontSize: 12.5, color: th.text }}>{th.name}</strong>
+                      </div>
+                      {isSelected && <Check size={14} style={{ color: "var(--violet)", flexShrink: 0 }} aria-hidden="true" />}
+                    </div>
+                    <small style={{ fontSize: 10, opacity: 0.8, color: th.text }}>{isSelected ? "Active theme" : "Click to select"}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ marginTop: 20 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>Typography Font</span>
+            <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--muted)" }}>Choose a typography style suited for code, study, or accessibility.</p>
+            <div className="font-grid-selector" role="radiogroup" aria-label="Font preference">
+              {[
+                { id: "sans" as const, label: "System Sans", preview: "Clean interface typography" },
+                { id: "mono" as const, label: "Developer Monospace", preview: "const verity = true;" },
+                { id: "dyslexic" as const, label: "High Legibility", preview: "Clear reading typography" },
+              ].map((f) => {
+                const isSelected = font === f.id;
+                return (
+                  <button
+                    type="button"
+                    key={f.id}
+                    className={`font-card-option ${isSelected ? "active" : ""}`}
+                    onClick={() => onFontChange(f.id)}
+                    role="radio"
+                    aria-checked={isSelected}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                      <strong style={{ fontSize: 12 }}>{f.label}</strong>
+                      {isSelected && <Check size={14} style={{ color: "var(--violet)" }} aria-hidden="true" />}
+                    </div>
+                    <small style={{ fontSize: 10.5, color: "var(--muted)" }}>{f.preview}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </section>
 
         <section className="settings-card" aria-labelledby="data-title">
@@ -117,7 +187,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
         </section>
 
         <section className="settings-card settings-card--wide" aria-labelledby="about-title">
-          <div className="settings-card-head"><span><Info size={20} aria-hidden="true" /></span><div><h2 id="about-title">About NitroAI</h2><p>Version {environment.version} · Local-first AI study workspace for Windows.</p></div></div>
+          <div className="settings-card-head"><span><Info size={20} aria-hidden="true" /></span><div><h2 id="about-title">About Verity</h2><p>Version {environment.version} · Local-first AI study workspace for Windows.</p></div></div>
           <dl className="data-grid about-grid">
             <div><dt>Publisher</dt><dd>{publisher.name}</dd></div>
             <div><dt>Legal entity</dt><dd>{publisher.legalEntity}</dd></div>
@@ -138,7 +208,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
         </section>
       </div>
 
-      <Modal open={eraseOpen} title="Erase all local data" description="This permanently deletes everything NitroAI stores on this computer and restarts setup." onClose={() => setEraseOpen(false)}>
+      <Modal open={eraseOpen} title="Erase all local data" description="This permanently deletes everything Verity stores on this computer and restarts setup." onClose={() => setEraseOpen(false)}>
         <form className="folder-form" onSubmit={erase}>
           <label className="field"><span>Type ERASE to confirm</span><input value={eraseText} onChange={(event) => setEraseText(event.target.value)} autoComplete="off" /></label>
           <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setEraseOpen(false)}>Cancel</button><button type="submit" className="primary-button danger" disabled={eraseText !== "ERASE" || busy === "erase"}>{busy === "erase" ? "Erasing…" : "Erase everything"}</button></div>

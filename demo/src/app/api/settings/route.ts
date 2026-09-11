@@ -84,7 +84,8 @@ export async function PUT(request: NextRequest) {
       }
       patch.onboardingComplete = body.onboardingComplete;
     }
-    if (body.theme === "dark" || body.theme === "light") patch.theme = body.theme;
+    const validThemes = ["mocha", "macchiato", "frappe", "latte", "dark", "light"];
+    if (typeof body.theme === "string" && validThemes.includes(body.theme)) patch.theme = body.theme;
 
     const [updated] = await db.update(settings).set(patch).where(eq(settings.id, current.id)).returning();
     setDiagnostics(updated.diagnosticsOptIn);

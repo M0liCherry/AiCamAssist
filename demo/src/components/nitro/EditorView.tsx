@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, AtSign, Bot, Check, Clock3, Edit3, Eraser, FileText, FolderInput, History, PanelRightClose, PanelRightOpen, RefreshCw, Save, Send, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, AtSign, Bold, Bot, Check, Clock3, Code, Edit3, Eraser, FileText, FolderInput, Heading1, Heading2, History, Italic, List, PanelRightClose, PanelRightOpen, Quote, RefreshCw, Save, Send, ShieldCheck, Sparkles, Table, Trash2, X } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage, formatDate } from "./client";
 import type { ChatMsg, Citation, NoteFull, NoteSummary, Scope, Subject } from "./types";
@@ -133,11 +133,26 @@ export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiRea
     }
   };
 
+  const insertSyntax = (prefix: string, suffix = "") => {
+    const textarea = document.getElementById("document-textarea") as HTMLTextAreaElement | null;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = content.substring(start, end);
+    const replacement = `${prefix}${selected || "text"}${suffix}`;
+    const nextContent = content.substring(0, start) + replacement + content.substring(end);
+    setContent(nextContent);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + prefix.length, end + prefix.length);
+    }, 10);
+  };
+
   if (!noteId || (!loading && !note)) {
     return (
       <main className="study-view page-enter" aria-labelledby="editor-empty-title">
         <h1 id="editor-empty-title" className="sr-only">Document editor</h1>
-        <EmptyState icon={<FileText size={28} />} title="Open a note to start editing" copy={scopeNotes.length ? "Choose one of the notes in the current scope below, or pick another from the Notes hub." : "Import or create a note in the Notes hub, then it will open here with the Nitro assistant beside it."} action={<button type="button" className="primary-button" onClick={onBack}><ArrowLeft size={15} aria-hidden="true" />Go to Notes hub</button>} />
+        <EmptyState icon={<FileText size={28} />} title="Open a note to start editing" copy={scopeNotes.length ? "Choose one of the notes in the current scope below, or pick another from the Notes hub." : "Import or create a note in the Notes hub, then it will open here with the Verity assistant beside it."} action={<button type="button" className="primary-button" onClick={onBack}><ArrowLeft size={15} aria-hidden="true" />Go to Notes hub</button>} />
         {scopeNotes.length > 0 && (
           <ul className="notes-list compact-list" aria-label="Notes in current scope">
             {scopeNotes.map((item) => <li className="note-row" key={item.id}><button type="button" className="note-open" onClick={() => onOpenNote(item.id, item.chapterId)}><span className="note-icon" aria-hidden="true"><FileText size={16} /></span><span className="note-meta"><strong>{item.title}</strong><small>{item.wordCount.toLocaleString()} words · {item.sourceType}</small></span></button></li>)}
@@ -174,7 +189,7 @@ export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiRea
             { label: "Re-index for search", icon: <RefreshCw size={14} aria-hidden="true" />, onSelect: () => void api("/api/notes", { method: "POST", json: { action: "reindex", noteId } }).then(() => { notify("Note re-indexed."); void loadNote(); }).catch((error) => notify(errorMessage(error), "error")) },
             { label: "Delete note", icon: <Trash2 size={14} aria-hidden="true" />, danger: true, onSelect: () => void deleteNote() },
           ]} />
-          <button type="button" className="icon-button panel-toggle" onClick={() => setAssistantOpen((value) => !value)} aria-label={assistantOpen ? "Close Nitro assistant" : "Open Nitro assistant"} aria-expanded={assistantOpen}>{assistantOpen ? <PanelRightClose size={19} aria-hidden="true" /> : <PanelRightOpen size={19} aria-hidden="true" />}</button>
+          <button type="button" className="icon-button panel-toggle" onClick={() => setAssistantOpen((value) => !value)} aria-label={assistantOpen ? "Close Verity assistant" : "Open Verity assistant"} aria-expanded={assistantOpen}>{assistantOpen ? <PanelRightClose size={19} aria-hidden="true" /> : <PanelRightOpen size={19} aria-hidden="true" />}</button>
         </div>
       </header>
 
@@ -182,7 +197,7 @@ export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiRea
         <main className="document-panel" aria-label="Document editor" aria-busy={loading}>
           <div className="doc-context-bar">
             <span><Sparkles size={14} aria-hidden="true" /> {note ? `${note.subjectName} › ${note.chapterName}` : ""}</span>
-            <span>{note ? `${note.wordCount.toLocaleString()} words` : ""}</span>
+            <span>{note ? `${note.wordCount.toLocaleString()} words · ~${Math.max(1, Math.ceil((note.wordCount || 100) / 200))} min read` : ""}</span>
           </div>
           {summaryError ? <div className="doc-alert"><AiErrorAlert error={summaryError} onRetry={() => void summarize()} onConfigure={onConfigureAi} /></div> : null}
           {note?.summary && !editing && (
@@ -192,11 +207,24 @@ export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiRea
             </section>
           )}
           {editing ? (
-            <label className="document-textarea-label">
-              <span className="sr-only">Edit Markdown note content</span>
-              <textarea value={content} onChange={(event) => setContent(event.target.value)} spellCheck aria-describedby="markdown-help" />
-              <small id="markdown-help">Markdown supported (# headings, - lists, **bold**). Ctrl+S saves and rebuilds the search index.</small>
-            </label>
+            <div style={{ display: "flex", flexDirection: "column", height: "calc(100% - 47px)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 3, width: "min(820px, calc(100% - 60px))", margin: "14px auto 0", padding: "5px 8px", backgroundColor: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10 }}>
+                <button type="button" className="icon-button" style={{ width: 28, height: 28 }} onClick={() => insertSyntax("**", "**")} title="Bold"><Bold size={13} /></button>
+                <button type="button" className="icon-button" style={{ width: 28, height: 28 }} onClick={() => insertSyntax("*", "*")} title="Italic"><Italic size={13} /></button>
+                <button type="button" className="icon-button" style={{ width: 28, height: 28 }} onClick={() => insertSyntax("# ")} title="Heading 1"><Heading1 size={13} /></button>
+                <button type="button" className="icon-button" style={{ width: 28, height: 28 }} onClick={() => insertSyntax("## ")} title="Heading 2"><Heading2 size={13} /></button>
+                <div style={{ width: 1, height: 16, backgroundColor: "var(--line-strong)", margin: "0 4px" }} />
+                <button type="button" className="icon-button" style={{ width: 28, height: 28 }} onClick={() => insertSyntax("> ")} title="Quote"><Quote size={13} /></button>
+                <button type="button" className="icon-button" style={{ width: 28, height: 28 }} onClick={() => insertSyntax("```\n", "\n```")} title="Code Block"><Code size={13} /></button>
+                <button type="button" className="icon-button" style={{ width: 28, height: 28 }} onClick={() => insertSyntax("- ")} title="Bullet List"><List size={13} /></button>
+                <button type="button" className="icon-button" style={{ width: 28, height: 28 }} onClick={() => insertSyntax("| Col 1 | Col 2 |\n|---|---|\n| Val 1 | Val 2 |\n")} title="Table"><Table size={13} /></button>
+              </div>
+              <label className="document-textarea-label" style={{ paddingTop: 10 }}>
+                <span className="sr-only">Edit Markdown note content</span>
+                <textarea id="document-textarea" value={content} onChange={(event) => setContent(event.target.value)} spellCheck aria-describedby="markdown-help" />
+                <small id="markdown-help">Markdown supported (# headings, - lists, **bold**). Ctrl+S saves and rebuilds the search index.</small>
+              </label>
+            </div>
           ) : (
             <MarkdownDocument content={content || "_This note is empty. Switch to Edit to add content._"} />
           )}
@@ -306,15 +334,15 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
     setRefs((current) => (current.some((r) => r.id === item.id) ? current : [...current, item]));
     setDraft((value) => value.replace(/(^|\s)@[\w-]*$/, "$1"));
     setMentionOpen(false);
-    document.getElementById("nitro-question")?.focus();
+    document.getElementById("verity-question")?.focus();
   };
   const mentionCandidates = scopeNotes.filter((item) => !refs.some((r) => r.id === item.id)).slice(0, 8);
 
   return (
-    <aside className="assistant-panel" aria-label="Nitro AI assistant">
+    <aside className="assistant-panel" aria-label="Verity assistant">
       <div className="assistant-head">
-        <span className="nitro-orb" aria-hidden="true"><Sparkles size={17} /></span>
-        <div><strong>Nitro</strong><small><span className={`status-dot ${aiReady ? "ok" : "bad"}`} aria-hidden="true" /> {aiReady ? providerName : "No AI backend"}</small></div>
+        <span className="verity-orb" aria-hidden="true"><Sparkles size={17} /></span>
+        <div><strong>Verity</strong><small><span className={`status-dot ${aiReady ? "ok" : "bad"}`} aria-hidden="true" /> {aiReady ? providerName : "No AI backend"}</small></div>
         <button type="button" className="text-button" onClick={clear} disabled={!messages.length} aria-label="Clear conversation"><Eraser size={14} aria-hidden="true" /></button>
         <button type="button" className="icon-button assistant-close" onClick={onClose} aria-label="Close assistant"><X size={17} aria-hidden="true" /></button>
       </div>
@@ -329,14 +357,14 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
         {!messages.length && (
           <div className="assistant-intro">
             <span aria-hidden="true"><Bot size={24} /></span>
-            <h2>Hey, I’m Nitro</h2>
+            <h2>Hey, I’m Verity</h2>
             <p>Ask about anything in {scope.scopeType === "chapter" ? "this chapter" : "this subject"}. I answer from your notes and cite the passages I used. Type @ to pin specific notes.</p>
             {!aiReady && <button type="button" className="secondary-button compact" onClick={onConfigureAi}><Sparkles size={14} aria-hidden="true" />Connect an AI backend</button>}
           </div>
         )}
         {messages.map((message) => (
           <div className={`chat-message chat-message--${message.role}`} key={message.id}>
-            <span className="message-avatar" aria-label={message.role === "assistant" ? "Nitro" : "You"}>{message.role === "assistant" ? <Sparkles size={14} aria-hidden="true" /> : "Y"}</span>
+            <span className="message-avatar" aria-label={message.role === "assistant" ? "Verity" : "You"}>{message.role === "assistant" ? <Sparkles size={14} aria-hidden="true" /> : "Y"}</span>
             <div className="message-body">
               {message.role === "assistant" ? <MarkdownDocument content={message.content} compact onCite={(n) => setOpenSource({ messageId: message.id, n })} /> : <p>{message.content}</p>}
               {message.citations.length > 0 && (
@@ -353,7 +381,7 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
             </div>
           </div>
         ))}
-        {sending && <div className="chat-message chat-message--assistant"><span className="message-avatar" aria-hidden="true"><Sparkles size={14} /></span><div className="message-body"><p className="thinking"><Spinner label="Nitro is reading your notes…" /></p></div></div>}
+        {sending && <div className="chat-message chat-message--assistant"><span className="message-avatar" aria-hidden="true"><Sparkles size={14} /></span><div className="message-body"><p className="thinking"><Spinner label="Verity is reading your notes…" /></p></div></div>}
       </div>
       <form className="assistant-composer" onSubmit={send}>
         {mentionOpen && mentionCandidates.length > 0 && (
@@ -363,8 +391,8 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
           </div>
         )}
         {refs.length > 0 && <div className="ref-chips" aria-label="Pinned notes">{refs.map((item) => <span className="mention-chip" key={item.id}>@{item.title}<button type="button" onClick={() => setRefs((current) => current.filter((r) => r.id !== item.id))} aria-label={`Remove ${item.title}`}><X size={12} aria-hidden="true" /></button></span>)}</div>}
-        <label htmlFor="nitro-question" className="sr-only">Ask Nitro a question</label>
-        <textarea id="nitro-question" value={draft} onChange={(event) => onDraftChange(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void ask(draft.trim(), refs.map((r) => r.id)); } if (event.key === "Escape") setMentionOpen(false); }} placeholder={aiReady ? "Ask about your notes… type @ to reference a note" : "Connect an AI backend in Settings to chat"} rows={2} disabled={sending} />
+        <label htmlFor="verity-question" className="sr-only">Ask Verity a question</label>
+        <textarea id="verity-question" value={draft} onChange={(event) => onDraftChange(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void ask(draft.trim(), refs.map((r) => r.id)); } if (event.key === "Escape") setMentionOpen(false); }} placeholder={aiReady ? "Ask about your notes… type @ to reference a note" : "Connect an AI backend in Settings to chat"} rows={2} disabled={sending} />
         <AiErrorAlert error={error} onRetry={lastQuestion.current ? retryLast : undefined} onConfigure={onConfigureAi} />
         <div className="composer-actions">
           <div>

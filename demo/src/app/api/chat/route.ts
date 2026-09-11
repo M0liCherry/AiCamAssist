@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     const [assistantRow] = await db.insert(chatMessages).values({ scopeType: scope.scopeType, scopeId: scope.scopeId, role: "assistant", content: answer, citations }).returning();
     return ok({ messages: [userRow, assistantRow] });
   } catch (error) {
-    return fail(error, "Nitro could not answer right now.");
+    return fail(error, "Verity could not answer right now.");
   }
 }
 
