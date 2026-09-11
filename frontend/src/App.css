@@ -531,7 +531,8 @@ header.top-header {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow-y: auto;
+  overflow: visible;
+  flex: 1;
 }
 
 .doc-row {
@@ -548,6 +549,7 @@ header.top-header {
               box-shadow 0.2s ease;
   cursor: pointer;
   position: relative;
+  z-index: 1;
 }
 
 .doc-row:hover {
@@ -555,6 +557,14 @@ header.top-header {
   background-color: var(--ctp-surface0);
   transform: translateX(4px);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  z-index: 2;
+}
+
+.doc-row.active-menu,
+.doc-row:has(.context-menu) {
+  z-index: 100 !important;
+  border-color: var(--ctp-blue);
+  background-color: var(--ctp-surface0);
 }
 
 .doc-info-title {
@@ -618,13 +628,19 @@ header.top-header {
   border-radius: 6px;
   padding: 4px;
   min-width: 170px;
-  z-index: 50;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   display: flex;
   flex-direction: column;
   gap: 2px;
   animation: dropdownSlide 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   transform-origin: top right;
+}
+
+.context-menu.menu-up {
+  top: auto;
+  bottom: 100%;
+  transform-origin: bottom right;
 }
 
 .menu-item {

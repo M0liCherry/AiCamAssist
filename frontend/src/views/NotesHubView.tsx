@@ -49,16 +49,18 @@ export const NotesHubView: React.FC = () => {
 
   const [openNewMenu, setOpenNewMenu] = useState(false)
   const [activeMenuNoteId, setActiveMenuNoteId] = useState<string | null>(null)
+  const [menuDirection, setMenuDirection] = useState<'down' | 'up'>('down')
   const newMenuRef = useRef<HTMLDivElement>(null)
   const docMenuRef = useRef<HTMLDivElement>(null)
 
   // Close menus on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (newMenuRef.current && !newMenuRef.current.contains(e.target as HTMLElement)) {
+      const target = e.target as HTMLElement
+      if (newMenuRef.current && !newMenuRef.current.contains(target)) {
         setOpenNewMenu(false)
       }
-      if (docMenuRef.current && !docMenuRef.current.contains(e.target as HTMLElement)) {
+      if (!target.closest('.context-menu') && !target.closest('.dots-btn')) {
         setActiveMenuNoteId(null)
       }
     }
@@ -439,9 +441,8 @@ export const NotesHubView: React.FC = () => {
               return (
                 <div
                   key={note.id}
-                  className="doc-row"
+                  className={`doc-row ${activeMenuNoteId === note.id ? 'active-menu' : ''}`}
                   onClick={() => openNoteInEditor(note.id)}
-                  title="Open note in editor"
                 >
                   <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
                     <div className="doc-info-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -499,7 +500,14 @@ export const NotesHubView: React.FC = () => {
                       className="dots-btn"
                       onClick={(e) => {
                         e.stopPropagation()
-                        setActiveMenuNoteId(activeMenuNoteId === note.id ? null : note.id)
+                        if (activeMenuNoteId === note.id) {
+                          setActiveMenuNoteId(null)
+                        } else {
+                          const rect = e.currentTarget.getBoundingClientRect()
+                          const spaceBelow = window.innerHeight - rect.bottom
+                          setMenuDirection(spaceBelow < 260 && rect.top > 260 ? 'up' : 'down')
+                          setActiveMenuNoteId(note.id)
+                        }
                       }}
                       title="More Actions"
                     >
@@ -507,7 +515,13 @@ export const NotesHubView: React.FC = () => {
                     </button>
 
                     {activeMenuNoteId === note.id && (
-                      <div className="context-menu" style={{ right: 0, top: 28 }}>
+                      <div
+                        className={`context-menu ${menuDirection === 'up' ? 'menu-up' : ''}`}
+                        style={{
+                          right: 0,
+                          ...(menuDirection === 'up' ? { bottom: 28, top: 'auto' } : { top: 28 })
+                        }}
+                      >
                         <button
                           className="menu-item"
                           onClick={() => {
