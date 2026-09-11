@@ -8,26 +8,30 @@ import {
   IconCards,
   IconHelpCircle,
   IconSettings,
-  IconUser
+  IconUser,
+  IconShield
 } from './icons'
 
 export const Sidebar: React.FC = () => {
-  const { activeView, setActiveView, setIsUserProfileOpen } = useNotes()
+  const { activeView, setActiveView, setIsUserProfileOpen, notes, flashcards, quizzes, podcasts } = useNotes()
 
-  const navItems: { view: ActiveView; label: string; icon: React.ReactNode }[] = [
-    { view: 'hub', label: 'Notes Hub', icon: <IconFolder size={15} /> },
+  const navItems: { view: ActiveView; label: string; icon: React.ReactNode; badge?: number }[] = [
+    { view: 'hub', label: 'Notes Hub', icon: <IconFolder size={15} />, badge: notes.length },
     { view: 'editor', label: 'Document Editor', icon: <IconEdit size={15} /> },
-    { view: 'podcasts', label: 'Podcasts', icon: <IconHeadphones size={15} /> },
-    { view: 'flashcards', label: 'Flashcards', icon: <IconCards size={15} /> },
-    { view: 'quizzes', label: 'Quizzes', icon: <IconHelpCircle size={15} /> }
+    { view: 'podcasts', label: 'Podcasts', icon: <IconHeadphones size={15} />, badge: podcasts.length },
+    { view: 'flashcards', label: 'Flashcards', icon: <IconCards size={15} />, badge: flashcards.length },
+    { view: 'quizzes', label: 'Quizzes', icon: <IconHelpCircle size={15} />, badge: quizzes.length }
   ]
 
   return (
     <aside>
       <div>
-        <div className="brand" onClick={() => setActiveView('hub')} title="Verity">
+        <div className="brand" onClick={() => setActiveView('hub')} title="Verity - Local Study Workspace">
           <div className="brand-logo">V</div>
-          <div className="brand-name">Verity</div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div className="brand-name">Verity</div>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: 0.3 }}>STUDY WORKSPACE</span>
+          </div>
         </div>
 
         <div className="nav-section">
@@ -41,7 +45,21 @@ export const Sidebar: React.FC = () => {
                 onClick={() => setActiveView(item.view)}
               >
                 <span className="nav-icon">{item.icon}</span>
-                <span>{item.label}</span>
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {typeof item.badge === 'number' && (
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 600,
+                      padding: '1px 6px',
+                      borderRadius: 10,
+                      backgroundColor: isActive ? 'var(--ctp-blue)' : 'var(--ctp-crust)',
+                      color: isActive ? 'var(--ctp-crust)' : 'var(--text-muted)'
+                    }}
+                  >
+                    {item.badge}
+                  </span>
+                )}
               </button>
             )
           })}
@@ -49,7 +67,7 @@ export const Sidebar: React.FC = () => {
       </div>
 
       <div>
-        <div className="nav-section" style={{ marginBottom: 16 }}>
+        <div className="nav-section" style={{ marginBottom: 12 }}>
           <button
             className={`nav-item ${activeView === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveView('settings')}
@@ -64,14 +82,16 @@ export const Sidebar: React.FC = () => {
         <div
           className="user-profile"
           onClick={() => setIsUserProfileOpen(true)}
-          title="User Workspace"
+          title="User Workspace & Offline Status"
         >
           <div className="avatar">
             <IconUser size={15} />
           </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>Local User</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>v1.0.0</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600 }}>Local User</div>
+            <div style={{ fontSize: 10.5, color: 'var(--ctp-green)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <IconShield size={11} /> 100% Offline
+            </div>
           </div>
         </div>
       </div>

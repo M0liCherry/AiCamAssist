@@ -1,6 +1,15 @@
 import React, { useState } from 'react'
 import { useNotes } from '../context/NotesContext'
 import type { QuizQuestion } from '../types'
+import {
+  IconGraduationCap,
+  IconTrophy,
+  IconHelpCircle,
+  IconX,
+  IconChevronRight,
+  IconPlus,
+  IconRotateCcw
+} from '../components/icons'
 
 export const QuizzesView: React.FC = () => {
   const { quizzes, subjects, addQuizQuestion, showToast } = useNotes()
@@ -38,7 +47,7 @@ export const QuizzesView: React.FC = () => {
       setScore((prev) => prev + 1)
       showToast('Correct! Well done.', 'success')
     } else {
-      showToast('Incorrect answer.', 'warn')
+      showToast('Incorrect answer. Review explanation below.', 'warn')
     }
   }
 
@@ -66,11 +75,11 @@ export const QuizzesView: React.FC = () => {
     if (!newQuestion.trim() || options.some((o) => !o.trim())) return
 
     addQuizQuestion({
-      subjectId: newSubjectId,
+      subjectId: newSubjectId || subjects[0]?.id || '',
       question: newQuestion.trim(),
       options: [...options],
       correctAnswerIndex: correctIdx,
-      explanation: explanation.trim() || 'Verified by domain principles.'
+      explanation: explanation.trim() || 'Verified by core engineering principles.'
     })
 
     setNewQuestion('')
@@ -83,10 +92,11 @@ export const QuizzesView: React.FC = () => {
     <div className="content-body">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-main)' }}>
-            ❓ Interactive Quizzes
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <IconGraduationCap size={20} style={{ color: 'var(--ctp-blue)' }} />
+            <span>Interactive Quizzes</span>
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13.5, marginTop: 2 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>
             Evaluate and reinforce your conceptual understanding with instant feedback.
           </p>
         </div>
@@ -110,23 +120,38 @@ export const QuizzesView: React.FC = () => {
           </select>
 
           <button className="btn-primary" onClick={() => setShowAddModal(true)}>
-            + Add Question
+            <IconPlus size={13} />
+            <span>Add Question</span>
           </button>
         </div>
       </div>
 
       {quizFinished ? (
-        <div className="quiz-card" style={{ textAlign: 'center', padding: '40px 20px' }}>
-          <div style={{ fontSize: 44 }}>🏆</div>
-          <h3 style={{ fontSize: 24, fontWeight: 700, marginTop: 10 }}>Quiz Completed!</h3>
-          <p style={{ color: 'var(--text-muted)', marginTop: 4 }}>
+        <div className="quiz-card" style={{ textAlign: 'center', padding: '40px 20px', alignItems: 'center' }}>
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: '50%',
+              backgroundColor: 'var(--ctp-surface0)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--ctp-yellow)'
+            }}
+          >
+            <IconTrophy size={36} />
+          </div>
+          <h3 style={{ fontSize: 22, fontWeight: 700, marginTop: 10 }}>Quiz Completed!</h3>
+          <p style={{ color: 'var(--text-muted)', marginTop: 2, fontSize: 13 }}>
             You scored {score} out of {filteredQuizzes.length} (
             {Math.round((score / Math.max(1, filteredQuizzes.length)) * 100)}%)
           </p>
 
-          <div style={{ marginTop: 24, display: 'flex', justifyContent: 'center', gap: 12 }}>
+          <div style={{ marginTop: 18, display: 'flex', justifyContent: 'center', gap: 12 }}>
             <button className="btn-primary" onClick={handleRestart}>
-              Retake Quiz
+              <IconRotateCcw size={13} />
+              <span>Retake Quiz</span>
             </button>
           </div>
         </div>
@@ -136,10 +161,12 @@ export const QuizzesView: React.FC = () => {
             <span className="badge">
               Question {currentIdx + 1} of {filteredQuizzes.length}
             </span>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Score: {score}</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
+              Current Score: {score}
+            </span>
           </div>
 
-          <h3 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-main)', lineHeight: 1.5 }}>
+          <h3 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-main)', lineHeight: 1.5 }}>
             {currentQ.question}
           </h3>
 
@@ -166,14 +193,14 @@ export const QuizzesView: React.FC = () => {
                 >
                   <span
                     style={{
-                      width: 26,
-                      height: 26,
+                      width: 24,
+                      height: 24,
                       borderRadius: '50%',
                       background: 'rgba(255,255,255,0.08)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: 700
                     }}
                   >
@@ -192,23 +219,25 @@ export const QuizzesView: React.FC = () => {
                 borderRadius: 8,
                 background:
                   selectedOption === currentQ.correctAnswerIndex
-                    ? 'rgba(16, 185, 129, 0.1)'
-                    : 'rgba(244, 63, 94, 0.1)',
+                    ? 'rgba(166, 227, 161, 0.1)'
+                    : 'rgba(243, 139, 168, 0.1)',
                 border: `1px solid ${
                   selectedOption === currentQ.correctAnswerIndex
-                    ? 'rgba(16, 185, 129, 0.3)'
-                    : 'rgba(244, 63, 94, 0.3)'
+                    ? 'rgba(166, 227, 161, 0.3)'
+                    : 'rgba(243, 139, 168, 0.3)'
                 }`,
                 fontSize: 13,
                 lineHeight: 1.5
               }}
             >
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>Explanation:</div>
-              <div style={{ color: '#E2E8F0' }}>{currentQ.explanation}</div>
+              <div style={{ fontWeight: 600, marginBottom: 4, color: selectedOption === currentQ.correctAnswerIndex ? 'var(--ctp-green)' : 'var(--ctp-red)' }}>
+                {selectedOption === currentQ.correctAnswerIndex ? 'Correct Answer' : 'Explanation:'}
+              </div>
+              <div style={{ color: 'var(--text-main)' }}>{currentQ.explanation}</div>
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
             {!isAnswerChecked ? (
               <button
                 className="btn-primary"
@@ -219,14 +248,39 @@ export const QuizzesView: React.FC = () => {
               </button>
             ) : (
               <button className="btn-primary" onClick={handleNext}>
-                {currentIdx < filteredQuizzes.length - 1 ? 'Next Question ▶' : 'View Results 🏆'}
+                {currentIdx < filteredQuizzes.length - 1 ? (
+                  <>
+                    <span>Next Question</span>
+                    <IconChevronRight size={13} />
+                  </>
+                ) : (
+                  <>
+                    <IconTrophy size={13} />
+                    <span>View Results</span>
+                  </>
+                )}
               </button>
             )}
           </div>
         </div>
       ) : (
         <div className="empty-state-box" style={{ padding: '60px 20px' }}>
-          <div style={{ fontSize: 32 }}>❓</div>
+          <div className="empty-state-icon">
+            <div
+              style={{
+                width: 54,
+                height: 54,
+                borderRadius: '50%',
+                backgroundColor: 'var(--ctp-surface0)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--ctp-blue)'
+              }}
+            >
+              <IconHelpCircle size={28} />
+            </div>
+          </div>
           <div className="empty-state-title">No Quizzes Available</div>
           <div className="empty-state-desc">
             Generate quizzes from your notes or create a new question manually.
@@ -236,7 +290,8 @@ export const QuizzesView: React.FC = () => {
             style={{ marginTop: 8 }}
             onClick={() => setShowAddModal(true)}
           >
-            + Create Question
+            <IconPlus size={13} />
+            <span>Create Question</span>
           </button>
         </div>
       )}
@@ -246,9 +301,12 @@ export const QuizzesView: React.FC = () => {
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>❓ Add Quiz Question</h2>
-              <button className="modal-close-btn" onClick={() => setShowAddModal(false)}>
-                ✕
+              <h2>
+                <IconHelpCircle size={18} style={{ color: 'var(--ctp-blue)' }} />
+                <span>Add Quiz Question</span>
+              </h2>
+              <button className="modal-close-btn" onClick={() => setShowAddModal(false)} title="Close">
+                <IconX size={16} />
               </button>
             </div>
 
@@ -280,15 +338,16 @@ export const QuizzesView: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Answer Options</label>
+                <label className="form-label">Answer Options (Select the correct radio)</label>
                 {options.map((opt, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                     <input
                       type="radio"
                       name="correctOption"
                       checked={correctIdx === i}
                       onChange={() => setCorrectIdx(i)}
                       title="Mark as correct answer"
+                      style={{ accentColor: 'var(--ctp-blue)', cursor: 'pointer' }}
                     />
                     <input
                       className="form-input"

@@ -67,6 +67,7 @@ interface NotesContextType {
 
   // Note CRUD
   createBlankNote: () => void
+  createNote: (title: string, subjectId?: string, chapterId?: string) => string
   openNoteInEditor: (id: string) => void
   updateNote: (id: string, updates: Partial<Note>) => void
   saveCurrentNote: (note: Note) => void
@@ -101,15 +102,31 @@ interface NotesContextType {
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined)
 
-const STORAGE_KEY = 'verity_notes_v3'
+const STORAGE_KEY = 'verity_notes_v4'
 
 export const NotesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Load initial from localStorage or defaults
   const loadSavedData = () => {
     try {
+      // Clear legacy storage key containing pre-made mock data
+      localStorage.removeItem('verity_notes_v3')
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
-        return JSON.parse(saved)
+        const parsed = JSON.parse(saved)
+        if (parsed && typeof parsed === 'object') {
+          return {
+            subjects: Array.isArray(parsed.subjects) ? parsed.subjects : initialSubjects,
+            chapters: Array.isArray(parsed.chapters) ? parsed.chapters : initialChapters,
+            notes: Array.isArray(parsed.notes) ? parsed.notes : initialNotes,
+            flashcards: Array.isArray(parsed.flashcards) ? parsed.flashcards : initialFlashcards,
+            quizzes: Array.isArray(parsed.quizzes) ? parsed.quizzes : initialQuizzes,
+            podcasts: Array.isArray(parsed.podcasts) ? parsed.podcasts : initialPodcasts,
+            settings: parsed.settings || defaultSettings,
+            activeSubjectId: parsed.activeSubjectId || '',
+            activeChapterId: parsed.activeChapterId || '',
+            activeNoteId: parsed.activeNoteId || null
+          }
+        }
       }
     } catch (e) {
       console.warn('Could not read from localStorage', e)
@@ -129,13 +146,13 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const [activeView, setActiveView] = useState<ActiveView>('hub')
   const [activeSubjectId, setActiveSubjectId] = useState<string>(
-    savedData?.activeSubjectId || (savedData?.subjects?.[0]?.id ?? '')
+    savedData?.activeSubjectId || (subjects[0]?.id ?? '')
   )
   const [activeChapterId, setActiveChapterId] = useState<string>(
-    savedData?.activeChapterId || (savedData?.chapters?.[0]?.id ?? '')
+    savedData?.activeChapterId || (chapters[0]?.id ?? '')
   )
   const [activeNoteId, setActiveNoteId] = useState<string | null>(
-    savedData?.activeNoteId || (savedData?.notes?.[0]?.id ?? null)
+    savedData?.activeNoteId || (notes[0]?.id ?? null)
   )
   const [filterMode, setFilterMode] = useState<FilterMode>('chapter')
   const [searchQuery, setSearchQuery] = useState<string>('')
@@ -213,36 +230,58 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setNewItemType(null)
   }
 
-  const createBlankNote = () => {
-    let targetSubject = activeSubjectId
-    let targetChapter = activeChapterId
+  const ensureSubjectAndChapter = (
+    subjectId?: string,
+    chapterId?: string,
+    defaultChapName = 'Notes'
+  ): { subId: string; chapId: string } => {
+    let targetSubject = subjectId || activeSubjectId
+    let targetChapter = chapterId || activeChapterId
 
     if (!targetSubject || !subjects.some((s) => s.id === targetSubject)) {
       if (subjects.length === 0) {
         const subId = `sub-${Date.now()}`
         const chapId = `chap-${Date.now()}`
-        const newSub: Subject = { id: subId, name: 'General' }
-        const newChap: Chapter = { id: chapId, subjectId: subId, name: 'Notes' }
+        const newSub: Subject = { id: subId, name: 'General', icon: 'Folder' }
+        const newChap: Chapter = { id: chapId, subjectId: subId, name: defaultChapName }
         setSubjects([newSub])
         setChapters([newChap])
-        targetSubject = subId
-        targetChapter = chapId
         setActiveSubjectId(subId)
         setActiveChapterId(chapId)
+        return { subId, chapId }
       } else {
         targetSubject = subjects[0].id
         const chap = chapters.find((c) => c.subjectId === targetSubject)
         targetChapter = chap ? chap.id : ''
         setActiveSubjectId(targetSubject)
         if (targetChapter) setActiveChapterId(targetChapter)
+        return { subId: targetSubject, chapId: targetChapter }
       }
     }
+
+    if (!targetChapter || !chapters.some((c) => c.id === targetChapter && c.subjectId === targetSubject)) {
+      const foundChap = chapters.find((c) => c.subjectId === targetSubject)
+      if (foundChap) {
+        targetChapter = foundChap.id
+      } else {
+        const newChapId = `chap-${Date.now()}`
+        const newChap: Chapter = { id: newChapId, subjectId: targetSubject, name: defaultChapName }
+        setChapters((prev) => [...prev, newChap])
+        targetChapter = newChapId
+      }
+    }
+
+    return { subId: targetSubject, chapId: targetChapter }
+  }
+
+  const createBlankNote = () => {
+    const { subId, chapId } = ensureSubjectAndChapter(activeSubjectId, activeChapterId, 'Notes')
 
     const newNote: Note = {
       id: `note-${Date.now()}`,
       title: 'Untitled Note',
-      subjectId: targetSubject,
-      chapterId: targetChapter,
+      subjectId: subId,
+      chapterId: chapId,
       badge: 'draft',
       updatedAt: 'Just now',
       wordCount: 0,
@@ -254,6 +293,31 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setActiveNoteId(newNote.id)
     setActiveView('editor')
     showToast('Created new note', 'success')
+  }
+
+  const createNote = (title: string, subjectId?: string, chapterId?: string): string => {
+    const { subId, chapId } = ensureSubjectAndChapter(subjectId, chapterId, 'Notes')
+
+    const noteId = `note-${Date.now()}`
+    const newNote: Note = {
+      id: noteId,
+      title: title.trim() || 'Untitled Note',
+      subjectId: subId,
+      chapterId: chapId,
+      badge: 'document',
+      updatedAt: 'Just now',
+      wordCount: 0,
+      tags: [],
+      content: `# ${title.trim() || 'Untitled Note'}\n\nStart writing your note content...`
+    }
+
+    setNotes((prev) => [newNote, ...prev])
+    setActiveNoteId(noteId)
+    setActiveSubjectId(subId)
+    setActiveChapterId(chapId)
+    setActiveView('editor')
+    showToast(`Created note "${newNote.title}"`, 'success')
+    return noteId
   }
 
   const openNoteInEditor = (id: string) => {
@@ -321,7 +385,7 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const newSub: Subject = {
       id: newId,
       name: trimmed,
-      icon: '📂'
+      icon: 'Folder'
     }
     const defaultChap: Chapter = {
       id: `chap-${Date.now()}`,
@@ -379,13 +443,14 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     subjectId = activeSubjectId,
     chapterId = activeChapterId
   ) => {
+    const { subId, chapId } = ensureSubjectAndChapter(subjectId, chapterId, 'Audio')
     const noteId = `note-${Date.now()}`
     const words = transcript.trim() ? transcript.trim().split(/\s+/).length : 0
     const newNote: Note = {
       id: noteId,
       title: title || 'Audio Transcription',
-      subjectId,
-      chapterId,
+      subjectId: subId,
+      chapterId: chapId,
       badge: 'Audio transcript',
       updatedAt: 'Just now',
       wordCount: words,
@@ -405,13 +470,14 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     subjectId = activeSubjectId,
     chapterId = activeChapterId
   ) => {
+    const { subId, chapId } = ensureSubjectAndChapter(subjectId, chapterId, 'Documents')
     const noteId = `note-${Date.now()}`
     const words = content.trim() ? content.trim().split(/\s+/).length : 0
     const newNote: Note = {
       id: noteId,
       title: title || 'Imported Document',
-      subjectId,
-      chapterId,
+      subjectId: subId,
+      chapterId: chapId,
       badge: format.toUpperCase(),
       updatedAt: 'Just now',
       wordCount: words,
@@ -431,13 +497,14 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     subjectId = activeSubjectId,
     chapterId = activeChapterId
   ) => {
+    const { subId, chapId } = ensureSubjectAndChapter(subjectId, chapterId, 'Web Imports')
     const noteId = `note-${Date.now()}`
     const words = content.trim() ? content.trim().split(/\s+/).length : 0
     const newNote: Note = {
       id: noteId,
       title: title || 'Imported Web Content',
-      subjectId,
-      chapterId,
+      subjectId: subId,
+      chapterId: chapId,
       badge: url.includes('youtube') ? 'YouTube' : 'Web article',
       updatedAt: 'Just now',
       wordCount: words,
@@ -447,7 +514,13 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setNotes((prev) => [newNote, ...prev])
     setActiveNoteId(newNote.id)
     setActiveView('editor')
-    showToast(`Imported content from ${new URL(url).hostname}`, 'success')
+    let domain = url
+    try {
+      domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname
+    } catch {
+      // fallback
+    }
+    showToast(`Imported content from ${domain}`, 'success')
   }
 
   const generateFlashcardsFromNote = (noteId: string) => {
@@ -569,23 +642,24 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }
 
   const resetToDefaults = () => {
-    setSubjects(initialSubjects)
-    setChapters(initialChapters)
-    setNotes(initialNotes)
-    setFlashcards(initialFlashcards)
-    setQuizzes(initialQuizzes)
-    setPodcasts(initialPodcasts)
+    setSubjects([])
+    setChapters([])
+    setNotes([])
+    setFlashcards([])
+    setQuizzes([])
+    setPodcasts([])
     setSettings(defaultSettings)
-    setActiveSubjectId('sub-suntzu')
-    setActiveChapterId('chap-suntzu-those')
-    setActiveNoteId('note-se-common')
+    setActiveSubjectId('')
+    setActiveChapterId('')
+    setActiveNoteId(null)
     localStorage.removeItem(STORAGE_KEY)
-    showToast('Reset all data to default template', 'info')
+    localStorage.removeItem('verity_notes_v3')
+    showToast('Workspace data cleared', 'info')
   }
 
   const exportAllDataAsJson = () => {
     const data = {
-      nitroai_version: '1.0.0',
+      verity_version: '1.0.0',
       exported_at: new Date().toISOString(),
       subjects,
       chapters,
@@ -599,7 +673,7 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `nitroai-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `verity-backup-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
     showToast('Exported library backup JSON', 'success')
@@ -665,6 +739,7 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         closeNewItemModal,
         setIsUserProfileOpen,
         createBlankNote,
+        createNote,
         openNoteInEditor,
         updateNote,
         saveCurrentNote,
@@ -694,6 +769,8 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   )
 }
 
+// oxlint-disable-next-line react/only-export-components
 export { NotesContext }
+// oxlint-disable-next-line react/only-export-components
 export { useNotes } from './useNotes'
 

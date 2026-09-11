@@ -173,10 +173,11 @@ button {
   cursor: pointer;
   outline: none;
   user-select: none;
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.12s ease;
 }
 
 button:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
 }
 
 input, textarea, select {

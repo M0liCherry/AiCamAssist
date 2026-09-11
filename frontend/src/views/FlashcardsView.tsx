@@ -83,8 +83,9 @@ export const FlashcardsView: React.FC = () => {
     <div className="content-body">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-main)' }}>
-            Active Recall Flashcards
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <IconCards size={20} style={{ color: 'var(--ctp-blue)' }} />
+            <span>Active Recall Flashcards</span>
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>
             Spaced repetition memory review.
@@ -269,8 +270,8 @@ export const FlashcardsView: React.FC = () => {
         </div>
       ) : (
         <div className="empty-state-box" style={{ padding: '60px 20px' }}>
-          <div style={{ color: 'var(--text-muted)' }}>
-            <IconCards size={28} />
+          <div className="empty-state-icon">
+            <IconCards size={32} />
           </div>
           <div className="empty-state-title">No Flashcards Yet</div>
           <div className="empty-state-desc">
@@ -291,9 +292,12 @@ export const FlashcardsView: React.FC = () => {
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Create Flashcard</h2>
-              <button className="modal-close-btn" onClick={() => setShowAddModal(false)}>
-                <IconX size={14} />
+              <h2>
+                <IconCards size={18} style={{ color: 'var(--ctp-blue)' }} />
+                <span>Create Flashcard</span>
+              </h2>
+              <button className="modal-close-btn" onClick={() => setShowAddModal(false)} title="Close">
+                <IconX size={16} />
               </button>
             </div>
 

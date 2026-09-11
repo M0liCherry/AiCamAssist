@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NitroAI - Notes Hub</title>
+    <title>Verity - Notes Hub</title>
     <style>
         :root {
             /* Furina-inspired Palette */
@@ -319,8 +319,8 @@
     <aside>
         <div>
             <div class="brand">
-                <div class="brand-logo">N</div>
-                <div class="brand-name">NitroAI</div>
+                <div class="brand-logo">V</div>
+                <div class="brand-name">Verity</div>
             </div>
             
             <div class="nav-section">

@@ -1,3 +1,99 @@
+/* ==========================================================================
+   Micro-Interactions & Animation Keyframes
+   ========================================================================== */
+@keyframes viewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modalBackdropFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes dropdownSlide {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes floatIcon {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes equalizerWave {
+  0%, 100% {
+    height: 4px;
+    opacity: 0.35;
+  }
+  50% {
+    height: 22px;
+    opacity: 0.95;
+  }
+}
+
+@keyframes badgePopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(137, 180, 250, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(137, 180, 250, 0);
+  }
+}
+
 /* App Shell */
 .app-shell {
   display: flex;
@@ -208,6 +304,7 @@ header.top-header {
   max-width: 1320px;
   width: 100%;
   margin: 0 auto;
+  animation: viewFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .hero-title h1 {
@@ -239,13 +336,19 @@ header.top-header {
   flex-direction: column;
   gap: 8px;
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s ease,
+              background-color 0.2s ease;
   text-align: left;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .action-card:hover {
   border-color: var(--ctp-blue);
   background-color: var(--bg-surface-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(137, 180, 250, 0.3);
 }
 
 .card-icon {
@@ -435,11 +538,14 @@ header.top-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: 13px 16px;
   background-color: var(--ctp-crust);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  border-radius: 7px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.2s ease,
+              border-color 0.2s ease,
+              box-shadow 0.2s ease;
   cursor: pointer;
   position: relative;
 }
@@ -447,6 +553,8 @@ header.top-header {
 .doc-row:hover {
   border-color: var(--ctp-blue);
   background-color: var(--ctp-surface0);
+  transform: translateX(4px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
 }
 
 .doc-info-title {
@@ -470,6 +578,8 @@ header.top-header {
   font-weight: 600;
   display: inline-flex;
   align-items: center;
+  animation: badgePopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .badge-gold {
@@ -509,10 +619,12 @@ header.top-header {
   padding: 4px;
   min-width: 170px;
   z-index: 50;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
   gap: 2px;
+  animation: dropdownSlide 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: top right;
 }
 
 .menu-item {
@@ -524,7 +636,7 @@ header.top-header {
   color: var(--text-main);
   border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.1s ease;
+  transition: background-color 0.12s ease, transform 0.12s ease;
   text-align: left;
   width: 100%;
 }
@@ -532,6 +644,7 @@ header.top-header {
 .menu-item:hover {
   background-color: var(--ctp-surface1);
   color: var(--ctp-blue);
+  transform: translateX(2px);
 }
 
 .menu-item.danger:hover {
@@ -737,11 +850,13 @@ header.top-header {
   position: fixed;
   inset: 0;
   background-color: rgba(17, 17, 27, 0.65);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 20px;
+  animation: modalBackdropFade 0.2s ease forwards;
 }
 
 .modal-content {
@@ -751,10 +866,11 @@ header.top-header {
   padding: 22px;
   width: 100%;
   max-width: 500px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
   gap: 14px;
+  animation: modalPopIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .modal-header {
@@ -843,6 +959,7 @@ header.top-header {
   background-color: var(--ctp-blue);
   border-radius: 2px;
   min-height: 4px;
+  transition: height 0.12s ease, opacity 0.12s ease;
 }
 
 /* Flashcards */
@@ -860,8 +977,16 @@ header.top-header {
   width: 100%;
   height: 100%;
   text-align: center;
-  transition: transform 0.4s ease;
+  transition: transform 0.46s cubic-bezier(0.34, 1.35, 0.64, 1);
   transform-style: preserve-3d;
+}
+
+.card-container:hover .flashcard-inner:not(.flipped) {
+  transform: translateY(-3px) scale(1.01);
+}
+
+.card-container:hover .flashcard-inner.flipped {
+  transform: rotateY(180deg) translateY(-3px) scale(1.01);
 }
 
 .flashcard-inner.flipped {
@@ -882,6 +1007,13 @@ header.top-header {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.flashcard-front:hover, .flashcard-back:hover {
+  border-color: var(--ctp-surface2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
 .flashcard-back {
@@ -901,6 +1033,8 @@ header.top-header {
   max-width: 680px;
   margin: 0 auto;
   width: 100%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  animation: viewFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .quiz-option {
@@ -915,18 +1049,20 @@ header.top-header {
   font-size: 13.5px;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s, background-color 0.15s;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
   width: 100%;
 }
 
 .quiz-option:hover {
   border-color: var(--ctp-blue);
   background-color: var(--ctp-surface0);
+  transform: translateX(3px);
 }
 
 .quiz-option.selected {
   border-color: var(--ctp-blue);
   background-color: var(--ctp-surface0);
+  transform: translateX(3px);
 }
 
 .quiz-option.correct {
@@ -954,7 +1090,8 @@ header.top-header {
   font-weight: 500;
   background-color: var(--ctp-surface0);
   border: 1px solid var(--ctp-surface1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+  animation: toastSlideIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 /* Empty State Styling (Figma Prototype standard) */
@@ -967,9 +1104,22 @@ header.top-header {
   border: 1px dashed var(--border-color);
   border-radius: 8px;
   color: var(--text-muted);
-  gap: 10px;
+  gap: 12px;
   background-color: var(--ctp-crust);
   text-align: center;
+  transition: border-color 0.2s ease;
+}
+
+.empty-state-box:hover {
+  border-color: var(--ctp-surface2);
+}
+
+.empty-state-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  animation: floatIcon 3.4s ease-in-out infinite;
 }
 
 .empty-state-title {

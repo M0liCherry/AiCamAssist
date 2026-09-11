@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNotes } from '../../context/NotesContext'
+import { IconUser, IconX, IconSettings, IconDownload, IconShield } from '../icons'
 
 export const UserProfileModal: React.FC = () => {
   const {
@@ -22,26 +23,30 @@ export const UserProfileModal: React.FC = () => {
     <div className="modal-overlay" onClick={() => setIsUserProfileOpen(false)}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>👤 User Profile & Workspace</h2>
-          <button className="modal-close-btn" onClick={() => setIsUserProfileOpen(false)}>
-            ✕
+          <h2>
+            <IconUser size={18} style={{ color: 'var(--ctp-blue)' }} />
+            <span>User Profile & Workspace</span>
+          </h2>
+          <button className="modal-close-btn" onClick={() => setIsUserProfileOpen(false)} title="Close">
+            <IconX size={16} />
           </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 0' }}>
           <div
             className="avatar"
-            style={{ width: 54, height: 54, fontSize: 22 }}
+            style={{ width: 50, height: 50, fontSize: 20, backgroundColor: 'var(--ctp-surface0)', color: 'var(--ctp-blue)' }}
           >
-            Y
+            <IconUser size={24} />
           </div>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>You</div>
+            <div style={{ fontSize: 17, fontWeight: 700 }}>Local User</div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Local Workspace • Client v1.0.0
+              Verity Study Workspace • Client v1.0.0
             </div>
-            <div style={{ fontSize: 11, color: 'var(--ctp-blue)', marginTop: 2 }}>
-              ● 100% Offline-First (zero cloud exposure)
+            <div style={{ fontSize: 11.5, color: 'var(--ctp-green)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <IconShield size={13} />
+              <span>100% Offline-First (zero cloud exposure)</span>
             </div>
           </div>
         </div>
@@ -118,7 +123,7 @@ export const UserProfileModal: React.FC = () => {
             <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
               Quizzes Available
             </div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-main)', marginTop: 4 }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-main)', marginTop: 2 }}>
               {quizzes.length}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>evaluation modules</div>
@@ -134,7 +139,8 @@ export const UserProfileModal: React.FC = () => {
               setActiveView('settings')
             }}
           >
-            ⚙️ App Settings
+            <IconSettings size={14} />
+            <span>App Settings</span>
           </button>
           <button
             type="button"
@@ -144,7 +150,8 @@ export const UserProfileModal: React.FC = () => {
               setIsUserProfileOpen(false)
             }}
           >
-            💾 Export Backup
+            <IconDownload size={14} />
+            <span>Export Backup</span>
           </button>
         </div>
       </div>

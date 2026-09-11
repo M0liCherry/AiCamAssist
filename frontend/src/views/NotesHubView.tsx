@@ -4,8 +4,9 @@ import {
   IconFile,
   IconMic,
   IconUpload,
-  IconLink,
+  IconGlobe,
   IconFolder,
+  IconFolderOpen,
   IconPlus,
   IconMore,
   IconEdit,
@@ -13,7 +14,9 @@ import {
   IconHelpCircle,
   IconHeadphones,
   IconCopy,
-  IconTrash
+  IconTrash,
+  IconClock,
+  IconZap
 } from '../components/icons'
 
 export const NotesHubView: React.FC = () => {
@@ -21,6 +24,9 @@ export const NotesHubView: React.FC = () => {
     subjects,
     chapters,
     notes,
+    flashcards,
+    quizzes,
+    podcasts,
     activeSubjectId,
     activeChapterId,
     filterMode,
@@ -70,7 +76,8 @@ export const NotesHubView: React.FC = () => {
       return (
         n.title.toLowerCase().includes(q) ||
         n.content.toLowerCase().includes(q) ||
-        n.badge.toLowerCase().includes(q)
+        n.badge.toLowerCase().includes(q) ||
+        (n.tags && n.tags.some((t) => t.toLowerCase().includes(q)))
       )
     }
 
@@ -85,13 +92,132 @@ export const NotesHubView: React.FC = () => {
     return notes.filter((n) => n.chapterId === chapId).length
   }
 
+  const totalWords = notes.reduce((acc, n) => acc + (n.wordCount || 0), 0)
+
   return (
     <div className="content-body">
+      {/* Overview Stats Bar - Makes the UI feel filled and structured */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: 12,
+          padding: '14px 18px',
+          borderRadius: 8,
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border-color)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, transition: 'transform 0.18s ease' }}>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 6,
+              backgroundColor: 'rgba(137, 180, 250, 0.12)',
+              color: 'var(--ctp-blue)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'transform 0.2s ease'
+            }}
+          >
+            <IconFile size={18} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+              Documents
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-main)' }}>
+              {notes.length} Notes ({totalWords.toLocaleString()} words)
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, transition: 'transform 0.18s ease' }}>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 6,
+              backgroundColor: 'rgba(249, 226, 175, 0.12)',
+              color: 'var(--ctp-yellow)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'transform 0.2s ease'
+            }}
+          >
+            <IconFolder size={18} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+              Knowledge Base
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-main)' }}>
+              {subjects.length} Subjects • {chapters.length} Chapters
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, transition: 'transform 0.18s ease' }}>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 6,
+              backgroundColor: 'rgba(166, 227, 161, 0.12)',
+              color: 'var(--ctp-green)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'transform 0.2s ease'
+            }}
+          >
+            <IconZap size={18} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+              Flashcards
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-main)' }}>
+              {flashcards.length} Cards in Deck
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, transition: 'transform 0.18s ease' }}>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 6,
+              backgroundColor: 'rgba(180, 190, 254, 0.12)',
+              color: 'var(--ctp-lavender)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'transform 0.2s ease'
+            }}
+          >
+            <IconHeadphones size={18} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+              Synthesized Audio
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-main)' }}>
+              {podcasts.length} Podcasts • {quizzes.length} Quizzes
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Quick Action Cards */}
       <div className="grid-cards">
         <div className="action-card" onClick={createBlankNote} title="Create blank markdown note">
           <div className="card-icon">
-            <IconFile size={17} />
+            <IconEdit size={17} />
           </div>
           <h3>Blank document</h3>
           <p>Write a Markdown note from scratch.</p>
@@ -127,7 +253,7 @@ export const NotesHubView: React.FC = () => {
           title="Import web link"
         >
           <div className="card-icon">
-            <IconLink size={17} />
+            <IconGlobe size={17} />
           </div>
           <h3>Website / YouTube</h3>
           <p>Import article or video captions directly.</p>
@@ -139,7 +265,10 @@ export const NotesHubView: React.FC = () => {
         {/* Library Tree Panel */}
         <div className="panel">
           <div className="panel-header" style={{ position: 'relative' }}>
-            <span>Library Tree</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IconFolder size={15} style={{ color: 'var(--ctp-blue)' }} />
+              <span>Library Tree</span>
+            </span>
             <div ref={newMenuRef}>
               <span
                 className="new-btn"
@@ -202,10 +331,17 @@ export const NotesHubView: React.FC = () => {
                         }
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <IconFolder size={14} />
-                        <span>{sub.name}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+                        {isSubActive ? (
+                          <IconFolderOpen size={14} style={{ color: 'var(--ctp-blue)', flexShrink: 0 }} />
+                        ) : (
+                          <IconFolder size={14} style={{ flexShrink: 0 }} />
+                        )}
+                        <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                          {sub.name}
+                        </span>
                       </div>
+                      <span className="tree-item-count">{subChapters.length}</span>
                     </div>
 
                     <div className="tree-chapters">
@@ -223,11 +359,13 @@ export const NotesHubView: React.FC = () => {
                               setActiveChapterId(chap.id)
                             }}
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <IconFile size={13} />
-                              <span>{chap.name}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+                              <IconFile size={13} style={{ flexShrink: 0 }} />
+                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                {chap.name}
+                              </span>
                             </div>
-                            <span className="tree-item-count">({count})</span>
+                            <span className="tree-item-count">{count}</span>
                           </div>
                         )
                       })}
@@ -254,7 +392,8 @@ export const NotesHubView: React.FC = () => {
                   style={{ fontSize: 12, padding: '4px 10px' }}
                   onClick={() => openNewItemModal('subject')}
                 >
-                  + Create Subject
+                  <IconPlus size={12} />
+                  <span>Create Subject</span>
                 </button>
               </div>
             )}
@@ -264,149 +403,196 @@ export const NotesHubView: React.FC = () => {
         {/* Active Subject Files View */}
         <div className="panel active-document-view">
           <div className="panel-header">
-            <span>
-              Active Subject: {currentSubject ? currentSubject.name : 'None selected'}{' '}
-              {filterMode === 'chapter' && currentChapter ? `> ${currentChapter.name}` : ''}
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: 'var(--text-muted)' }}>Collection:</span>
+              <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>
+                {currentSubject ? currentSubject.name : 'All Notes'}
+              </span>
+              {filterMode === 'chapter' && currentChapter && (
+                <span style={{ color: 'var(--ctp-blue)' }}>/ {currentChapter.name}</span>
+              )}
             </span>
             <div className="filter-toggle">
               <button
                 className={`filter-btn ${filterMode === 'chapter' ? 'active' : ''}`}
                 onClick={() => setFilterMode('chapter')}
-                title="Show chapter notes"
+                title="Show active chapter notes only"
               >
-                Chapter
+                Active Chapter
               </button>
               <button
                 className={`filter-btn ${filterMode === 'entire' ? 'active' : ''}`}
                 onClick={() => setFilterMode('entire')}
                 title="Show all subject notes"
               >
-                Entire subject
+                All Subject Notes
               </button>
             </div>
           </div>
 
           <div className="doc-list" ref={docMenuRef}>
-            {displayedNotes.map((note) => (
-              <div
-                key={note.id}
-                className="doc-row"
-                onClick={() => openNoteInEditor(note.id)}
-                title="Open note in editor"
-              >
-                <div>
-                  <div className="doc-info-title">
-                    <span>{note.title}</span>
-                  </div>
-                  <div className="doc-info-meta">
-                    {note.wordCount} words • updated {note.updatedAt}
-                  </div>
-                </div>
+            {displayedNotes.map((note) => {
+              const sub = subjects.find((s) => s.id === note.subjectId)
+              const chap = chapters.find((c) => c.id === note.chapterId)
+              const estReadMin = Math.max(1, Math.ceil((note.wordCount || 100) / 200))
 
+              return (
                 <div
-                  className="row-actions"
-                  onClick={(e) => e.stopPropagation()}
+                  key={note.id}
+                  className="doc-row"
+                  onClick={() => openNoteInEditor(note.id)}
+                  title="Open note in editor"
                 >
-                  <span className={`badge ${note.badge.includes('index') ? '' : 'badge-gold'}`}>
-                    {note.badge}
-                  </span>
-
-                  <button
-                    className="dots-btn"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setActiveMenuNoteId(activeMenuNoteId === note.id ? null : note.id)
-                    }}
-                    title="Options"
-                  >
-                    <IconMore size={15} />
-                  </button>
-
-                  {activeMenuNoteId === note.id && (
-                    <div className="context-menu" style={{ right: 0, top: 28 }}>
-                      <button
-                        className="menu-item"
-                        onClick={() => {
-                          setActiveMenuNoteId(null)
-                          openNoteInEditor(note.id)
-                        }}
-                      >
-                        <IconEdit size={13} />
-                        <span>Open in Editor</span>
-                      </button>
-                      <button
-                        className="menu-item"
-                        onClick={() => {
-                          setActiveMenuNoteId(null)
-                          generateFlashcardsFromNote(note.id)
-                        }}
-                      >
-                        <IconCards size={13} />
-                        <span>Generate Flashcards</span>
-                      </button>
-                      <button
-                        className="menu-item"
-                        onClick={() => {
-                          setActiveMenuNoteId(null)
-                          generateQuizFromNote(note.id)
-                        }}
-                      >
-                        <IconHelpCircle size={13} />
-                        <span>Generate Quiz</span>
-                      </button>
-                      <button
-                        className="menu-item"
-                        onClick={() => {
-                          setActiveMenuNoteId(null)
-                          generatePodcastFromNote(note.id)
-                        }}
-                      >
-                        <IconHeadphones size={13} />
-                        <span>Create Podcast</span>
-                      </button>
-                      <button
-                        className="menu-item"
-                        onClick={() => {
-                          setActiveMenuNoteId(null)
-                          duplicateNote(note.id)
-                        }}
-                      >
-                        <IconCopy size={13} />
-                        <span>Duplicate</span>
-                      </button>
-                      <button
-                        className="menu-item danger"
-                        onClick={() => {
-                          setActiveMenuNoteId(null)
-                          deleteNote(note.id)
-                        }}
-                      >
-                        <IconTrash size={13} />
-                        <span>Delete Note</span>
-                      </button>
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
+                    <div className="doc-info-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        {note.title}
+                      </span>
                     </div>
-                  )}
+
+                    <div className="doc-info-meta" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                      <span style={{ color: 'var(--ctp-blue)' }}>{sub?.name || 'General'}</span>
+                      {chap && (
+                        <>
+                          <span>•</span>
+                          <span>{chap.name}</span>
+                        </>
+                      )}
+                      <span>•</span>
+                      <span>{note.wordCount} words (~{estReadMin} min)</span>
+                      <span>•</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <IconClock size={11} />
+                        {note.updatedAt}
+                      </span>
+                    </div>
+
+                    {note.tags && note.tags.length > 0 && (
+                      <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                        {note.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            style={{
+                              fontSize: 10,
+                              padding: '1px 6px',
+                              borderRadius: 4,
+                              backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                              color: 'var(--text-muted)'
+                            }}
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    className="row-actions"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span className={`badge ${note.badge.includes('index') ? '' : 'badge-gold'}`}>
+                      {note.badge}
+                    </span>
+
+                    <button
+                      className="dots-btn"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveMenuNoteId(activeMenuNoteId === note.id ? null : note.id)
+                      }}
+                      title="More Actions"
+                    >
+                      <IconMore size={15} />
+                    </button>
+
+                    {activeMenuNoteId === note.id && (
+                      <div className="context-menu" style={{ right: 0, top: 28 }}>
+                        <button
+                          className="menu-item"
+                          onClick={() => {
+                            setActiveMenuNoteId(null)
+                            openNoteInEditor(note.id)
+                          }}
+                        >
+                          <IconEdit size={13} />
+                          <span>Open in Editor</span>
+                        </button>
+                        <button
+                          className="menu-item"
+                          onClick={() => {
+                            setActiveMenuNoteId(null)
+                            generateFlashcardsFromNote(note.id)
+                          }}
+                        >
+                          <IconCards size={13} />
+                          <span>Generate Flashcards</span>
+                        </button>
+                        <button
+                          className="menu-item"
+                          onClick={() => {
+                            setActiveMenuNoteId(null)
+                            generateQuizFromNote(note.id)
+                          }}
+                        >
+                          <IconHelpCircle size={13} />
+                          <span>Generate Quiz</span>
+                        </button>
+                        <button
+                          className="menu-item"
+                          onClick={() => {
+                            setActiveMenuNoteId(null)
+                            generatePodcastFromNote(note.id)
+                          }}
+                        >
+                          <IconHeadphones size={13} />
+                          <span>Create Podcast</span>
+                        </button>
+                        <button
+                          className="menu-item"
+                          onClick={() => {
+                            setActiveMenuNoteId(null)
+                            duplicateNote(note.id)
+                          }}
+                        >
+                          <IconCopy size={13} />
+                          <span>Duplicate</span>
+                        </button>
+                        <button
+                          className="menu-item danger"
+                          onClick={() => {
+                            setActiveMenuNoteId(null)
+                            deleteNote(note.id)
+                          }}
+                        >
+                          <IconTrash size={13} />
+                          <span>Delete Note</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
 
             {displayedNotes.length === 0 && (
               <div className="empty-state-box">
-                <div style={{ color: 'var(--text-muted)' }}>
-                  <IconFile size={26} />
+                <div className="empty-state-icon">
+                  <IconFile size={28} />
                 </div>
                 <div className="empty-state-title">
-                  {searchQuery ? `No notes matching "${searchQuery}"` : 'No notes in this collection'}
+                  {searchQuery ? `No notes matching "${searchQuery}"` : 'No notes in this view'}
                 </div>
                 <div className="empty-state-desc">
-                  Start writing a new note or import existing documents.
+                  Start drafting a new note, import documents, or switch chapters.
                 </div>
                 <button
                   className="btn-primary"
                   style={{ marginTop: 6 }}
                   onClick={createBlankNote}
                 >
-                  + Add Note
+                  <IconPlus size={13} />
+                  <span>Create Note</span>
                 </button>
               </div>
             )}

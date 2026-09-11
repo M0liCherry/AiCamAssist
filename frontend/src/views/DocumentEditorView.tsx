@@ -9,7 +9,11 @@ import {
   IconCards,
   IconHelpCircle,
   IconHeadphones,
-  IconCheck
+  IconCheck,
+  IconQuote,
+  IconCode,
+  IconList,
+  IconTable
 } from '../components/icons'
 
 interface EditorFormProps {
@@ -296,24 +300,24 @@ const EditorForm: React.FC<EditorFormProps> = ({ note }) => {
           </button>
           <div className="tool-divider" />
           <button className="tool-btn" onClick={() => insertMarkdownSyntax('> ')} title="Quote">
-            ❝
+            <IconQuote size={13} />
           </button>
           <button
             className="tool-btn"
             onClick={() => insertMarkdownSyntax('```\n', '\n```')}
             title="Code Block"
           >
-            &lt;/&gt;
+            <IconCode size={13} />
           </button>
-          <button className="tool-btn" onClick={() => insertMarkdownSyntax('- ')} title="List">
-            • List
+          <button className="tool-btn" onClick={() => insertMarkdownSyntax('- ')} title="Bullet List">
+            <IconList size={13} />
           </button>
           <button
             className="tool-btn"
-            onClick={() => insertMarkdownSyntax('| Col 1 | Col 2 |\n|---|---|\n| val 1 | val 2 |\n')}
+            onClick={() => insertMarkdownSyntax('| Header 1 | Header 2 |\n|---|---|\n| Cell 1 | Cell 2 |\n')}
             title="Table"
           >
-            ▦ Table
+            <IconTable size={13} />
           </button>
         </div>
 
@@ -389,7 +393,7 @@ export const DocumentEditorView: React.FC = () => {
         }}
       >
         <div className="empty-state-box" style={{ padding: '60px 40px' }}>
-          <div style={{ color: 'var(--text-muted)' }}>
+          <div className="empty-state-icon">
             <IconFile size={32} />
           </div>
           <div className="empty-state-title">No Document Selected</div>

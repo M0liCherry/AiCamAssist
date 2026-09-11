@@ -1,5 +1,16 @@
 import React, { useState } from 'react'
 import { useNotes } from '../../context/NotesContext'
+import {
+  IconSearch,
+  IconFile,
+  IconFolder,
+  IconZap,
+  IconFolderOpen,
+  IconEdit,
+  IconHeadphones,
+  IconCards,
+  IconHelpCircle
+} from '../icons'
 
 export const SearchModal: React.FC = () => {
   const {
@@ -66,14 +77,16 @@ export const SearchModal: React.FC = () => {
               left: 14,
               top: '50%',
               transform: 'translateY(-50%)',
-              color: 'var(--text-muted)'
+              color: 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'center'
             }}
           >
-            🔍
+            <IconSearch size={16} />
           </span>
           <input
             className="form-input"
-            style={{ paddingLeft: 42, fontSize: 15, borderRadius: 10 }}
+            style={{ paddingLeft: 42, fontSize: 14, borderRadius: 8 }}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search across all notes, subjects, chapters, flashcards..."
@@ -81,12 +94,12 @@ export const SearchModal: React.FC = () => {
           />
         </div>
 
-        <div style={{ maxHeight: 380, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ maxHeight: 380, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
           {trimmed && (
             <>
               {filteredNotes.length > 0 && (
                 <div>
-                  <div className="nav-label" style={{ marginTop: 8 }}>
+                  <div className="nav-label" style={{ marginTop: 4 }}>
                     Notes ({filteredNotes.length})
                   </div>
                   {filteredNotes.map((note) => {
@@ -95,14 +108,16 @@ export const SearchModal: React.FC = () => {
                       <div
                         key={note.id}
                         className="menu-item"
-                        style={{ padding: '10px 12px' }}
+                        style={{ padding: '8px 12px', borderRadius: 6 }}
                         onClick={() => handleSelectNote(note.id)}
                       >
-                        <span style={{ fontSize: 16 }}>📄</span>
+                        <span style={{ color: 'var(--ctp-blue)', display: 'flex', alignItems: 'center' }}>
+                          <IconFile size={16} />
+                        </span>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600 }}>{note.title}</div>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{note.title}</div>
                           <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                            {sub?.name} • {note.wordCount} words • {note.updatedAt}
+                            {sub?.name || 'General'} • {note.wordCount} words • {note.updatedAt}
                           </div>
                         </div>
                         <span className="badge">{note.badge}</span>
@@ -121,12 +136,14 @@ export const SearchModal: React.FC = () => {
                     <div
                       key={sub.id}
                       className="menu-item"
-                      style={{ padding: '10px 12px' }}
+                      style={{ padding: '8px 12px', borderRadius: 6 }}
                       onClick={() => handleSelectSubject(sub.id)}
                     >
-                      <span style={{ fontSize: 16 }}>📂</span>
+                      <span style={{ color: 'var(--ctp-yellow)', display: 'flex', alignItems: 'center' }}>
+                        <IconFolder size={16} />
+                      </span>
                       <div>
-                        <div style={{ fontWeight: 600 }}>{sub.name}</div>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{sub.name}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Subject Collection</div>
                       </div>
                     </div>
@@ -143,12 +160,14 @@ export const SearchModal: React.FC = () => {
                     <div
                       key={card.id}
                       className="menu-item"
-                      style={{ padding: '10px 12px' }}
+                      style={{ padding: '8px 12px', borderRadius: 6 }}
                       onClick={handleSelectCard}
                     >
-                      <span style={{ fontSize: 16 }}>⚡</span>
+                      <span style={{ color: 'var(--ctp-green)', display: 'flex', alignItems: 'center' }}>
+                        <IconZap size={16} />
+                      </span>
                       <div>
-                        <div style={{ fontWeight: 600 }}>{card.question}</div>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{card.question}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                           Mastery: {card.mastery}
                         </div>
@@ -161,7 +180,7 @@ export const SearchModal: React.FC = () => {
               {filteredNotes.length === 0 &&
                 filteredSubjects.length === 0 &&
                 filteredCards.length === 0 && (
-                  <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
                     No matching results found for "{query}"
                   </div>
                 )}
@@ -169,7 +188,7 @@ export const SearchModal: React.FC = () => {
           )}
 
           {!trimmed && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '6px 2px' }}>
               <div className="nav-label">Quick Jump</div>
               <div
                 className="menu-item"
@@ -178,7 +197,7 @@ export const SearchModal: React.FC = () => {
                   setIsSearchOpen(false)
                 }}
               >
-                <span>📁</span>
+                <IconFolderOpen size={16} style={{ color: 'var(--ctp-blue)' }} />
                 <span>Go to Notes Hub</span>
               </div>
               <div
@@ -188,7 +207,7 @@ export const SearchModal: React.FC = () => {
                   setIsSearchOpen(false)
                 }}
               >
-                <span>📝</span>
+                <IconEdit size={16} style={{ color: 'var(--ctp-lavender)' }} />
                 <span>Open Document Editor</span>
               </div>
               <div
@@ -198,7 +217,7 @@ export const SearchModal: React.FC = () => {
                   setIsSearchOpen(false)
                 }}
               >
-                <span>🎙️</span>
+                <IconHeadphones size={16} style={{ color: 'var(--ctp-yellow)' }} />
                 <span>AI Podcasts Studio</span>
               </div>
               <div
@@ -208,7 +227,7 @@ export const SearchModal: React.FC = () => {
                   setIsSearchOpen(false)
                 }}
               >
-                <span>⚡</span>
+                <IconCards size={16} style={{ color: 'var(--ctp-green)' }} />
                 <span>Flashcards Practice</span>
               </div>
               <div
@@ -218,7 +237,7 @@ export const SearchModal: React.FC = () => {
                   setIsSearchOpen(false)
                 }}
               >
-                <span>❓</span>
+                <IconHelpCircle size={16} style={{ color: 'var(--ctp-red)' }} />
                 <span>Interactive Quizzes</span>
               </div>
             </div>
@@ -238,7 +257,7 @@ export const SearchModal: React.FC = () => {
           }}
         >
           <span>Press ESC or click outside to dismiss</span>
-          <span>NitroAI Local Vector & Semantic Index</span>
+          <span>Verity Local Vector & Semantic Index</span>
         </div>
       </div>
     </div>

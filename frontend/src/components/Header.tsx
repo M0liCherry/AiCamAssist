@@ -101,7 +101,7 @@ export const Header: React.FC = () => {
             onClick={() => setIsSearchOpen(true)}
             title="Open search"
           >
-            ⌘K
+            Ctrl+K
           </button>
         )}
       </div>

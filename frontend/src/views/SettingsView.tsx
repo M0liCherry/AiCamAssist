@@ -1,7 +1,7 @@
 import React, { useRef } from 'react'
 import { useNotes } from '../context/NotesContext'
 import type { ThemeName, FontPreference } from '../types'
-import { IconCheck, IconDownload, IconUpload, IconRotateCcw } from '../components/icons'
+import { IconCheck, IconDownload, IconUpload, IconRotateCcw, IconSettings } from '../components/icons'
 
 export const SettingsView: React.FC = () => {
   const {
@@ -41,8 +41,9 @@ export const SettingsView: React.FC = () => {
   return (
     <div className="content-body" style={{ maxWidth: 840 }}>
       <div>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-main)' }}>
-          Settings
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <IconSettings size={20} style={{ color: 'var(--ctp-blue)' }} />
+          <span>Settings</span>
         </h2>
         <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>
           Appearance, themes, typography, and local data.

@@ -3,6 +3,7 @@ import { NotesProvider, useNotes } from './context/NotesContext'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
 import { Toast } from './components/Toast'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { AudioUploadModal } from './components/modals/AudioUploadModal'
 import { DocUploadModal } from './components/modals/DocUploadModal'
 import { WebImportModal } from './components/modals/WebImportModal'
@@ -53,8 +54,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <NotesProvider>
-      <AppContent />
-    </NotesProvider>
+    <ErrorBoundary>
+      <NotesProvider>
+        <AppContent />
+      </NotesProvider>
+    </ErrorBoundary>
   )
 }

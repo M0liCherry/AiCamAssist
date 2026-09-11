@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNotes } from '../context/NotesContext'
+import { IconHeadphones, IconPlay, IconPause, IconClock, IconX, IconPlus } from '../components/icons'
 
 export const PodcastsView: React.FC = () => {
   const { podcasts, subjects, notes, generatePodcastFromNote } = useNotes()
@@ -46,8 +47,9 @@ export const PodcastsView: React.FC = () => {
     <div className="content-body">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-main)' }}>
-            🎙️ AI Podcasts Studio
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <IconHeadphones size={20} style={{ color: 'var(--ctp-blue)' }} />
+            <span>AI Podcasts Studio</span>
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>
             Audio dialogues synthesized from your notes and study materials.
@@ -56,14 +58,30 @@ export const PodcastsView: React.FC = () => {
 
         {notes.length > 0 && (
           <button className="btn-primary" onClick={() => setShowGenModal(true)}>
-            + Generate Episode
+            <IconPlus size={13} />
+            <span>Generate Episode</span>
           </button>
         )}
       </div>
 
       {podcasts.length === 0 ? (
         <div className="empty-state-box" style={{ padding: '60px 20px' }}>
-          <div style={{ fontSize: 32 }}>🎙️</div>
+          <div className="empty-state-icon">
+            <div
+              style={{
+                width: 54,
+                height: 54,
+                borderRadius: '50%',
+                backgroundColor: 'var(--ctp-surface0)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--ctp-blue)'
+              }}
+            >
+              <IconHeadphones size={28} />
+            </div>
+          </div>
           <div className="empty-state-title">No Podcast Episodes Yet</div>
           <div className="empty-state-desc">
             Synthesize any note into a conversational audio dialogue.
@@ -74,7 +92,8 @@ export const PodcastsView: React.FC = () => {
               style={{ marginTop: 8 }}
               onClick={() => setShowGenModal(true)}
             >
-              + Generate Episode
+              <IconPlus size={13} />
+              <span>Generate Episode</span>
             </button>
           ) : (
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
@@ -140,11 +159,13 @@ export const PodcastsView: React.FC = () => {
                       fontSize: 16,
                       cursor: 'pointer',
                       backgroundColor: 'var(--ctp-blue)',
-                      color: 'var(--ctp-crust)'
+                      color: 'var(--ctp-crust)',
+                      border: 'none'
                     }}
                     onClick={() => setIsPlaying(!isPlaying)}
+                    title={isPlaying ? 'Pause' : 'Play'}
                   >
-                    {isPlaying ? '⏸' : '▶'}
+                    {isPlaying ? <IconPause size={16} /> : <IconPlay size={16} />}
                   </button>
 
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -247,7 +268,9 @@ export const PodcastsView: React.FC = () => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                       <span className="badge">{sub?.name || 'General'}</span>
-                      <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>⏱ {ep.duration}</span>
+                      <span style={{ fontSize: 11.5, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <IconClock size={12} /> {ep.duration}
+                      </span>
                     </div>
                     <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)', marginBottom: 4 }}>
                       {ep.title}
@@ -267,7 +290,19 @@ export const PodcastsView: React.FC = () => {
                         color: 'var(--ctp-blue)'
                       }}
                     >
-                      <span>{isCur && isPlaying ? 'Playing' : 'Play Episode'}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {isCur && isPlaying ? (
+                          <>
+                            <IconPause size={12} />
+                            <span>Playing</span>
+                          </>
+                        ) : (
+                          <>
+                            <IconPlay size={12} />
+                            <span>Play Episode</span>
+                          </>
+                        )}
+                      </span>
                       <span>{ep.date}</span>
                     </div>
                   </div>
@@ -283,9 +318,12 @@ export const PodcastsView: React.FC = () => {
         <div className="modal-overlay" onClick={() => setShowGenModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>🎙️ Generate Podcast Episode</h2>
-              <button className="modal-close-btn" onClick={() => setShowGenModal(false)}>
-                ✕
+              <h2>
+                <IconHeadphones size={18} style={{ color: 'var(--ctp-blue)' }} />
+                <span>Generate Podcast Episode</span>
+              </h2>
+              <button className="modal-close-btn" onClick={() => setShowGenModal(false)} title="Close">
+                <IconX size={16} />
               </button>
             </div>
 
