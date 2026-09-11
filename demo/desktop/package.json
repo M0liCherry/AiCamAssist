@@ -1,0 +1,72 @@
+{
+  "name": "nitroai-desktop",
+  "productName": "NitroAI",
+  "version": "1.0.0",
+  "description": "Local-first AI study and note-taking workspace for Windows.",
+  "private": true,
+  "main": "main.js",
+  "author": {
+    "name": "NitroAI Project",
+    "email": "support@nitroai.example"
+  },
+  "license": "SEE LICENSE IN ../LICENSE.md",
+  "scripts": {
+    "build:renderer": "node scripts/build-renderer.mjs",
+    "start": "electron .",
+    "dist": "npm run build:renderer && electron-builder --win nsis appx --x64",
+    "dist:exe": "npm run build:renderer && electron-builder --win nsis --x64",
+    "dist:msix": "npm run build:renderer && electron-builder --win appx --x64"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.nitroai.desktop",
+    "productName": "NitroAI",
+    "copyright": "Copyright © 2026 NitroAI Project",
+    "asar": true,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "build/icon.png"
+    ],
+    "extraResources": [
+      {
+        "from": "../.next/standalone",
+        "to": "app",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "appx", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.png",
+      "publisherName": "NitroAI Project",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false,
+      "license": "../LICENSE.md",
+      "shortcutName": "NitroAI"
+    },
+    "appx": {
+      "identityName": "NitroAI.Desktop",
+      "publisher": "CN=NitroAI Project",
+      "publisherDisplayName": "NitroAI Project",
+      "applicationId": "NitroAI",
+      "displayName": "NitroAI",
+      "backgroundColor": "#0e0f14",
+      "languages": ["en-US"]
+    }
+  }
+}

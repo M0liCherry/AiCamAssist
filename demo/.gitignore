@@ -1,0 +1,9 @@
+node_modules/
+.next/
+out/
+.nitro/
+data/
+desktop/node_modules/
+desktop/dist/
+*.log
+.env*.local

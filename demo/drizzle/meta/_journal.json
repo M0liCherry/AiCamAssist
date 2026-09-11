@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789131476874,
+      "tag": "0000_nitroai_initial",
+      "breakpoints": true
+    }
+  ]
+}
