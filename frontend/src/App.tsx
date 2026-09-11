@@ -1,56 +1,60 @@
-import { useState } from 'react'
 import './App.css'
-import { ProfileProvider, useProfile } from './context/ProfileContext'
-import NavigateTab from './features/navigate/NavigateTab'
-import LearnTab from './features/learn/LearnTab'
-import ServicesTab from './features/services/ServicesTab'
+import { NotesProvider, useNotes } from './context/NotesContext'
+import { Sidebar } from './components/Sidebar'
+import { Header } from './components/Header'
+import { Toast } from './components/Toast'
+import { AudioUploadModal } from './components/modals/AudioUploadModal'
+import { DocUploadModal } from './components/modals/DocUploadModal'
+import { WebImportModal } from './components/modals/WebImportModal'
+import { NewItemModal } from './components/modals/NewItemModal'
+import { SearchModal } from './components/modals/SearchModal'
+import { UserProfileModal } from './components/modals/UserProfileModal'
 
-type Tab = 'navigate' | 'learn' | 'services'
+import { NotesHubView } from './views/NotesHubView'
+import { DocumentEditorView } from './views/DocumentEditorView'
+import { PodcastsView } from './views/PodcastsView'
+import { FlashcardsView } from './views/FlashcardsView'
+import { QuizzesView } from './views/QuizzesView'
+import { SettingsView } from './views/SettingsView'
 
-function Shell() {
-  const [tab, setTab] = useState<Tab>('navigate')
-  const { profile, setProfile } = useProfile()
+function AppContent() {
+  const { activeView } = useNotes()
 
   return (
-    <>
-      <header>
-        <h1>AiCamAssist</h1>
-        <p>One camera, one profile, full independence.</p>
-        <label style={{ display: 'block', marginTop: 8 }}>
-          <input
-            type="checkbox"
-            checked={profile.highContrast}
-            onChange={(e) => setProfile({ highContrast: e.target.checked })}
-          />{' '}
-          High contrast
-        </label>
-      </header>
+    <div className="app-shell">
+      {/* Sidebar Navigation */}
+      <Sidebar />
 
-      <nav role="tablist" aria-label="Tracks" className="tabs">
-        <button role="tab" aria-selected={tab === 'navigate'} onClick={() => setTab('navigate')}>
-          01 Navigate
-        </button>
-        <button role="tab" aria-selected={tab === 'learn'} onClick={() => setTab('learn')}>
-          02 Learn
-        </button>
-        <button role="tab" aria-selected={tab === 'services'} onClick={() => setTab('services')}>
-          03 Services
-        </button>
-      </nav>
+      {/* Main Dynamic Viewport */}
+      <main className="main-viewport">
+        <Header />
 
-      <main className={profile.highContrast ? 'hc' : ''}>
-        {tab === 'navigate' && <NavigateTab />}
-        {tab === 'learn' && <LearnTab />}
-        {tab === 'services' && <ServicesTab />}
+        {activeView === 'hub' && <NotesHubView />}
+        {activeView === 'editor' && <DocumentEditorView />}
+        {activeView === 'podcasts' && <PodcastsView />}
+        {activeView === 'flashcards' && <FlashcardsView />}
+        {activeView === 'quizzes' && <QuizzesView />}
+        {activeView === 'settings' && <SettingsView />}
       </main>
-    </>
+
+      {/* Global Modals */}
+      <AudioUploadModal />
+      <DocUploadModal />
+      <WebImportModal />
+      <NewItemModal />
+      <SearchModal />
+      <UserProfileModal />
+
+      {/* Interactive Toast Notifications */}
+      <Toast />
+    </div>
   )
 }
 
 export default function App() {
   return (
-    <ProfileProvider>
-      <Shell />
-    </ProfileProvider>
+    <NotesProvider>
+      <AppContent />
+    </NotesProvider>
   )
 }
