@@ -2399,3 +2399,249 @@ button.cite-badge:hover {
   color: var(--violet-pale);
   margin-left: auto;
 }
+
+/* ------------------ Podcast Audio & Voice Cloning ------------------ */
+.audio-engine-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  width: fit-content;
+}
+
+.engine-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 4px;
+}
+
+.engine-pill {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-2);
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.engine-pill:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.engine-pill.active {
+  background: var(--violet-soft);
+  color: var(--violet-pale);
+  border-color: color-mix(in srgb, var(--violet) 35%, transparent);
+}
+
+/* Studio Audio Badge on Cover Art */
+.studio-audio-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  font-size: 10px;
+  font-weight: 750;
+  backdrop-filter: blur(8px);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* Inline ElevenLabs API Key Prompt Card */
+.elevenlabs-prompt-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  background: radial-gradient(circle at 10% 20%, rgba(124, 77, 255, 0.12), transparent 50%), var(--panel);
+  border: 1px solid color-mix(in srgb, var(--violet) 35%, var(--line));
+}
+
+.elevenlabs-prompt-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.elevenlabs-prompt-head span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--violet-soft);
+  color: var(--violet-pale);
+  flex-shrink: 0;
+}
+
+.elevenlabs-prompt-head strong {
+  display: block;
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.elevenlabs-prompt-head p {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.elevenlabs-prompt-input {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  max-width: 520px;
+}
+
+.elevenlabs-prompt-input input {
+  flex: 1;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.voice-field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.voice-actions-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.text-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--violet-pale);
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.text-action-button:hover:not(:disabled) {
+  background: var(--violet-soft);
+  border-color: var(--violet);
+}
+
+.text-action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upload-label {
+  cursor: pointer;
+  color: var(--blue);
+}
+
+/* KokoClone Panel & File Boxes */
+.kokoclone-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+
+.kokoclone-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.koko-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--blue);
+}
+
+.kokoclone-uploads-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ref-audio-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ref-audio-box span {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.upload-pill-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px dashed var(--line);
+  color: var(--text-2);
+  font-size: 11px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-pill-wrap:hover {
+  border-color: var(--violet);
+  color: var(--text);
+}
+
+.upload-pill-wrap input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}

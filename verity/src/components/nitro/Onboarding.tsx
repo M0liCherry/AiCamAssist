@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, Cloud, Cpu, Download, Eye, EyeOff, HardDrive, KeyRound, ListRestart, RefreshCw, ServerCog, ShieldCheck, Sparkles, Wifi, WifiOff } from "lucide-react";
+import { ArrowRight, Check, Cloud, Cpu, Download, Eye, EyeOff, HardDrive, Headphones, KeyRound, ListRestart, RefreshCw, ServerCog, ShieldCheck, Sparkles, Wifi, WifiOff } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage, formatBytes } from "./client";
 import type { Provider, PublicSettings, SettingsResponse } from "./types";
@@ -339,9 +339,49 @@ export function Onboarding({ boot, onComplete }: { boot: SettingsResponse; onCom
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [diagnostics, setDiagnostics] = useState(false);
   const [configured, setConfigured] = useState<PublicSettings | null>(null);
+  const [elevenLabsKey, setElevenLabsKey] = useState("");
+  const [showElevenKey, setShowElevenKey] = useState(false);
+  const [podcastEngine, setPodcastEngine] = useState<"speechSynthesis" | "elevenlabs" | "kokoclone">("speechSynthesis");
+  const [testingEleven, setTestingEleven] = useState(false);
+  const [elevenTestResult, setElevenTestResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [error, setError] = useState("");
-  const steps = ["Welcome", "AI backend", "Diagnostics", "Ready"];
+  const steps = ["Welcome", "AI backend", "Podcast Voices", "Diagnostics", "Ready"];
+
+  const testEleven = async () => {
+    if (!elevenLabsKey.trim()) return;
+    setTestingEleven(true);
+    setElevenTestResult(null);
+    try {
+      const res = await api<{ valid: boolean; tier?: string }>("/api/podcast/voices", {
+        method: "POST",
+        json: { action: "test-elevenlabs", apiKey: elevenLabsKey.trim() },
+      });
+      setElevenTestResult({ ok: true, text: `ElevenLabs key verified (${res.tier || "active"} tier)!` });
+      setPodcastEngine("elevenlabs");
+    } catch (err) {
+      setElevenTestResult({ ok: false, text: errorMessage(err) });
+    } finally {
+      setTestingEleven(false);
+    }
+  };
+
+  const savePodcastStep = async () => {
+    if (elevenLabsKey.trim() || podcastEngine !== "speechSynthesis") {
+      try {
+        await api("/api/settings", {
+          method: "PUT",
+          json: {
+            elevenLabsApiKey: elevenLabsKey.trim() || undefined,
+            podcastAudioEngine: elevenLabsKey.trim() ? "elevenlabs" : podcastEngine,
+          },
+        });
+      } catch {
+        // Non-blocking
+      }
+    }
+    setStep(3);
+  };
 
   const finish = async () => {
     setFinishing(true);
@@ -393,6 +433,104 @@ export function Onboarding({ boot, onComplete }: { boot: SettingsResponse; onCom
           {step === 1 && <ProviderForm boot={boot} mode="onboarding" onSaved={(saved) => { setConfigured(saved); setStep(2); }} onSkip={() => setStep(2)} />}
           {step === 2 && (
             <>
+              <p className="lead">VerityAI turns study notes into educational 2-person podcasts. Choose how you want podcast discussions spoken:</p>
+              <div className="provider-grid" style={{ marginBottom: 16 }}>
+                <button
+                  type="button"
+                  className={`provider-card ${podcastEngine === "speechSynthesis" ? "selected" : ""}`}
+                  onClick={() => setPodcastEngine("speechSynthesis")}
+                >
+                  <span className="card-radio" aria-hidden="true">{podcastEngine === "speechSynthesis" ? <Check size={12} /> : null}</span>
+                  <strong>System voices</strong>
+                  <p>Uses your OS built-in voices. Completely offline and requires zero setup or external keys.</p>
+                </button>
+
+                <button
+                  type="button"
+                  className={`provider-card ${podcastEngine === "elevenlabs" ? "selected" : ""}`}
+                  onClick={() => setPodcastEngine("elevenlabs")}
+                >
+                  <span className="card-radio" aria-hidden="true">{podcastEngine === "elevenlabs" ? <Check size={12} /> : null}</span>
+                  <strong>ElevenLabs AI studio</strong>
+                  <p>Natural human-quality voices, personalized voice design from your profile, and instant voice cloning.</p>
+                </button>
+
+                <button
+                  type="button"
+                  className={`provider-card ${podcastEngine === "kokoclone" ? "selected" : ""}`}
+                  onClick={() => setPodcastEngine("kokoclone")}
+                >
+                  <span className="card-radio" aria-hidden="true">{podcastEngine === "kokoclone" ? <Check size={12} /> : null}</span>
+                  <strong>KokoClone (Local)</strong>
+                  <p>Zero-shot voice cloning using short reference audio samples via local Kokoro-ONNX server.</p>
+                </button>
+              </div>
+
+              {podcastEngine === "elevenlabs" && (
+                <div className="field-group" style={{ marginBottom: 16 }}>
+                  <label className="field">
+                    <span>ElevenLabs API Key</span>
+                    <div className="password-wrap">
+                      <input
+                        type={showElevenKey ? "text" : "password"}
+                        value={elevenLabsKey}
+                        onChange={(e) => {
+                          setElevenLabsKey(e.target.value);
+                          setElevenTestResult(null);
+                        }}
+                        placeholder="xi-api-key or paste key here"
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => setShowElevenKey((s) => !s)}
+                        aria-label={showElevenKey ? "Hide key" : "Show key"}
+                      >
+                        {showElevenKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    <small>
+                      Get your API key from <a href="https://elevenlabs.io" target="_blank" rel="noreferrer">elevenlabs.io</a>. You can also configure this later in Settings.
+                    </small>
+                  </label>
+
+                  {elevenLabsKey.trim().length > 0 && (
+                    <button
+                      type="button"
+                      className="secondary-button compact"
+                      onClick={testEleven}
+                      disabled={testingEleven}
+                    >
+                      {testingEleven ? <Spinner label="Verifying key…" /> : <><Cloud size={14} />Test ElevenLabs key</>}
+                    </button>
+                  )}
+                  {elevenTestResult && (
+                    <InlineAlert tone={elevenTestResult.ok ? "success" : "error"}>
+                      {elevenTestResult.text}
+                    </InlineAlert>
+                  )}
+                </div>
+              )}
+
+              {podcastEngine === "kokoclone" && (
+                <InlineAlert tone="info">
+                  KokoClone lets you upload reference audio samples to clone any voice locally. You can specify the local server endpoint (default http://127.0.0.1:7860) anytime in Settings.
+                </InlineAlert>
+              )}
+
+              <div className="onboarding-actions">
+                <button type="button" className="text-button" onClick={() => setStep(1)}>Back</button>
+                <button type="button" className="text-button" onClick={() => setStep(3)}>Set up later</button>
+                <button type="button" className="primary-button" onClick={savePodcastStep}>
+                  Continue<ArrowRight size={16} aria-hidden="true" />
+                </button>
+              </div>
+            </>
+          )}
+          {step === 3 && (
+            <>
               <p className="lead">Crash and error diagnostics are <strong>off by default</strong>. If you opt in, VerityAI appends error details to a log file on this computer so you can attach it to a support request. Nothing is uploaded automatically.</p>
               <label className="toggle-row" htmlFor="diagnostics-toggle">
                 <span><strong>Local diagnostics log</strong><small>{boot.environment.logPath}</small></span>
@@ -400,21 +538,22 @@ export function Onboarding({ boot, onComplete }: { boot: SettingsResponse; onCom
               </label>
               <p className="help-text">You can change this any time in Settings → Privacy. Read the <a href="/legal/telemetry" target="_blank">Telemetry Policy<span className="sr-only"> (opens in a new tab)</span></a>.</p>
               <div className="onboarding-actions">
-                <button type="button" className="text-button" onClick={() => setStep(1)}>Back</button>
-                <button type="button" className="primary-button" onClick={() => setStep(3)}>Continue<ArrowRight size={16} aria-hidden="true" /></button>
+                <button type="button" className="text-button" onClick={() => setStep(2)}>Back</button>
+                <button type="button" className="primary-button" onClick={() => setStep(4)}>Continue<ArrowRight size={16} aria-hidden="true" /></button>
               </div>
             </>
           )}
-          {step === 3 && (
+          {step === 4 && (
             <>
               <dl className="summary-list">
                 <div><dt>AI backend</dt><dd>{configured && configured.provider !== "none" ? `${boot.presets[configured.provider].label} · ${configured.model}` : "Not configured yet — notes and imports work; AI tools will prompt you to connect a backend."}</dd></div>
+                <div><dt>Podcast Voices</dt><dd>{elevenLabsKey.trim() ? "ElevenLabs AI Studio" : podcastEngine === "kokoclone" ? "KokoClone Local Cloner" : "System Voices (Built-in)"}</dd></div>
                 <div><dt>Data location</dt><dd>{boot.environment.dataDir}</dd></div>
                 <div><dt>Diagnostics</dt><dd>{diagnostics ? "Local log enabled (never uploaded)" : "Off"}</dd></div>
               </dl>
               {error && <InlineAlert tone="error">{error}</InlineAlert>}
               <div className="onboarding-actions">
-                <button type="button" className="text-button" onClick={() => setStep(2)}>Back</button>
+                <button type="button" className="text-button" onClick={() => setStep(3)}>Back</button>
                 <button type="button" className="primary-button" onClick={finish} disabled={finishing}>{finishing ? "Opening workspace…" : "Open VerityAI"}<ArrowRight size={16} aria-hidden="true" /></button>
               </div>
             </>

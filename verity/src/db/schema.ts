@@ -29,6 +29,11 @@ export const settings = pgTable("settings", {
   providerConsentAt: timestamp("provider_consent_at", { withTimezone: true }),
   diagnosticsOptIn: boolean("diagnostics_opt_in").default(false).notNull(),
   theme: varchar("theme", { length: 12 }).default("dark").notNull(),
+  elevenLabsApiKeyEncrypted: text("elevenlabs_api_key_encrypted"),
+  podcastAudioEngine: varchar("podcast_audio_engine", { length: 32 }).default("speechSynthesis").notNull(),
+  elevenLabsHostVoice: varchar("elevenlabs_host_voice", { length: 80 }).default("21m00Tcm4TlvDq8ikWAM").notNull(),
+  elevenLabsGuestVoice: varchar("elevenlabs_guest_voice", { length: 80 }).default("pNInz6obpgDQGcFmaJgB").notNull(),
+  kokoCloneEndpoint: varchar("kokoclone_endpoint", { length: 255 }).default("http://127.0.0.1:7860").notNull(),
   ...timestamps,
 });
 

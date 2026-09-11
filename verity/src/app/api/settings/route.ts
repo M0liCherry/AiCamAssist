@@ -76,6 +76,30 @@ export async function PUT(request: NextRequest) {
       if (!STT_MODELS.includes(sttModel)) throw new HttpError("Unknown speech-to-text model.");
       patch.sttModel = sttModel;
     }
+
+    if (body.elevenLabsApiKey !== undefined) {
+      const incomingElevenKey = cleanText(body.elevenLabsApiKey, 500);
+      if (incomingElevenKey) patch.elevenLabsApiKeyEncrypted = encryptSecret(incomingElevenKey);
+    }
+    if (body.clearElevenLabsApiKey === true) {
+      patch.elevenLabsApiKeyEncrypted = null;
+    }
+    if (body.podcastAudioEngine !== undefined) {
+      const engine = String(body.podcastAudioEngine);
+      if (["speechSynthesis", "elevenlabs", "kokoclone"].includes(engine)) {
+        patch.podcastAudioEngine = engine;
+      }
+    }
+    if (body.elevenLabsHostVoice !== undefined) {
+      patch.elevenLabsHostVoice = cleanText(body.elevenLabsHostVoice, 80);
+    }
+    if (body.elevenLabsGuestVoice !== undefined) {
+      patch.elevenLabsGuestVoice = cleanText(body.elevenLabsGuestVoice, 80);
+    }
+    if (body.kokoCloneEndpoint !== undefined) {
+      patch.kokoCloneEndpoint = cleanText(body.kokoCloneEndpoint, 255) || "http://127.0.0.1:7860";
+    }
+
     if (body.privacyConsent === true) patch.privacyConsentAt = new Date();
     if (typeof body.diagnosticsOptIn === "boolean") patch.diagnosticsOptIn = body.diagnosticsOptIn;
     if (typeof body.onboardingComplete === "boolean") {

@@ -23,6 +23,12 @@ export type PublicSettings = {
   sttModel: string;
   hasApiKey: boolean;
   apiKeyHint: string;
+  hasElevenLabsKey: boolean;
+  elevenLabsKeyHint: string;
+  podcastAudioEngine: "speechSynthesis" | "elevenlabs" | "kokoclone";
+  elevenLabsHostVoice: string;
+  elevenLabsGuestVoice: string;
+  kokoCloneEndpoint: string;
   onboardingComplete: boolean;
   privacyConsentAt: string | null;
   providerConsentAt: string | null;
@@ -84,8 +90,15 @@ export type SearchHit = { id: number; title: string; snippet: string; sourceType
 export type Citation = { n: number; noteId: number; noteTitle: string; chunkId: number; snippet: string };
 export type ChatMsg = { id: number; role: "user" | "assistant"; content: string; citations: Citation[]; createdAt: string };
 
-export type PodcastTurn = { speaker: "host" | "guest"; text: string };
-export type PodcastScript = { title: string; summary: string; turns: PodcastTurn[] };
+export type PodcastTurn = { speaker: "host" | "guest"; text: string; audioUrl?: string; duration?: number };
+export type PodcastScript = {
+  title: string;
+  summary: string;
+  turns: PodcastTurn[];
+  audioUrl?: string;
+  audioEngine?: "speechSynthesis" | "elevenlabs" | "kokoclone";
+  audioGeneratedAt?: string;
+};
 export type Flashcard = { question: string; answer: string; topic: string };
 export type FlashcardDeck = { cards: Flashcard[] };
 export type QuizQuestion = { question: string; options: string[]; correctIndex: number; topic: string; explanation: string };

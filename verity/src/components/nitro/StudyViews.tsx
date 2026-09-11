@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, Circle, Gauge, Headphones, ListChecks, Pause, Play, RefreshCw, RotateCcw, SkipBack, SkipForward, Sparkles, SquareStack, Trophy, WandSparkles, XCircle } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, Circle, Cloud, Download, Eye, EyeOff, Gauge, Headphones, ListChecks, Music, Pause, Play, Radio, RefreshCw, RotateCcw, SkipBack, SkipForward, Sparkles, SquareStack, Trophy, Upload, Volume2, Wand2, WandSparkles, XCircle } from "lucide-react";
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, errorMessage, formatClock, formatDate } from "./client";
+import { getStoredPersonalization, LEARNING_STYLE_DESCRIPTIONS, PERSONA_DESCRIPTIONS } from "./personalization";
 import { saveFlashcardSessionScore, saveQuizAttemptScore } from "./studyScores";
 import type { Asset, AssetResponse, CardProgress, FlashcardDeck, PodcastScript, QuizAttempt, QuizPayload, Scope, Subject } from "./types";
 import { AiErrorAlert, InlineAlert, Modal, ScopeBar, Spinner, StatusPill } from "./ui";
@@ -106,7 +107,7 @@ function GenerationNotice({ asset, generating, providerName, label }: { asset: A
 
 export function PodcastsView(props: StudyProps) {
   const { scope, aiReady, providerName, onConfigureAi } = props;
-  const { data, loading, generating, error, generate, retry } = useAsset<PodcastScript>("podcast", scope);
+  const { data, setData, loading, generating, error, generate, retry } = useAsset<PodcastScript>("podcast", scope);
   const [length, setLength] = useState<"short" | "medium" | "long">("short");
   const [playing, setPlaying] = useState(false);
   const [turn, setTurn] = useState(0);
@@ -120,6 +121,52 @@ export function PodcastsView(props: StudyProps) {
   const script = data?.asset?.payload ?? null;
   const supported = typeof window !== "undefined" && "speechSynthesis" in window;
   const playingRef = useRef(false);
+
+  // Audio Engine & Custom Voice States
+  const [engine, setEngine] = useState<"speechSynthesis" | "elevenlabs" | "kokoclone">("speechSynthesis");
+  const [hasElevenKey, setHasElevenKey] = useState(false);
+  const [inlineElevenKey, setInlineElevenKey] = useState("");
+  const [showInlineElevenKey, setShowInlineElevenKey] = useState(false);
+  const [savingKey, setSavingKey] = useState(false);
+  const [keySavedMessage, setKeySavedMessage] = useState<string | null>(null);
+
+  const [elevenHostVoice, setElevenHostVoice] = useState("21m00Tcm4TlvDq8ikWAM");
+  const [elevenGuestVoice, setElevenGuestVoice] = useState("pNInz6obpgDQGcFmaJgB");
+  const [elevenVoices, setElevenVoices] = useState<Array<{ id: string; name: string; category?: string; description?: string }>>([]);
+
+  const [kokoEndpoint, setKokoEndpoint] = useState("http://127.0.0.1:7860");
+  const [kokoOnline, setKokoOnline] = useState<boolean | null>(null);
+  const [hostRefAudio, setHostRefAudio] = useState<string | null>(null);
+  const [guestRefAudio, setGuestRefAudio] = useState<string | null>(null);
+  const [hostRefName, setHostRefName] = useState<string>("");
+  const [guestRefName, setGuestRefName] = useState<string>("");
+
+  const [designingVoice, setDesigningVoice] = useState<"host" | "guest" | null>(null);
+  const [synthesizing, setSynthesizing] = useState(false);
+  const [synthesisError, setSynthesisError] = useState<string | null>(null);
+  const [realAudioDuration, setRealAudioDuration] = useState<number>(0);
+
+  // Load user settings on mount
+  useEffect(() => {
+    api<{ settings: any }>("/api/settings")
+      .then((res) => {
+        if (res?.settings) {
+          setHasElevenKey(Boolean(res.settings.hasElevenLabsKey));
+          if (res.settings.podcastAudioEngine) setEngine(res.settings.podcastAudioEngine);
+          if (res.settings.elevenLabsHostVoice) setElevenHostVoice(res.settings.elevenLabsHostVoice);
+          if (res.settings.elevenLabsGuestVoice) setElevenGuestVoice(res.settings.elevenLabsGuestVoice);
+          if (res.settings.kokoCloneEndpoint) setKokoEndpoint(res.settings.kokoCloneEndpoint);
+        }
+      })
+      .catch(() => {});
+
+    api<{ voices: Array<any>; kokoStatus?: { running: boolean } }>("/api/podcast/voices?checkKokoClone=1")
+      .then((res) => {
+        if (res?.voices?.length) setElevenVoices(res.voices);
+        if (res?.kokoStatus) setKokoOnline(res.kokoStatus.running);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!supported) return;
@@ -153,14 +200,20 @@ export function PodcastsView(props: StudyProps) {
     });
   }, [turnDurations]);
 
-  const totalDuration = useMemo(() => turnDurations.reduce((a, b) => a + b, 0), [turnDurations]);
+  const totalDuration = useMemo(() => {
+    if (script?.audioUrl && realAudioDuration > 0) return Math.round(realAudioDuration);
+    return turnDurations.reduce((a, b) => a + b, 0);
+  }, [script?.audioUrl, realAudioDuration, turnDurations]);
 
   useEffect(() => {
     setTurn(0);
     setWordIndex(-1);
     setCurrentTime(0);
     if (audioRef.current) {
-      try { audioRef.current.currentTime = 0; } catch {}
+      try {
+        audioRef.current.currentTime = 0;
+        audioRef.current.pause();
+      } catch {}
     }
     setPlaying(false);
     playingRef.current = false;
@@ -200,9 +253,6 @@ export function PodcastsView(props: StudyProps) {
         setWordIndex(0);
         const startTime = turnStarts[index] ?? 0;
         setCurrentTime(startTime);
-        if (audioRef.current) {
-          try { audioRef.current.currentTime = startTime; } catch {}
-        }
         setPlaying(true);
         playingRef.current = true;
       };
@@ -214,9 +264,6 @@ export function PodcastsView(props: StudyProps) {
           playingRef.current = false;
           setWordIndex(-1);
           setCurrentTime(totalDuration);
-          if (audioRef.current) {
-            try { audioRef.current.currentTime = totalDuration; } catch {}
-          }
         }
       };
       utterance.onerror = () => {
@@ -228,26 +275,37 @@ export function PodcastsView(props: StudyProps) {
     [script, supported, voices, hostVoice, guestVoice, rate, turnStarts, totalDuration],
   );
 
+  // Time tracker for synthetic speech mode
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || script?.audioUrl) return;
     const interval = window.setInterval(() => {
       setCurrentTime((prev) => {
         const turnStart = turnStarts[turn] ?? 0;
         const turnDur = turnDurations[turn] ?? 3;
         const next = prev + 0.25;
         if (next <= turnStart + turnDur) {
-          if (audioRef.current) {
-            try { audioRef.current.currentTime = next; } catch {}
-          }
           return next;
         }
         return prev;
       });
     }, 250);
     return () => window.clearInterval(interval);
-  }, [playing, turn, turnStarts, turnDurations]);
+  }, [playing, turn, turnStarts, turnDurations, script?.audioUrl]);
 
   const toggle = () => {
+    if (script?.audioUrl && audioRef.current) {
+      if (playing) {
+        audioRef.current.pause();
+        setPlaying(false);
+        playingRef.current = false;
+      } else {
+        audioRef.current.play().catch(() => {});
+        setPlaying(true);
+        playingRef.current = true;
+      }
+      return;
+    }
+
     if (!supported) return;
     if (playing) {
       playingRef.current = false;
@@ -255,6 +313,7 @@ export function PodcastsView(props: StudyProps) {
       setPlaying(false);
     } else speak(turn);
   };
+
   const jump = (index: number) => {
     if (!script) return;
     const next = Math.max(0, Math.min(script.turns.length - 1, index));
@@ -262,20 +321,28 @@ export function PodcastsView(props: StudyProps) {
     setWordIndex(-1);
     const time = turnStarts[next] ?? 0;
     setCurrentTime(time);
-    if (audioRef.current) {
-      try { audioRef.current.currentTime = time; } catch {}
+
+    if (script?.audioUrl && audioRef.current) {
+      try {
+        audioRef.current.currentTime = time;
+        if (playing) audioRef.current.play().catch(() => {});
+      } catch {}
+      return;
     }
+
     if (playing) speak(next);
   };
 
   const handleSeek = (event: React.ChangeEvent<HTMLInputElement> | React.FormEvent<HTMLInputElement>) => {
     const targetSec = Number(event.currentTarget.value);
     setCurrentTime(targetSec);
-    if (audioRef.current) {
+
+    if (script?.audioUrl && audioRef.current) {
       try {
         audioRef.current.currentTime = targetSec;
       } catch {}
     }
+
     if (!script || !turnStarts.length) return;
     let foundTurn = 0;
     for (let i = 0; i < turnStarts.length; i++) {
@@ -284,7 +351,8 @@ export function PodcastsView(props: StudyProps) {
     }
     setTurn(foundTurn);
     setWordIndex(-1);
-    if (playingRef.current) {
+
+    if (playingRef.current && (!script?.audioUrl || !audioRef.current)) {
       speak(foundTurn);
     }
   };
@@ -294,7 +362,7 @@ export function PodcastsView(props: StudyProps) {
     if (audioRef.current) {
       audioRef.current.playbackRate = selectedRate;
     }
-    if (playingRef.current) {
+    if (playingRef.current && !script?.audioUrl) {
       speak(turn);
     }
   };
@@ -307,6 +375,7 @@ export function PodcastsView(props: StudyProps) {
     setLength(next);
     document.getElementById(`length-${next}`)?.focus();
   };
+
   const onPlayerKey = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) return;
     if (event.key === " " || event.key === "Enter") {
@@ -317,24 +386,225 @@ export function PodcastsView(props: StudyProps) {
     if (event.key === "ArrowLeft") jump(turn - 1);
   };
 
+  // Generate real audio with ElevenLabs or KokoClone
+  const generateStudioAudio = async () => {
+    if (!data?.asset?.id) return;
+    setSynthesizing(true);
+    setSynthesisError(null);
+
+    try {
+      const res = await api<{ audioUrl: string; turns: Array<any> }>("/api/podcast/audio", {
+        method: "POST",
+        json: {
+          assetId: data.asset.id,
+          engine,
+          apiKey: inlineElevenKey.trim() || undefined,
+          hostVoice: elevenHostVoice,
+          guestVoice: elevenGuestVoice,
+          kokoCloneEndpoint: kokoEndpoint,
+          hostRefAudio: hostRefAudio,
+          guestRefAudio: guestRefAudio,
+        },
+      });
+
+      setData((prev) => {
+        if (!prev || !prev.asset) return prev;
+        return {
+          ...prev,
+          asset: {
+            ...prev.asset,
+            payload: {
+              ...prev.asset.payload,
+              audioUrl: res.audioUrl,
+              turns: res.turns,
+              audioEngine: engine,
+            },
+          },
+        };
+      });
+
+      if (supported) window.speechSynthesis.cancel();
+      setPlaying(false);
+      playingRef.current = false;
+      props.notify("Studio podcast audio generated successfully!", "success");
+    } catch (err) {
+      setSynthesisError(errorMessage(err));
+    } finally {
+      setSynthesizing(false);
+    }
+  };
+
+  // Save inline ElevenLabs key
+  const saveInlineKey = async () => {
+    if (!inlineElevenKey.trim()) return;
+    setSavingKey(true);
+    try {
+      await api("/api/settings", {
+        method: "PUT",
+        json: { elevenLabsApiKey: inlineElevenKey.trim(), podcastAudioEngine: "elevenlabs" },
+      });
+      setHasElevenKey(true);
+      setKeySavedMessage("ElevenLabs key saved to your settings!");
+      props.notify("ElevenLabs key saved.", "success");
+      const vRes = await api<{ voices: Array<any> }>(`/api/podcast/voices?apiKey=${encodeURIComponent(inlineElevenKey.trim())}`);
+      if (vRes?.voices) setElevenVoices(vRes.voices);
+    } catch (err) {
+      props.notify(errorMessage(err), "error");
+    } finally {
+      setSavingKey(false);
+    }
+  };
+
+  // Design voice based on AI Personalization profile
+  const designVoiceFromAi = async (role: "host" | "guest") => {
+    setDesigningVoice(role);
+    const pers = getStoredPersonalization();
+    try {
+      const res = await api<{ voiceId: string; voiceName: string; message: string }>("/api/podcast/voices", {
+        method: "POST",
+        json: {
+          action: "design-from-personalization",
+          personaLabel: PERSONA_DESCRIPTIONS[pers.persona]?.label || "Friendly & Encouraging",
+          personaTone: PERSONA_DESCRIPTIONS[pers.persona]?.tone || "Warm and supportive",
+          learningStyleDesc: LEARNING_STYLE_DESCRIPTIONS[pers.learningStyle]?.desc || "Visual & Structured explanations",
+          learnerName: pers.learnerName,
+          customInstructions: pers.customInstructions,
+          role,
+          apiKey: inlineElevenKey.trim() || undefined,
+        },
+      });
+
+      if (role === "host") setElevenHostVoice(res.voiceId);
+      else setElevenGuestVoice(res.voiceId);
+
+      props.notify(`Personalized ${role === "host" ? "Host" : "Guest"} voice designed: ${res.voiceName}!`, "success");
+      const vRes = await api<{ voices: Array<any> }>("/api/podcast/voices");
+      if (vRes?.voices) setElevenVoices(vRes.voices);
+    } catch (err) {
+      props.notify(errorMessage(err), "error");
+    } finally {
+      setDesigningVoice(null);
+    }
+  };
+
+  // Handle reference audio file upload (.wav/.mp3)
+  const handleReferenceAudioFile = (role: "host" | "guest", e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const base64 = evt.target?.result as string;
+      if (role === "host") {
+        setHostRefAudio(base64);
+        setHostRefName(file.name);
+      } else {
+        setGuestRefAudio(base64);
+        setGuestRefName(file.name);
+      }
+      props.notify(`Reference voice sample loaded for ${role === "host" ? "Speaker 1" : "Speaker 2"}!`, "info");
+    };
+    reader.readAsDataURL(file);
+  };
+
   const progress = script ? Math.round(((turn + (playing ? 0.5 : 0)) / script.turns.length) * 100) : 0;
   const estMinutes = script ? Math.max(1, Math.round(script.turns.reduce((n, t) => n + t.text.split(/\s+/).length, 0) / 150)) : 0;
 
   return (
-    <StudyShell props={props} icon={<Headphones size={25} />} eyebrow="Audio overview" title="Turn your notes into a conversation" copy="A host and an expert guest discuss the selected chapter or the whole subject, read aloud with your system voices." ariaId="podcast-title">
+    <StudyShell props={props} icon={<Headphones size={25} />} eyebrow="Audio overview" title="Turn your notes into a conversation" copy="A host and an expert guest discuss the selected chapter or the whole subject." ariaId="podcast-title">
+      {/* Audio Engine Selection Bar */}
+      <div className="audio-engine-bar" role="radiogroup" aria-label="Podcast speech audio engine">
+        <span className="engine-label"><Volume2 size={15} /> Audio engine:</span>
+        <button
+          type="button"
+          className={`engine-pill ${engine === "speechSynthesis" ? "active" : ""}`}
+          onClick={() => setEngine("speechSynthesis")}
+        >
+          OS System voices
+        </button>
+        <button
+          type="button"
+          className={`engine-pill ${engine === "elevenlabs" ? "active" : ""}`}
+          onClick={() => setEngine("elevenlabs")}
+        >
+          ElevenLabs AI studio
+        </button>
+        <button
+          type="button"
+          className={`engine-pill ${engine === "kokoclone" ? "active" : ""}`}
+          onClick={() => setEngine("kokoclone")}
+        >
+          KokoClone (Local Cloner)
+        </button>
+      </div>
+
       <div className="generator-controls">
         <div className="length-control" role="radiogroup" aria-label="Podcast length">
           {(["short", "medium", "long"] as const).map((option, index) => (
             <button id={`length-${option}`} type="button" role="radio" aria-checked={length === option} className={length === option ? "active" : ""} onClick={() => setLength(option)} onKeyDown={(event) => onLengthKey(event, index)} key={option}>{option[0].toUpperCase() + option.slice(1)}</button>
           ))}
         </div>
-        <button type="button" className="primary-button" onClick={() => (aiReady ? generate({ length }) : onConfigureAi())} disabled={generating || !scope}>
-          {script ? <RefreshCw size={17} aria-hidden="true" /> : <WandSparkles size={17} aria-hidden="true" />}{script ? "Regenerate" : "Generate podcast"}
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" className="primary-button" onClick={() => (aiReady ? generate({ length }) : onConfigureAi())} disabled={generating || !scope}>
+            {script ? <RefreshCw size={17} aria-hidden="true" /> : <WandSparkles size={17} aria-hidden="true" />}{script ? "Regenerate Script" : "Generate podcast"}
+          </button>
+
+          {script && engine !== "speechSynthesis" && (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={generateStudioAudio}
+              disabled={synthesizing || (engine === "elevenlabs" && !hasElevenKey && !inlineElevenKey.trim())}
+            >
+              {synthesizing ? <Spinner label="Synthesizing dialogue…" /> : <Music size={16} />}
+              {script.audioUrl ? "Re-generate Studio Audio" : `Generate Audio (${engine === "elevenlabs" ? "ElevenLabs" : "KokoClone"})`}
+            </button>
+          )}
+
+          {script?.audioUrl && (
+            <a
+              href={`${script.audioUrl}&download=1`}
+              download={`${script.title.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "podcast"}.mp3`}
+              className="secondary-button compact"
+              title="Download generated MP3 podcast"
+            >
+              <Download size={15} /> Download MP3
+            </a>
+          )}
+        </div>
       </div>
+
       <GenerationNotice asset={data?.asset ?? null} generating={generating} providerName={providerName} label="the podcast script" />
       <AiErrorAlert error={error} onRetry={retry} onConfigure={onConfigureAi} />
-      {!supported && script && <InlineAlert tone="warning">Speech synthesis is unavailable in this environment; the transcript is still readable below.</InlineAlert>}
+      {synthesisError && <InlineAlert tone="error">{synthesisError}</InlineAlert>}
+
+      {/* Inline ElevenLabs API Key Prompt */}
+      {engine === "elevenlabs" && !hasElevenKey && (
+        <div className="elevenlabs-prompt-card">
+          <div className="elevenlabs-prompt-head">
+            <span><Cloud size={18} /></span>
+            <div>
+              <strong>Connect ElevenLabs for Studio Voice Synthesis</strong>
+              <p>Enter your ElevenLabs API key once to generate realistic podcasts, design custom voices from your AI profile, or clone voices from audio.</p>
+            </div>
+          </div>
+          <div className="elevenlabs-prompt-input">
+            <input
+              type={showInlineElevenKey ? "text" : "password"}
+              value={inlineElevenKey}
+              onChange={(e) => setInlineElevenKey(e.target.value)}
+              placeholder="xi-api-key or paste key here"
+              autoComplete="off"
+            />
+            <button type="button" className="icon-button" onClick={() => setShowInlineElevenKey((s) => !s)} aria-label={showInlineElevenKey ? "Hide key" : "Show key"}>
+              {showInlineElevenKey ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+            <button type="button" className="primary-button compact" onClick={saveInlineKey} disabled={savingKey || !inlineElevenKey.trim()}>
+              {savingKey ? "Saving…" : "Save key"}
+            </button>
+          </div>
+          {keySavedMessage && <p className="success-note" style={{ margin: "4px 0 0", color: "var(--green)", fontSize: 12 }}>{keySavedMessage}</p>}
+        </div>
+      )}
 
       {loading ? <p className="gen-status"><Spinner label="Loading saved podcast…" /></p> : !script ? (
         <section className="podcast-empty" aria-label="No podcast yet">
@@ -345,9 +615,60 @@ export function PodcastsView(props: StudyProps) {
       ) : (
         <section className="podcast-layout" aria-label="Podcast player and transcript">
           <div className="podcast-player" tabIndex={0} onKeyDown={onPlayerKey} aria-label="Podcast player. Space plays or pauses, arrow keys change turn.">
-            <audio ref={audioRef} style={{ display: "none" }} preload="none" aria-hidden="true" />
-            <div className="player-cover" role="img" aria-label="Abstract purple audio cover art"><span>N</span><div className="cover-wave"><i /><i /><i /><i /><i /></div></div>
-            <div className="player-copy"><span className="eyebrow">Audio overview · {String(data?.asset?.options.length ?? length)} · ≈{estMinutes} min</span><h2>{script.title}</h2><p>{script.summary || props.scopeTitle}</p></div>
+            {/* Real Audio Player Element */}
+            <audio
+              ref={audioRef}
+              src={script?.audioUrl || undefined}
+              preload="metadata"
+              onPlay={() => {
+                setPlaying(true);
+                playingRef.current = true;
+              }}
+              onPause={() => {
+                setPlaying(false);
+                playingRef.current = false;
+              }}
+              onLoadedMetadata={(e) => {
+                if (e.currentTarget.duration && !isNaN(e.currentTarget.duration)) {
+                  setRealAudioDuration(e.currentTarget.duration);
+                }
+              }}
+              onTimeUpdate={() => {
+                if (!audioRef.current || !script) return;
+                const t = audioRef.current.currentTime;
+                setCurrentTime(t);
+                let found = 0;
+                for (let i = 0; i < turnStarts.length; i++) {
+                  if (turnStarts[i] <= t) found = i;
+                  else break;
+                }
+                setTurn(found);
+              }}
+              onEnded={() => {
+                setPlaying(false);
+                playingRef.current = false;
+                setTurn(0);
+                setCurrentTime(0);
+              }}
+              style={{ display: "none" }}
+              aria-hidden="true"
+            />
+            <div className="player-cover" role="img" aria-label="Abstract purple audio cover art">
+              <span>N</span>
+              <div className="cover-wave"><i /><i /><i /><i /><i /></div>
+              {script.audioUrl && (
+                <span className="studio-audio-badge" title="High fidelity audio generated with neural voices">
+                  <Sparkles size={12} /> Studio Audio
+                </span>
+              )}
+            </div>
+            <div className="player-copy">
+              <span className="eyebrow">
+                Audio overview · {String(data?.asset?.options.length ?? length)} · ≈{estMinutes} min {script.audioEngine ? `· ${script.audioEngine}` : ""}
+              </span>
+              <h2>{script.title}</h2>
+              <p>{script.summary || props.scopeTitle}</p>
+            </div>
             <div className="waveform" role="progressbar" aria-label="Playback progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
               {Array.from({ length: 40 }, (_, index) => <i className={(index / 40) * 100 <= progress ? "played" : ""} style={{ height: `${12 + ((index * 13) % 30)}px` }} key={index} />)}
             </div>
@@ -370,7 +691,7 @@ export function PodcastsView(props: StudyProps) {
             </div>
             <div className="player-controls">
               <button type="button" className="icon-button" onClick={() => jump(turn - 1)} aria-label="Previous turn" disabled={turn === 0}><SkipBack size={18} aria-hidden="true" /></button>
-              <button type="button" className="play-button" onClick={toggle} aria-label={playing ? "Pause" : "Play"} disabled={!supported}>{playing ? <Pause size={20} aria-hidden="true" /> : <Play size={20} aria-hidden="true" />}</button>
+              <button type="button" className="play-button" onClick={toggle} aria-label={playing ? "Pause" : "Play"}>{playing ? <Pause size={20} aria-hidden="true" /> : <Play size={20} aria-hidden="true" />}</button>
               <button type="button" className="icon-button" onClick={() => jump(turn + 1)} aria-label="Next turn" disabled={turn >= script.turns.length - 1}><SkipForward size={18} aria-hidden="true" /></button>
               <span aria-live="polite">Turn {turn + 1} / {script.turns.length}</span>
               <div className="speed-buttons" role="group" aria-label="Playback speed">
@@ -388,53 +709,176 @@ export function PodcastsView(props: StudyProps) {
                 ))}
               </div>
             </div>
+
+            {/* Voice and Voice Cloning Controls */}
             <div className="voice-controls">
-              <label>
-                <span>Speaker 1 (Host) voice</span>
-                <select
-                  value={hostVoice}
-                  onChange={(event) => {
-                    setHostVoice(event.target.value);
-                    if (playingRef.current && script.turns[turn]?.speaker === "host") {
-                      speak(turn);
-                    }
-                  }}
-                  aria-label="Speaker 1 Host voice"
-                >
-                  {voices.length > 0 ? (
-                    voices.map((voice) => (
-                      <option value={voice.name} key={voice.name}>
-                        {voice.name} ({voice.lang})
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">System Default Voice (Host)</option>
-                  )}
-                </select>
-              </label>
-              <label>
-                <span>Speaker 2 (Guest) voice</span>
-                <select
-                  value={guestVoice}
-                  onChange={(event) => {
-                    setGuestVoice(event.target.value);
-                    if (playingRef.current && script.turns[turn]?.speaker === "guest") {
-                      speak(turn);
-                    }
-                  }}
-                  aria-label="Speaker 2 Guest voice"
-                >
-                  {voices.length > 0 ? (
-                    voices.map((voice) => (
-                      <option value={voice.name} key={voice.name}>
-                        {voice.name} ({voice.lang})
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">System Default Voice (Guest)</option>
-                  )}
-                </select>
-              </label>
+              {engine === "speechSynthesis" && (
+                <>
+                  <label>
+                    <span>Speaker 1 (Host) OS voice</span>
+                    <select
+                      value={hostVoice}
+                      onChange={(event) => {
+                        setHostVoice(event.target.value);
+                        if (playingRef.current && script.turns[turn]?.speaker === "host" && !script.audioUrl) {
+                          speak(turn);
+                        }
+                      }}
+                      aria-label="Speaker 1 Host voice"
+                    >
+                      {voices.length > 0 ? (
+                        voices.map((voice) => (
+                          <option value={voice.name} key={voice.name}>
+                            {voice.name} ({voice.lang})
+                          </option>
+                        ))
+                      ) : (
+                        <option value="">System Default Voice (Host)</option>
+                      )}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Speaker 2 (Guest) OS voice</span>
+                    <select
+                      value={guestVoice}
+                      onChange={(event) => {
+                        setGuestVoice(event.target.value);
+                        if (playingRef.current && script.turns[turn]?.speaker === "guest" && !script.audioUrl) {
+                          speak(turn);
+                        }
+                      }}
+                      aria-label="Speaker 2 Guest voice"
+                    >
+                      {voices.length > 0 ? (
+                        voices.map((voice) => (
+                          <option value={voice.name} key={voice.name}>
+                            {voice.name} ({voice.lang})
+                          </option>
+                        ))
+                      ) : (
+                        <option value="">System Default Voice (Guest)</option>
+                      )}
+                    </select>
+                  </label>
+                </>
+              )}
+
+              {engine === "elevenlabs" && (
+                <>
+                  <div className="voice-field-block">
+                    <label>
+                      <span>Speaker 1 (Host) ElevenLabs voice</span>
+                      <select
+                        value={elevenHostVoice}
+                        onChange={(e) => setElevenHostVoice(e.target.value)}
+                        aria-label="Speaker 1 Host ElevenLabs voice"
+                      >
+                        {elevenVoices.map((v) => (
+                          <option value={v.id} key={v.id}>
+                            {v.name} {v.description ? `— ${v.description}` : `(${v.category || "custom"})`}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="voice-actions-row">
+                      <button
+                        type="button"
+                        className="text-action-button"
+                        onClick={() => void designVoiceFromAi("host")}
+                        disabled={Boolean(designingVoice) || (!hasElevenKey && !inlineElevenKey.trim())}
+                        title="Crafts a personalized host voice matching your active AI profile"
+                      >
+                        <Wand2 size={12} /> {designingVoice === "host" ? "Designing…" : "Design from AI Profile"}
+                      </button>
+                      <label className="text-action-button upload-label" title="Upload reference audio (.wav or .mp3) to clone this voice">
+                        <Upload size={12} /> {hostRefName ? `Sample: ${hostRefName.slice(0, 12)}…` : "Clone with audio"}
+                        <input
+                          type="file"
+                          accept="audio/wav,audio/mp3,audio/mpeg"
+                          style={{ display: "none" }}
+                          onChange={(e) => handleReferenceAudioFile("host", e)}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="voice-field-block">
+                    <label>
+                      <span>Speaker 2 (Guest) ElevenLabs voice</span>
+                      <select
+                        value={elevenGuestVoice}
+                        onChange={(e) => setElevenGuestVoice(e.target.value)}
+                        aria-label="Speaker 2 Guest ElevenLabs voice"
+                      >
+                        {elevenVoices.map((v) => (
+                          <option value={v.id} key={v.id}>
+                            {v.name} {v.description ? `— ${v.description}` : `(${v.category || "custom"})`}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="voice-actions-row">
+                      <button
+                        type="button"
+                        className="text-action-button"
+                        onClick={() => void designVoiceFromAi("guest")}
+                        disabled={Boolean(designingVoice) || (!hasElevenKey && !inlineElevenKey.trim())}
+                        title="Crafts a personalized guest voice matching your active AI profile"
+                      >
+                        <Wand2 size={12} /> {designingVoice === "guest" ? "Designing…" : "Design from AI Profile"}
+                      </button>
+                      <label className="text-action-button upload-label" title="Upload reference audio (.wav or .mp3) to clone this voice">
+                        <Upload size={12} /> {guestRefName ? `Sample: ${guestRefName.slice(0, 12)}…` : "Clone with audio"}
+                        <input
+                          type="file"
+                          accept="audio/wav,audio/mp3,audio/mpeg"
+                          style={{ display: "none" }}
+                          onChange={(e) => handleReferenceAudioFile("guest", e)}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {engine === "kokoclone" && (
+                <div className="kokoclone-panel" style={{ gridColumn: "1 / -1" }}>
+                  <div className="kokoclone-status-bar">
+                    <span className="koko-status-pill">
+                      <Radio size={12} /> KokoClone {kokoOnline ? "Online" : "Endpoint"} ({kokoEndpoint})
+                    </span>
+                    <small>Zero-shot voice cloning from reference audio</small>
+                  </div>
+
+                  <div className="kokoclone-uploads-row">
+                    <label className="ref-audio-box">
+                      <span>Speaker 1 Reference Audio:</span>
+                      <div className="upload-pill-wrap">
+                        <Upload size={14} />
+                        <span>{hostRefName ? hostRefName : "Select reference .wav / .mp3"}</span>
+                        <input
+                          type="file"
+                          accept="audio/wav,audio/mp3,audio/mpeg"
+                          onChange={(e) => handleReferenceAudioFile("host", e)}
+                        />
+                      </div>
+                    </label>
+
+                    <label className="ref-audio-box">
+                      <span>Speaker 2 Reference Audio:</span>
+                      <div className="upload-pill-wrap">
+                        <Upload size={14} />
+                        <span>{guestRefName ? guestRefName : "Select reference .wav / .mp3"}</span>
+                        <input
+                          type="file"
+                          accept="audio/wav,audio/mp3,audio/mpeg"
+                          onChange={(e) => handleReferenceAudioFile("guest", e)}
+                        />
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <div className="transcript-card">

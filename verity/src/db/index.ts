@@ -51,6 +51,17 @@ async function createEmbedded(): Promise<Database> {
       throw new Error(`migrations folder not found at ${migrationsFolder}`);
     }
     await migrate(db, { migrationsFolder });
+    try {
+      await client.exec(`
+        ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "elevenlabs_api_key_encrypted" text;
+        ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "podcast_audio_engine" varchar(32) DEFAULT 'speechSynthesis' NOT NULL;
+        ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "elevenlabs_host_voice" varchar(80) DEFAULT '21m00Tcm4TlvDq8ikWAM' NOT NULL;
+        ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "elevenlabs_guest_voice" varchar(80) DEFAULT 'pNInz6obpgDQGcFmaJgB' NOT NULL;
+        ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "kokoclone_endpoint" varchar(255) DEFAULT 'http://127.0.0.1:7860' NOT NULL;
+      `);
+    } catch {
+      // Ignored if table not created yet or already up to date
+    }
     return db as unknown as Database;
   } catch (error) {
     const err = error as { message?: string; cause?: { message?: string } };

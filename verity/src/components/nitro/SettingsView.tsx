@@ -1,7 +1,7 @@
 "use client";
 
-import { Accessibility, ChevronRight, Cpu, Database, Download, HardDrive, Info, Mic, Moon, Palette, RefreshCw, ShieldCheck, Sparkles, Sun, Trash2, UserCheck } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { Accessibility, Check, ChevronRight, Cloud, Cpu, Database, Download, Eye, EyeOff, HardDrive, Headphones, Info, Mic, Moon, Palette, Radio, RefreshCw, ShieldCheck, Sparkles, Sun, Trash2, UserCheck, Wand2 } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api, downloadFile, errorMessage } from "./client";
 import { ProviderForm } from "./Onboarding";
 import {
@@ -39,6 +39,115 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
     setPersonalization(updated);
     setPersSaved(true);
     setTimeout(() => setPersSaved(false), 2500);
+  };
+
+  const [elevenKeyInput, setElevenKeyInput] = useState("");
+  const [showElevenKey, setShowElevenKey] = useState(false);
+  const [testingEleven, setTestingEleven] = useState(false);
+  const [elevenTestResult, setElevenTestResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [designingVoice, setDesigningVoice] = useState<"host" | "guest" | null>(null);
+  const [designNotice, setDesignNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [kokoEndpointInput, setKokoEndpointInput] = useState(settings.kokoCloneEndpoint || "http://127.0.0.1:7860");
+  const [testingKoko, setTestingKoko] = useState(false);
+  const [kokoTestResult, setKokoTestResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [voices, setVoices] = useState<Array<{ id: string; name: string; category?: string; description?: string }>>([]);
+  const [loadingVoices, setLoadingVoices] = useState(false);
+
+  const loadElevenVoices = useCallback(async () => {
+    setLoadingVoices(true);
+    try {
+      const res = await api<{ voices: Array<{ id: string; name: string; category?: string; description?: string }> }>("/api/podcast/voices");
+      if (res?.voices?.length) setVoices(res.voices);
+    } catch {
+      // Keep fallbacks
+    } finally {
+      setLoadingVoices(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadElevenVoices();
+  }, [loadElevenVoices]);
+
+  const testElevenConnection = async () => {
+    setTestingEleven(true);
+    setElevenTestResult(null);
+    try {
+      const res = await api<{ valid: boolean; tier?: string }>("/api/podcast/voices", {
+        method: "POST",
+        json: { action: "test-elevenlabs", apiKey: elevenKeyInput.trim() || undefined },
+      });
+      setElevenTestResult({ ok: true, text: `ElevenLabs verified (${res.tier || "active"} tier)!` });
+    } catch (err) {
+      setElevenTestResult({ ok: false, text: errorMessage(err) });
+    } finally {
+      setTestingEleven(false);
+    }
+  };
+
+  const saveElevenKey = async () => {
+    if (!elevenKeyInput.trim()) return;
+    await update({ elevenLabsApiKey: elevenKeyInput.trim(), podcastAudioEngine: "elevenlabs" }, "ElevenLabs API key saved.");
+    setElevenKeyInput("");
+    setElevenTestResult(null);
+    void loadElevenVoices();
+  };
+
+  const clearElevenKey = async () => {
+    await update({ clearElevenLabsApiKey: true }, "ElevenLabs API key removed.");
+    setElevenKeyInput("");
+    setElevenTestResult(null);
+  };
+
+  const testKokoConnection = async () => {
+    setTestingKoko(true);
+    setKokoTestResult(null);
+    try {
+      const res = await api<{ running: boolean; error?: string }>("/api/podcast/voices", {
+        method: "POST",
+        json: { action: "test-kokoclone", endpoint: kokoEndpointInput.trim() },
+      });
+      if (res.running) {
+        setKokoTestResult({ ok: true, text: `KokoClone server is online and responding at ${kokoEndpointInput}!` });
+      } else {
+        setKokoTestResult({ ok: false, text: `KokoClone server unreachable at ${kokoEndpointInput}. ${res.error || "Make sure python app.py is running."}` });
+      }
+    } catch (err) {
+      setKokoTestResult({ ok: false, text: errorMessage(err) });
+    } finally {
+      setTestingKoko(false);
+    }
+  };
+
+  const saveKokoEndpoint = async () => {
+    await update({ kokoCloneEndpoint: kokoEndpointInput.trim() }, "KokoClone endpoint saved.");
+  };
+
+  const designVoiceFromProfile = async (role: "host" | "guest") => {
+    setDesigningVoice(role);
+    setDesignNotice(null);
+    try {
+      const res = await api<{ voiceId: string; voiceName: string; message: string }>("/api/podcast/voices", {
+        method: "POST",
+        json: {
+          action: "design-from-personalization",
+          personaLabel: PERSONA_DESCRIPTIONS[personalization.persona]?.label || "Friendly",
+          personaTone: PERSONA_DESCRIPTIONS[personalization.persona]?.tone || "Warm and supportive",
+          learningStyleDesc: LEARNING_STYLE_DESCRIPTIONS[personalization.learningStyle]?.desc || "Visual and structured",
+          learnerName: personalization.learnerName,
+          customInstructions: personalization.customInstructions,
+          role,
+        },
+      });
+      const patch = role === "host" ? { elevenLabsHostVoice: res.voiceId } : { elevenLabsGuestVoice: res.voiceId };
+      await update(patch, `${role === "host" ? "Host" : "Guest"} voice designed from your profile!`);
+      setDesignNotice({ tone: "success", text: `${res.message} Selected as ${role === "host" ? "Speaker 1 (Host)" : "Speaker 2 (Guest)"}.` });
+      void loadElevenVoices();
+    } catch (err) {
+      setDesignNotice({ tone: "error", text: errorMessage(err) });
+    } finally {
+      setDesigningVoice(null);
+    }
   };
 
   const update = async (patch: Record<string, unknown>, message: string) => {
@@ -164,6 +273,240 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
       <section className="settings-section" aria-labelledby="ai-title">
         <div className="settings-card-head"><span><Cpu size={20} aria-hidden="true" /></span><div><h2 id="ai-title">AI backend</h2><p>Powers RAG search, summaries, podcasts, flashcards, and quizzes. Switching backends keeps your notes; use “Re-index all notes” below so semantic search uses the new embedding model.</p></div></div>
         <ProviderForm key={`${settings.provider}-${settings.model}-${settings.providerConsentAt ?? ""}`} boot={boot} mode="settings" onSaved={(next) => { onSettings(next); notify("AI backend saved."); }} />
+      </section>
+
+      {/* Podcast Voices & Voice Cloning Section */}
+      <section className="settings-section podcast-settings-section" aria-labelledby="podcast-audio-title">
+        <div className="settings-card-head">
+          <span><Headphones size={20} aria-hidden="true" /></span>
+          <div>
+            <h2 id="podcast-audio-title">Podcast Audio &amp; Voice Cloning</h2>
+            <p>Generate high-fidelity conversational audio for podcasts. Use free system speech, ElevenLabs studio AI voices, or KokoClone zero-shot voice cloning.</p>
+          </div>
+        </div>
+
+        <div className="personalization-grid" style={{ marginBottom: 18 }}>
+          <label className="field field--full">
+            <span>Default Podcast Audio Engine</span>
+            <div className="provider-grid" style={{ marginTop: 6 }}>
+              <button
+                type="button"
+                className={`provider-card ${settings.podcastAudioEngine === "speechSynthesis" ? "selected" : ""}`}
+                onClick={() => void update({ podcastAudioEngine: "speechSynthesis" }, "Default voice set to System Speech.")}
+              >
+                <span className="card-radio" aria-hidden="true">{settings.podcastAudioEngine === "speechSynthesis" ? <Check size={12} /> : null}</span>
+                <strong>System Speech (OS Voices)</strong>
+                <p>Free, fast, 100% offline via browser speech synthesis.</p>
+              </button>
+
+              <button
+                type="button"
+                className={`provider-card ${settings.podcastAudioEngine === "elevenlabs" ? "selected" : ""}`}
+                onClick={() => void update({ podcastAudioEngine: "elevenlabs" }, "Default voice set to ElevenLabs.")}
+              >
+                <span className="card-radio" aria-hidden="true">{settings.podcastAudioEngine === "elevenlabs" ? <Check size={12} /> : null}</span>
+                <strong>ElevenLabs AI Studio</strong>
+                <p>Human-quality voices, personalized voice design from your profile, and instant voice cloning.</p>
+              </button>
+
+              <button
+                type="button"
+                className={`provider-card ${settings.podcastAudioEngine === "kokoclone" ? "selected" : ""}`}
+                onClick={() => void update({ podcastAudioEngine: "kokoclone" }, "Default voice set to KokoClone.")}
+              >
+                <span className="card-radio" aria-hidden="true">{settings.podcastAudioEngine === "kokoclone" ? <Check size={12} /> : null}</span>
+                <strong>KokoClone (Local Cloner)</strong>
+                <p>Zero-shot voice cloning with your reference audio on local Kokoro-ONNX server.</p>
+              </button>
+            </div>
+          </label>
+        </div>
+
+        {/* ElevenLabs Configuration */}
+        <div className="settings-subsection" style={{ borderTop: "1px solid var(--line)", paddingTop: 16, marginTop: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
+              <Cloud size={16} /> ElevenLabs Configuration
+            </h3>
+            {settings.hasElevenLabsKey ? (
+              <span className="status-pill status-pill--green">
+                <strong>Active</strong> Key: {settings.elevenLabsKeyHint}
+              </span>
+            ) : (
+              <span className="status-pill status-pill--amber">Not configured</span>
+            )}
+          </div>
+
+          <div className="personalization-grid">
+            <label className="field">
+              <span>{settings.hasElevenLabsKey ? "Replace ElevenLabs API Key" : "ElevenLabs API Key"}</span>
+              <div className="password-wrap">
+                <input
+                  type={showElevenKey ? "text" : "password"}
+                  value={elevenKeyInput}
+                  onChange={(e) => setElevenKeyInput(e.target.value)}
+                  placeholder={settings.hasElevenLabsKey ? "Enter new key to update" : "xi-api-key or paste key here"}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => setShowElevenKey((s) => !s)}
+                  aria-label={showElevenKey ? "Hide key" : "Show key"}
+                >
+                  {showElevenKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <small>Stored securely encrypted on your local PC in local.key.</small>
+            </label>
+
+            <div className="field" style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {elevenKeyInput.trim().length > 0 && (
+                  <button type="button" className="primary-button compact" onClick={saveElevenKey}>
+                    Save Key
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="secondary-button compact"
+                  onClick={testElevenConnection}
+                  disabled={testingEleven || (!elevenKeyInput.trim() && !settings.hasElevenLabsKey)}
+                >
+                  {testingEleven ? "Verifying…" : "Test Connection"}
+                </button>
+                {settings.hasElevenLabsKey && (
+                  <button type="button" className="text-button compact" onClick={clearElevenKey}>
+                    Remove Key
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {elevenTestResult && (
+            <div style={{ marginTop: 10 }}>
+              <InlineAlert tone={elevenTestResult.ok ? "success" : "error"}>
+                {elevenTestResult.text}
+              </InlineAlert>
+            </div>
+          )}
+
+          {/* Voice Selection & Personalized Voice Creator */}
+          <div className="personalization-grid" style={{ marginTop: 16 }}>
+            <label className="field">
+              <span>Speaker 1 (Host Voice)</span>
+              <select
+                value={settings.elevenLabsHostVoice}
+                onChange={(e) => void update({ elevenLabsHostVoice: e.target.value }, "Host voice updated.")}
+              >
+                {voices.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name} {v.description ? `— ${v.description}` : `(${v.category || "custom"})`}
+                  </option>
+                ))}
+              </select>
+              <div style={{ marginTop: 6 }}>
+                <button
+                  type="button"
+                  className="secondary-button compact"
+                  onClick={() => void designVoiceFromProfile("host")}
+                  disabled={Boolean(designingVoice) || !settings.hasElevenLabsKey}
+                  title="Creates a personalized host voice on ElevenLabs matching your active persona and learning style"
+                >
+                  <Wand2 size={13} />
+                  {designingVoice === "host" ? "Designing voice…" : "Design Host Voice from AI Profile"}
+                </button>
+              </div>
+            </label>
+
+            <label className="field">
+              <span>Speaker 2 (Guest Voice)</span>
+              <select
+                value={settings.elevenLabsGuestVoice}
+                onChange={(e) => void update({ elevenLabsGuestVoice: e.target.value }, "Guest voice updated.")}
+              >
+                {voices.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name} {v.description ? `— ${v.description}` : `(${v.category || "custom"})`}
+                  </option>
+                ))}
+              </select>
+              <div style={{ marginTop: 6 }}>
+                <button
+                  type="button"
+                  className="secondary-button compact"
+                  onClick={() => void designVoiceFromProfile("guest")}
+                  disabled={Boolean(designingVoice) || !settings.hasElevenLabsKey}
+                  title="Creates a personalized guest voice on ElevenLabs matching your active persona and learning style"
+                >
+                  <Wand2 size={13} />
+                  {designingVoice === "guest" ? "Designing voice…" : "Design Guest Voice from AI Profile"}
+                </button>
+              </div>
+            </label>
+          </div>
+
+          {designNotice && (
+            <div style={{ marginTop: 10 }}>
+              <InlineAlert tone={designNotice.tone}>{designNotice.text}</InlineAlert>
+            </div>
+          )}
+        </div>
+
+        {/* KokoClone Configuration */}
+        <div className="settings-subsection" style={{ borderTop: "1px solid var(--line)", paddingTop: 16, marginTop: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
+              <Radio size={16} /> KokoClone Voice Cloning (Local)
+            </h3>
+            <span className="status-pill status-pill--blue">Kokoro-ONNX + Kanade</span>
+          </div>
+
+          <div className="personalization-grid">
+            <label className="field">
+              <span>KokoClone Server Endpoint</span>
+              <input
+                type="url"
+                value={kokoEndpointInput}
+                onChange={(e) => setKokoEndpointInput(e.target.value)}
+                placeholder="http://127.0.0.1:7860"
+              />
+              <small>Default Gradio/FastAPI server port is 7860.</small>
+            </label>
+
+            <div className="field" style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {kokoEndpointInput !== settings.kokoCloneEndpoint && (
+                  <button type="button" className="primary-button compact" onClick={saveKokoEndpoint}>
+                    Save Endpoint
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="secondary-button compact"
+                  onClick={testKokoConnection}
+                  disabled={testingKoko}
+                >
+                  {testingKoko ? "Testing…" : "Test Endpoint"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {kokoTestResult && (
+            <div style={{ marginTop: 10 }}>
+              <InlineAlert tone={kokoTestResult.ok ? "success" : "error"}>
+                {kokoTestResult.text}
+              </InlineAlert>
+            </div>
+          )}
+
+          <p className="help-text" style={{ marginTop: 10 }}>
+            To run KokoClone locally: clone <code>https://github.com/Ashish-Patnaik/kokoclone</code> and run <code>python app.py</code>. When active, you can provide any 3–10 second reference audio clip (.wav or .mp3) directly in the Podcast player to clone the voice.
+          </p>
+        </div>
       </section>
 
       <div className="settings-grid">

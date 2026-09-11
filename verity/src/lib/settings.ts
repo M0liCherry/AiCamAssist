@@ -122,6 +122,7 @@ export function requireProvider(cfg: ProviderConfig): ProviderConfig {
 /** Settings safe to send to the renderer (API key never leaves the server process). */
 export function publicSettings(row: Settings) {
   const key = decryptSecret(row.apiKeyEncrypted);
+  const elevenLabsKey = decryptSecret(row.elevenLabsApiKeyEncrypted);
   return {
     id: row.id,
     provider: row.provider,
@@ -131,10 +132,32 @@ export function publicSettings(row: Settings) {
     sttModel: row.sttModel,
     hasApiKey: key.length > 0,
     apiKeyHint: key ? `••••${key.slice(-4)}` : "",
+    hasElevenLabsKey: elevenLabsKey.length > 0,
+    elevenLabsKeyHint: elevenLabsKey ? `••••${elevenLabsKey.slice(-4)}` : "",
+    podcastAudioEngine: (row.podcastAudioEngine || "speechSynthesis") as "speechSynthesis" | "elevenlabs" | "kokoclone",
+    elevenLabsHostVoice: row.elevenLabsHostVoice || "21m00Tcm4TlvDq8ikWAM",
+    elevenLabsGuestVoice: row.elevenLabsGuestVoice || "pNInz6obpgDQGcFmaJgB",
+    kokoCloneEndpoint: row.kokoCloneEndpoint || "http://127.0.0.1:7860",
     onboardingComplete: row.onboardingComplete,
     privacyConsentAt: row.privacyConsentAt,
     providerConsentAt: row.providerConsentAt,
     diagnosticsOptIn: row.diagnosticsOptIn,
     theme: row.theme === "light" ? "light" : "dark",
+  };
+}
+
+export async function getElevenLabsApiKey(): Promise<string> {
+  const row = await getSettingsRow();
+  return decryptSecret(row.elevenLabsApiKeyEncrypted);
+}
+
+export async function getPodcastAudioConfig() {
+  const row = await getSettingsRow();
+  return {
+    engine: (row.podcastAudioEngine || "speechSynthesis") as "speechSynthesis" | "elevenlabs" | "kokoclone",
+    elevenLabsApiKey: decryptSecret(row.elevenLabsApiKeyEncrypted),
+    elevenLabsHostVoice: row.elevenLabsHostVoice || "21m00Tcm4TlvDq8ikWAM",
+    elevenLabsGuestVoice: row.elevenLabsGuestVoice || "pNInz6obpgDQGcFmaJgB",
+    kokoCloneEndpoint: row.kokoCloneEndpoint || "http://127.0.0.1:7860",
   };
 }
