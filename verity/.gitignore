@@ -7,3 +7,4 @@ desktop/node_modules/
 desktop/dist/
 *.log
 .env*.local
+*.tsbuildinfo

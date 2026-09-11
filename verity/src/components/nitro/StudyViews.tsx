@@ -547,7 +547,6 @@ export function FlashcardsView(props: StudyProps) {
 
   const regenerate = () => {
     if (!aiReady) return onConfigureAi();
-    if (cards.length && !window.confirm("Generate a new deck? Review progress for the current deck will be replaced.")) return;
     void generate({ count });
   };
 

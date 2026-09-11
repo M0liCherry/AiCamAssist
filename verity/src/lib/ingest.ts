@@ -204,28 +204,138 @@ function extractJsonArray(source: string, key: string): string | null {
   return null;
 }
 
-async function importYoutube(videoId: string, original: string): Promise<ParsedSource> {
-  const page = await (await fetchRemote(`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}&hl=en`)).text();
-  const rawTitle = page.match(/<meta name="title" content="([^"]*)"/)?.[1] ?? page.match(/<title>([^<]*)<\/title>/)?.[1]?.replace(/ - YouTube$/, "");
-  const title = decodeEntities(rawTitle || `YouTube video ${videoId}`);
-  const tracksJson = extractJsonArray(page, "captionTracks");
-  if (!tracksJson) {
-    throw new HttpError("This video has no captions available, so a transcript cannot be imported. Paste the transcript as text instead.", 422);
-  }
-  let tracks: { baseUrl: string; languageCode?: string; kind?: string }[] = [];
+const INNERTUBE_CLIENT_VERSION = "20.10.38";
+const INNERTUBE_USER_AGENT = `com.google.android.youtube/${INNERTUBE_CLIENT_VERSION} (Linux; U; Android 14)`;
+const DESKTOP_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+async function fetchYoutubeTitle(videoId: string, fallback: string): Promise<string> {
   try {
-    tracks = JSON.parse(tracksJson) as typeof tracks;
+    const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`, {
+      headers: { "user-agent": DESKTOP_USER_AGENT },
+    });
+    if (oembedRes.ok) {
+      const data = (await oembedRes.json()) as { title?: string };
+      if (data?.title) return decodeEntities(data.title.trim());
+    }
   } catch {
-    throw new HttpError("YouTube caption metadata could not be read.", 502);
+    // Fallback to title from watch page
   }
-  const track = tracks.find((t) => t.languageCode?.startsWith("en") && t.kind !== "asr") ?? tracks.find((t) => t.languageCode?.startsWith("en")) ?? tracks[0];
-  if (!track?.baseUrl) throw new HttpError("No usable caption track was found for this video.", 422);
-  const xml = await (await fetchRemote(track.baseUrl)).text();
-  const lines = Array.from(xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g))
-    .map((m) => decodeEntities(decodeEntities(m[1]).replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim())
-    .filter(Boolean);
-  if (!lines.length) throw new HttpError("The caption track was empty.", 422);
-  return { title, text: paragraphize(lines.join(" ")).slice(0, MAX_TEXT_CHARS), sourceType: "youtube", sourceLabel: original };
+  return fallback;
+}
+
+async function importYoutube(videoId: string, original: string): Promise<ParsedSource> {
+  let title = `YouTube video ${videoId}`;
+
+  // 1. Try Android Innertube client
+  let captionTracks: { baseUrl: string; languageCode?: string; kind?: string }[] = [];
+  try {
+    const resp = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "user-agent": INNERTUBE_USER_AGENT,
+      },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: "ANDROID",
+            clientVersion: INNERTUBE_CLIENT_VERSION,
+            hl: "en",
+            gl: "US",
+          },
+        },
+        videoId,
+      }),
+    });
+    if (resp.ok) {
+      const data = (await resp.json()) as {
+        videoDetails?: { title?: string };
+        captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: typeof captionTracks } };
+      };
+      if (data.videoDetails?.title) {
+        title = decodeEntities(data.videoDetails.title);
+      }
+      captionTracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+    }
+  } catch {
+    // Innertube failed, fallback to watch page
+  }
+
+  // Fallback to official oEmbed if title still generic
+  if (title.startsWith("YouTube video ")) {
+    title = await fetchYoutubeTitle(videoId, title);
+  }
+
+  // 2. If Innertube had no captions, fallback to scraping watch page
+  if (!captionTracks.length) {
+    try {
+      const page = await (await fetchRemote(`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}&hl=en`)).text();
+      const rawTitle = page.match(/<meta name="title" content="([^"]*)"/)?.[1] ?? page.match(/<title>([^<]*)<\/title>/)?.[1]?.replace(/ - YouTube$/, "");
+      if (rawTitle && title.startsWith("YouTube video ")) {
+        title = decodeEntities(rawTitle);
+      }
+      const tracksJson = extractJsonArray(page, "captionTracks");
+      if (tracksJson) {
+        captionTracks = JSON.parse(tracksJson) as typeof captionTracks;
+      }
+    } catch {
+      // Ignored, will throw below if no tracks
+    }
+  }
+
+  if (!captionTracks.length) {
+    throw new HttpError("This video has no accessible captions. You can paste the transcript as text instead.", 422);
+  }
+
+  // Prefer English manual, then English auto (asr), then first available
+  const track =
+    captionTracks.find((t) => t.languageCode?.startsWith("en") && t.kind !== "asr") ??
+    captionTracks.find((t) => t.languageCode?.startsWith("en")) ??
+    captionTracks[0];
+
+  if (!track?.baseUrl) {
+    throw new HttpError("No usable caption track was found for this video.", 422);
+  }
+
+  const subResp = await fetch(track.baseUrl, {
+    headers: { "user-agent": DESKTOP_USER_AGENT, accept: "*/*" },
+  });
+  if (!subResp.ok) {
+    throw new HttpError("Could not retrieve the video caption track.", 502);
+  }
+  const xml = await subResp.text();
+
+  const lines: string[] = [];
+
+  // Try srv3 format (<p t="..." d="...">)
+  const pRegex = /<p\s+t="(\d+)"(?:\s+d="(\d+)")?[^>]*>([\s\S]*?)<\/p>/g;
+  let pMatch: RegExpExecArray | null;
+  while ((pMatch = pRegex.exec(xml)) !== null) {
+    const raw = decodeEntities(decodeEntities(pMatch[3]).replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+    if (raw) lines.push(raw);
+  }
+
+  // Fallback to classic format (<text start="...">)
+  if (!lines.length) {
+    const textRegex = /<text[^>]*>([\s\S]*?)<\/text>/g;
+    let tMatch: RegExpExecArray | null;
+    while ((tMatch = textRegex.exec(xml)) !== null) {
+      const raw = decodeEntities(decodeEntities(tMatch[1]).replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+      if (raw) lines.push(raw);
+    }
+  }
+
+  if (!lines.length) {
+    throw new HttpError("The caption track for this video contained no readable text.", 422);
+  }
+
+  const joined = lines.join(" ");
+  return {
+    title,
+    text: paragraphize(joined).slice(0, MAX_TEXT_CHARS),
+    sourceType: "youtube",
+    sourceLabel: original,
+  };
 }
 
 export async function importFromUrl(rawUrl: string): Promise<ParsedSource> {

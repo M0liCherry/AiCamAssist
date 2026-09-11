@@ -3,12 +3,12 @@ One camera, one profile, full independence — Bit N Build Track 1: Access & Inc
 
 Covers 01 Public Space Navigation, 02 Adaptive Educational Tech, 03 Inclusive Digital Services in one 3-tab PWA + Rust API.
 
-## Main Project: `demo`
-The application is located in the `demo/` folder: a local-first study workspace powered by Next.js, local RAG semantic search, on-device Whisper speech-to-text, and Catppuccin themes (Mocha, Macchiato, Frappé, Latte).
+## Main Project: `verity`
+The application is located in the `verity/` folder: a local-first study workspace powered by Next.js, local RAG semantic search, on-device Whisper speech-to-text, and Catppuccin themes (Mocha, Macchiato, Frappé, Latte).
 
 ### Quick start
 ```bash
-cd demo
+cd verity
 npm run dev
 ```
 

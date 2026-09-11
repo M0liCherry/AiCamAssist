@@ -214,7 +214,7 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
                       <button type="button" className="tree-label" onClick={() => onScope({ scopeType: "subject", scopeId: subject.id })} aria-current={subjectActive ? "true" : undefined}>
                         <BookOpen size={15} aria-hidden="true" />
                         <span>{subject.name}</span>
-                        {subjectScores.flashcards.summary && <span className="tree-score-badge" title={`Subject mastery: ${subjectScores.flashcards.summary}`}>{subjectScores.flashcards.summary}</span>}
+                        {subjectScores.flashcards.percentage > 0 && <span className="tree-score-badge" title={`Subject mastery: ${subjectScores.flashcards.percentage}%`}>{subjectScores.flashcards.percentage}%</span>}
                         <small>{subject.noteCount}</small>
                       </button>
                       <ItemMenu label={`Actions for ${subject.name}`} items={[
@@ -238,7 +238,7 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
                                 <button type="button" className="tree-label" onClick={() => onScope({ scopeType: "chapter", scopeId: chapter.id })} aria-current={active ? "true" : undefined}>
                                   <Layers size={14} aria-hidden="true" />
                                   <span>{chapter.name}</span>
-                                  {chScores.flashcards?.summary && <span className="tree-score-badge tree-score-badge--chapter" title={`Chapter flashcards: ${chScores.flashcards.summary}`}>{chScores.flashcards.summary}</span>}
+                                  {chScores.flashcards && chScores.flashcards.percentage > 0 && <span className="tree-score-badge tree-score-badge--chapter" title={`Chapter flashcards: ${chScores.flashcards.percentage}%`}>{chScores.flashcards.percentage}%</span>}
                                   <small>{chapter.noteCount}</small>
                                 </button>
                                 <ItemMenu label={`Actions for ${chapter.name}`} items={[
@@ -271,11 +271,11 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
                     <span className="eyebrow">Subject Performance &amp; Metrics</span>
                     <h2>{activeSubject.name}</h2>
                   </div>
-                  {activeSubjectScores?.flashcards.summary && (
+                  {activeSubjectScores?.flashcards && (
                     <div className="top-level-summary-pill" title="Top-level subject score summary">
                       <Trophy size={15} aria-hidden="true" />
                       <span>Subject Mastery:</span>
-                      <strong>{activeSubjectScores.flashcards.summary}</strong>
+                      <strong>{activeSubjectScores.flashcards.percentage}%</strong>
                     </div>
                   )}
                 </div>
@@ -287,9 +287,12 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
                       <span className="stat-pct">{activeSubjectScores?.flashcards.percentage ?? 0}%</span>
                     </div>
                     <div className="stat-main">
-                      <strong>{activeSubjectScores?.flashcards.summary ?? "0/0 Mastered"}</strong>
+                      <div className="stat-hero-row">
+                        <strong className="stat-percentage-hero">{activeSubjectScores?.flashcards.percentage ?? 0}%</strong>
+                        <span className="stat-best-badge">Best: {activeSubjectScores?.flashcards.score ?? 0} pts</span>
+                      </div>
                       <span className="stat-sub">
-                        {activeSubjectScores?.flashcards.score ?? 0} / {activeSubjectScores?.flashcards.maxScore ?? 0} pts (Mastered = 2 pts, Learning = 1 pt)
+                        Mastery aligned by retention &bull; Best score recorded
                       </span>
                     </div>
                     <div className="overview-progress-bar" role="progressbar" aria-label="Flashcard mastery" aria-valuenow={activeSubjectScores?.flashcards.percentage ?? 0} aria-valuemin={0} aria-valuemax={100}>
@@ -303,7 +306,10 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
                       <span className="stat-pct">{activeSubjectScores?.quiz.total ? `${activeSubjectScores.quiz.percentage}%` : "—"}</span>
                     </div>
                     <div className="stat-main">
-                      <strong>{activeSubjectScores?.quiz.total ? `${activeSubjectScores.quiz.bestScore} / ${activeSubjectScores.quiz.total} Best` : "No attempts yet"}</strong>
+                      <div className="stat-hero-row">
+                        <strong className="stat-percentage-hero">{activeSubjectScores?.quiz.total ? `${activeSubjectScores.quiz.percentage}%` : "0%"}</strong>
+                        <span className="stat-best-badge">Best: {activeSubjectScores?.quiz.bestScore ?? 0} pts</span>
+                      </div>
                       <span className="stat-sub">
                         {activeSubjectScores?.quiz.attemptsCount ?? 0} attempt{(activeSubjectScores?.quiz.attemptsCount ?? 0) === 1 ? "" : "s"} tracked across chapters
                       </span>
@@ -334,10 +340,10 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
                             </div>
                             <div className="chapter-card-metrics">
                               <span className={`chip chip--fc ${chScores.flashcards ? "has-score" : ""}`}>
-                                {chScores.flashcards?.summary ?? "0/0 Mastered"}
+                                {chScores.flashcards ? `${chScores.flashcards.percentage}% (Best: ${chScores.flashcards.score} pts)` : "0% (Best: 0 pts)"}
                               </span>
                               <span className={`chip chip--quiz ${chScores.quiz ? "has-score" : ""}`}>
-                                {chScores.quiz ? `Quiz: ${chScores.quiz.bestScore}/${chScores.quiz.total} (${chScores.quiz.percentage}%)` : "No quiz"}
+                                {chScores.quiz ? `${chScores.quiz.percentage}% (Best: ${chScores.quiz.bestScore} pts)` : "No quiz"}
                               </span>
                             </div>
                           </button>

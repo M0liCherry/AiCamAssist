@@ -142,7 +142,7 @@ export function ImportModal({ type, subjects, defaultChapterId, onClose, onCreat
           <label className="field">
             <span>Public URL</span>
             <input type="url" required value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://… or a YouTube link" />
-            <small>Articles are converted to text on this PC. YouTube imports use the video's caption track; videos without captions cannot be imported.</small>
+            <small>Articles and YouTube videos are transcribed and synthesized into structured study notes on this PC.</small>
           </label>
         )}
 
@@ -152,7 +152,7 @@ export function ImportModal({ type, subjects, defaultChapterId, onClose, onCreat
             <FileUp size={22} aria-hidden="true" />
             <span>
               <strong>{files.length ? files.map((f) => f.name).join(", ") : type === "audio" ? "Choose an audio file" : "Choose up to 20 files"}</strong>
-              <small>{type === "audio" ? "MP3, WAV, M4A, OGG, FLAC · transcribed locally with Whisper" : "PDF, DOCX, PPTX, TXT, MD, HTML · parsed locally"}</small>
+              <small>{type === "audio" ? "MP3, WAV, M4A, OGG, FLAC · transcribed into structured study notes" : "PDF, DOCX, PPTX, TXT, MD, HTML · parsed locally"}</small>
             </span>
           </label>
         )}
@@ -164,7 +164,7 @@ export function ImportModal({ type, subjects, defaultChapterId, onClose, onCreat
               <option value="">Auto-detect</option>
               {[["en", "English"], ["es", "Spanish"], ["fr", "French"], ["de", "German"], ["pt", "Portuguese"], ["it", "Italian"], ["hi", "Hindi"], ["zh", "Chinese"], ["ja", "Japanese"], ["ar", "Arabic"]].map(([code, label]) => <option value={code} key={code}>{label}</option>)}
             </select>
-            <small>The first transcription downloads the Whisper model (about 75 MB for whisper-base) into your data folder; afterwards it runs offline.</small>
+            <small>Audio is transcribed with Whisper on this computer and synthesized into organized study notes.</small>
           </label>
         )}
 
@@ -173,9 +173,9 @@ export function ImportModal({ type, subjects, defaultChapterId, onClose, onCreat
           <span>
             <strong>Processing notice</strong>
             {type === "website"
-              ? "NitroAI fetches the address you provide. Only import pages you are permitted to use for study."
+              ? "Verity AI fetches the address you provide. Only import pages and videos you are permitted to use for study."
               : type === "audio"
-                ? "Audio is decoded and transcribed on this computer. The transcript becomes a note and is indexed with your chosen AI backend."
+                ? "Audio is decoded and transcribed on this computer. The transcript is synthesized into notes and indexed with your chosen AI backend."
                 : "Files are parsed on this computer. Extracted text is stored locally and indexed with your chosen AI backend (cloud providers receive text only for embeddings if selected)."}
           </span>
         </div>

@@ -704,3 +704,156 @@ button.cite-badge:hover { background: var(--violet); color: white; }
   .overview-stats-grid { grid-template-columns: 1fr; }
   .end-screen-stats { grid-template-columns: 1fr; }
 }
+
+/* Verity AI Brand & Mascot Logo */
+.brand-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.brand-icon-img {
+  width: 26px;
+  height: 26px;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+.hero-logo-img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 50%;
+  margin-bottom: 8px;
+  box-shadow: 0 8px 24px rgba(203, 166, 247, 0.25);
+}
+.intro-logo-img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+  box-shadow: 0 6px 20px rgba(203, 166, 247, 0.2);
+}
+.assistant-intro-logo {
+  display: inline-block;
+  margin-bottom: 8px;
+}
+.msg-avatar-img {
+  width: 22px;
+  height: 22px;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+/* Chat Intro Greeting */
+.intro-description {
+  margin: 10px 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.intro-description p {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+/* AI Personalization & Profile Section */
+.personalization-section {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  padding: 24px;
+  margin-bottom: 18px;
+}
+.personalization-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 18px;
+}
+@media (max-width: 960px) {
+  .personalization-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.field--full {
+  grid-column: 1 / -1;
+}
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  color: var(--text);
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.field textarea:focus {
+  outline: none;
+  border-color: var(--violet);
+  box-shadow: 0 0 0 2px var(--violet-soft);
+}
+.saved-badge-row {
+  display: flex;
+  margin-top: 14px;
+}
+.saved-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: color-mix(in srgb, var(--green) 16%, transparent);
+  color: var(--green);
+  border: 1px solid color-mix(in srgb, var(--green) 35%, transparent);
+  padding: 5px 12px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 650;
+  animation: fadeIn 0.2s ease;
+}
+
+/* Dashboard Score Heroes */
+.stat-hero-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 6px 0 8px;
+}
+.stat-percentage-hero {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  line-height: 1;
+}
+.stat-best-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: var(--violet-soft);
+  color: var(--violet-pale);
+  font-size: 12px;
+  font-weight: 700;
+}
+.tree-score-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: var(--violet-soft);
+  color: var(--violet-pale);
+  margin-left: auto;
+}
+

@@ -137,15 +137,45 @@ export async function summarizeNote(cfg: ProviderConfig, title: string, content:
   return stripThinking(text);
 }
 
+export async function generateStudyNotesFromTranscript(
+  cfg: ProviderConfig,
+  title: string,
+  transcript: string,
+  sourceLabel: string,
+  sourceType: "youtube" | "audio",
+): Promise<string> {
+  const sample = transcript.slice(0, 16000);
+  const prompt = `Source: ${sourceLabel} (${sourceType === "youtube" ? "YouTube video" : "Spoken audio recording"})\nTitle: "${title}"\n\nTranscript:\n${sample}\n\nConvert this transcript into clear, comprehensive study notes in Markdown:\n# ${title}\n\n## Overview\n(2-3 paragraphs explaining the core concepts and background)\n\n## Key Takeaways & Core Concepts\n(bullet points with bolded key terms)\n\n## Detailed Study Notes\n(organized by main topics discussed)\n\n## Verbatim Transcript\n<details><summary>Click to expand full transcript</summary>\n\n${transcript.slice(0, 8000)}\n\n</details>`;
+
+  try {
+    const text = await chatCompletion(
+      cfg,
+      [
+        { role: "system", content: "You are an expert academic tutor and note synthesis assistant for Verity AI. Produce high-quality, structured Markdown study notes from spoken transcripts." },
+        { role: "user", content: prompt },
+      ],
+      { temperature: 0.3, maxTokens: isLocalProvider(cfg.provider) ? 1600 : 4000, timeoutMs: 12000 },
+    );
+    const cleaned = stripThinking(text).trim();
+    if (cleaned.length > 50) return cleaned;
+  } catch {
+    // Fallback below
+  }
+
+  return `# ${title}\n\n*Source: ${sourceLabel}*\n\n## Overview\nTranscribed from ${sourceType === "youtube" ? "YouTube video" : "audio recording"} for study and revision.\n\n## Detailed Notes & Transcript\n\n${transcript}`;
+}
+
 export async function answerQuestion(
   cfg: ProviderConfig,
   question: string,
   context: ContextBlock[],
   history: { role: "user" | "assistant"; content: string }[],
   scopeTitle: string,
+  personalization?: string,
 ): Promise<string> {
   const excerpts = context.map((c) => `[${c.n}] ${c.title}\n${c.content}`).join("\n\n");
-  const system = `You are Nitro, the study assistant inside NitroAI. Answer using the numbered source excerpts from the user's own notes in "${scopeTitle}". Cite the excerpts you rely on inline with bracketed numbers such as [1] or [2][3]. If the excerpts do not contain the answer, say so plainly and suggest what material to add; never fabricate citations or facts. Write clear Markdown with short paragraphs or bullet points, and finish with a one-line "Sources used:" list of the citation numbers.`;
+  const personalGuidance = personalization ? `\nUser's Personal Learning Preferences:\n${personalization}\n` : "";
+  const system = `You are Verity, the knowledgeable, helpful, and friendly study assistant inside Verity AI. Answer using the numbered source excerpts from the user's own notes in "${scopeTitle}". Cite the excerpts you rely on inline with bracketed numbers such as [1] or [2][3]. If the excerpts do not contain the answer, say so plainly and suggest what material to add; never fabricate citations or facts. Write clear Markdown with structured sections, bullet points, or code blocks as needed, and finish with a one-line "Sources used:" list of the citation numbers.${personalGuidance}`;
   const prompt = context.length
     ? `Source excerpts:\n\n${excerpts}\n\nQuestion: ${question}`
     : `No source excerpts were retrieved for this question. Question: ${question}\n\nExplain that the current collection has no relevant notes and how the user can add some.`;

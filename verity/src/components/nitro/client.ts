@@ -88,14 +88,21 @@ export function formatClock(seconds: number) {
 /** Decodes any browser-supported audio file to 16 kHz mono PCM for Whisper. */
 export async function decodeAudioFile(file: File): Promise<{ pcm: Float32Array<ArrayBuffer>; duration: number }> {
   const arrayBuffer = await file.arrayBuffer();
-  const context = new AudioContext();
+  const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtx) throw new Error("Audio decoding is not supported in this browser.");
+  const context = new AudioCtx();
   let decoded: AudioBuffer;
   try {
-    decoded = await context.decodeAudioData(arrayBuffer);
+    decoded = await new Promise<AudioBuffer>((resolve, reject) => {
+      const res = context.decodeAudioData(arrayBuffer.slice(0), resolve, reject);
+      if (res && typeof (res as Promise<AudioBuffer>).then === "function") {
+        (res as Promise<AudioBuffer>).then(resolve).catch(reject);
+      }
+    });
   } catch {
     throw new Error("This audio format could not be decoded. Try WAV, MP3, M4A, OGG, or FLAC.");
   } finally {
-    void context.close();
+    void context.close().catch(() => undefined);
   }
   const offline = new OfflineAudioContext(1, Math.ceil(decoded.duration * 16000), 16000);
   const source = offline.createBufferSource();
@@ -121,7 +128,12 @@ export async function transcribeAudio(file: File, onProgress: (info: { percent: 
     const slice = pcm.slice(index * segmentSamples, (index + 1) * segmentSamples);
     const response = await fetch("/api/transcribe", {
       method: "POST",
-      headers: { "content-type": "application/octet-stream", "x-nitro-sample-rate": "16000", ...(language ? { "x-nitro-language": language } : {}) },
+      headers: {
+        "content-type": "application/octet-stream",
+        "x-nitro-sample-rate": "16000",
+        "x-verity-sample-rate": "16000",
+        ...(language ? { "x-nitro-language": language, "x-verity-language": language } : {}),
+      },
       body: new Blob([slice], { type: "application/octet-stream" }),
     });
     const data = (await response.json().catch(() => ({}))) as { text?: string; error?: string };

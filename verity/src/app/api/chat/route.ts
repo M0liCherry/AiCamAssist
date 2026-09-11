@@ -55,12 +55,15 @@ export async function POST(request: NextRequest) {
       retrieved = [...retrieved, ...extra.filter((r) => !seen.has(r.chunkId))].slice(0, 6).map((r, i) => ({ ...r, n: i + 1 }));
     }
 
+    const personalization = typeof body.personalization === "string" ? cleanText(body.personalization, 1500) : undefined;
+
     const answer = await answerQuestion(
       cfg,
       message,
       retrieved.map((r) => ({ n: r.n, title: r.noteTitle, content: r.content })),
       history,
       scopeInfo.title,
+      personalization,
     );
     const citations: Citation[] = retrieved.map((r) => ({ n: r.n, noteId: r.noteId, noteTitle: r.noteTitle, chunkId: r.chunkId, snippet: r.content.slice(0, 280) }));
 
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
     const [assistantRow] = await db.insert(chatMessages).values({ scopeType: scope.scopeType, scopeId: scope.scopeId, role: "assistant", content: answer, citations }).returning();
     return ok({ messages: [userRow, assistantRow] });
   } catch (error) {
-    return fail(error, "Nitro could not answer right now.");
+    return fail(error, "Verity could not answer right now.");
   }
 }
 

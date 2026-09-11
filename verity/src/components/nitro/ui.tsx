@@ -22,7 +22,7 @@ export function Modal({ open, title, description, onClose, children, wide = fals
       <section className={`modal-card ${wide ? "modal-card--wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? `${titleId}-desc` : undefined}>
         <div className="modal-head">
           <div>
-            <p className="eyebrow">NitroAI</p>
+            <p className="eyebrow">Verity AI</p>
             <h2 id={titleId}>{title}</h2>
             {description && <p id={`${titleId}-desc`}>{description}</p>}
           </div>

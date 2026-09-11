@@ -3,9 +3,10 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "NitroAI — Local-first AI study workspace",
+  title: "Verity AI — Local-first AI study workspace",
   description: "Offline-first study and note-taking desktop app with podcasts, flashcards, quizzes, and a source-grounded assistant.",
-  applicationName: "NitroAI",
+  applicationName: "Verity AI",
+  icons: { icon: "/logo.png", apple: "/logo.png" },
   robots: { index: false, follow: false },
 };
 

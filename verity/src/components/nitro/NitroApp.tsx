@@ -120,8 +120,8 @@ export function NitroApp() {
     return (
       <main className="boot-screen">
         <div className="boot-card" role="alert">
-          <span className="hero-mark" aria-hidden="true"><Sparkles size={20} /></span>
-          <h1>NitroAI could not start</h1>
+          <img src="/logo.png" alt="Verity AI" className="hero-logo-img" />
+          <h1>Verity AI could not start</h1>
           <p>{bootError}</p>
           <p className="help-text">The local database service may still be starting. Check the desktop log in your data folder if this persists.</p>
           <button type="button" className="primary-button" onClick={() => window.location.reload()}><RefreshCw size={15} aria-hidden="true" />Retry</button>
@@ -132,7 +132,7 @@ export function NitroApp() {
   if (!boot || !settings) {
     return (
       <main className="boot-screen" aria-busy="true">
-        <div className="boot-card" role="status"><span className="hero-mark pulse" aria-hidden="true"><Sparkles size={20} /></span><p>Starting NitroAI…</p></div>
+        <div className="boot-card" role="status"><img src="/logo.png" alt="Verity AI" className="hero-logo-img pulse" /><p>Starting Verity AI…</p></div>
       </main>
     );
   }
@@ -162,7 +162,10 @@ export function NitroApp() {
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <aside className="app-sidebar" aria-label="Primary navigation">
         <div className="brand-row">
-          <button type="button" className="brand" onClick={() => setView("hub")} aria-label="NitroAI notes hub"><span><Sparkles size={18} aria-hidden="true" /></span><b>Nitro<span>AI</span></b></button>
+          <button type="button" className="brand" onClick={() => setView("hub")} aria-label="Verity AI notes hub">
+            <span className="brand-icon-wrap"><img src="/logo.png" alt="" className="brand-icon-img" /></span>
+            <b>Verity<span>AI</span></b>
+          </button>
           <button type="button" className="collapse-button" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"} aria-expanded={!collapsed}>{collapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}</button>
         </div>
         <nav className="primary-nav" aria-label="Workspace views">
@@ -178,12 +181,12 @@ export function NitroApp() {
         <div className="sidebar-footer">
           <div className="scope-indicator" title={scopeInfo.title}><span className={`status-dot ${aiReady ? "ok" : "bad"}`} aria-hidden="true" /><span>{providerName}</span></div>
           <button type="button" onClick={toggleTheme} aria-label={`Switch to ${settings.theme === "dark" ? "light" : "dark"} theme`}>{settings.theme === "dark" ? <Moon size={18} aria-hidden="true" /> : <Sun size={18} aria-hidden="true" />}<span>{settings.theme === "dark" ? "Dark theme" : "Light theme"}</span><small>Theme</small></button>
-          <button type="button" className="profile-button" onClick={() => setView("settings")}><span className="profile-avatar" aria-label="Your profile">Y</span><span><strong>You</strong><small>Local workspace · v{boot.environment.version}</small></span></button>
+          <button type="button" className="profile-button" onClick={() => setView("settings")} title="Profile & AI Personalization"><span className="profile-avatar" aria-label="Your profile">Y</span><span><strong>You</strong><small>Profile &amp; AI Personalization</small></span></button>
         </div>
       </aside>
       <div className="mobile-topbar">
         <button type="button" className="icon-button" onClick={() => setCollapsed((value) => !value)} aria-label="Toggle navigation"><Menu size={20} aria-hidden="true" /></button>
-        <button type="button" className="brand" onClick={() => setView("hub")}><span><Sparkles size={17} aria-hidden="true" /></span><b>NitroAI</b></button>
+        <button type="button" className="brand" onClick={() => setView("hub")}><span className="brand-icon-wrap"><img src="/logo.png" alt="" className="brand-icon-img" /></span><b>Verity AI</b></button>
       </div>
       <div className="app-content" id="main-content" tabIndex={-1}>{renderView()}</div>
       <div className="toast-region" aria-live="polite">

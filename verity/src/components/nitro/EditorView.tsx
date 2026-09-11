@@ -3,6 +3,7 @@
 import { ArrowLeft, AtSign, Bot, Check, Clock3, Edit3, Eraser, FileText, FolderInput, History, PanelRightClose, PanelRightOpen, RefreshCw, Save, Send, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage, formatDate } from "./client";
+import { buildPersonalizationPrompt, getStoredPersonalization } from "./personalization";
 import type { ChatMsg, Citation, NoteFull, NoteSummary, Scope, Subject } from "./types";
 import { AiErrorAlert, EmptyState, ItemMenu, MarkdownDocument, Modal, Spinner } from "./ui";
 
@@ -266,7 +267,11 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
       setMessages((current) => [...current, optimistic]);
       setDraft("");
       try {
-        const data = await api<{ messages: ChatMsg[] }>("/api/chat", { method: "POST", json: { scopeType: scope.scopeType, scopeId: scope.scopeId, message: question, noteIds } });
+        const persPrompt = buildPersonalizationPrompt(getStoredPersonalization());
+        const data = await api<{ messages: ChatMsg[] }>("/api/chat", {
+          method: "POST",
+          json: { scopeType: scope.scopeType, scopeId: scope.scopeId, message: question, noteIds, personalization: persPrompt },
+        });
         setMessages((current) => [...current.filter((m) => m.id !== optimistic.id), ...data.messages]);
         setRefs([]);
       } catch (err) {
@@ -328,15 +333,19 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
       <div className="chat-history" ref={historyRef} aria-live="polite" aria-label="Conversation">
         {!messages.length && (
           <div className="assistant-intro">
-            <span aria-hidden="true"><Bot size={24} /></span>
-            <h2>Hey, I’m Nitro</h2>
-            <p>Ask about anything in {scope.scopeType === "chapter" ? "this chapter" : "this subject"}. I answer from your notes and cite the passages I used. Type @ to pin specific notes.</p>
+            <span aria-hidden="true" className="assistant-intro-logo"><img src="/logo.png" alt="Verity" className="intro-logo-img" /></span>
+            <h2>Hey, it&#39;s me, it&#39;s Verity</h2>
+            <div className="intro-description">
+              <p>Ask me anything</p>
+              <p>I know about a million things</p>
+              <p>I&#39;ll do everything</p>
+            </div>
             {!aiReady && <button type="button" className="secondary-button compact" onClick={onConfigureAi}><Sparkles size={14} aria-hidden="true" />Connect an AI backend</button>}
           </div>
         )}
         {messages.map((message) => (
           <div className={`chat-message chat-message--${message.role}`} key={message.id}>
-            <span className="message-avatar" aria-label={message.role === "assistant" ? "Nitro" : "You"}>{message.role === "assistant" ? <Sparkles size={14} aria-hidden="true" /> : "Y"}</span>
+            <span className="message-avatar" aria-label={message.role === "assistant" ? "Verity" : "You"}>{message.role === "assistant" ? <img src="/logo.png" alt="" className="msg-avatar-img" /> : "Y"}</span>
             <div className="message-body">
               {message.role === "assistant" ? <MarkdownDocument content={message.content} compact onCite={(n) => setOpenSource({ messageId: message.id, n })} /> : <p>{message.content}</p>}
               {message.citations.length > 0 && (
@@ -353,7 +362,7 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
             </div>
           </div>
         ))}
-        {sending && <div className="chat-message chat-message--assistant"><span className="message-avatar" aria-hidden="true"><Sparkles size={14} /></span><div className="message-body"><p className="thinking"><Spinner label="Nitro is reading your notes…" /></p></div></div>}
+        {sending && <div className="chat-message chat-message--assistant"><span className="message-avatar" aria-hidden="true"><img src="/logo.png" alt="" className="msg-avatar-img" /></span><div className="message-body"><p className="thinking"><Spinner label="Verity is reading your notes…" /></p></div></div>}
       </div>
       <form className="assistant-composer" onSubmit={send}>
         {mentionOpen && mentionCandidates.length > 0 && (

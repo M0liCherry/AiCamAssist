@@ -1,9 +1,18 @@
 "use client";
 
-import { Accessibility, ChevronRight, Cpu, Database, Download, HardDrive, Info, Mic, Moon, Palette, RefreshCw, ShieldCheck, Sun, Trash2 } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { Accessibility, ChevronRight, Cpu, Database, Download, HardDrive, Info, Mic, Moon, Palette, RefreshCw, ShieldCheck, Sparkles, Sun, Trash2, UserCheck } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
 import { api, downloadFile, errorMessage } from "./client";
 import { ProviderForm } from "./Onboarding";
+import {
+  AiPersonalization,
+  AiPersona,
+  LearningStyle,
+  getStoredPersonalization,
+  saveStoredPersonalization,
+  PERSONA_DESCRIPTIONS,
+  LEARNING_STYLE_DESCRIPTIONS,
+} from "./personalization";
 import type { PublicSettings, SettingsResponse } from "./types";
 import { InlineAlert, Modal } from "./ui";
 
@@ -18,6 +27,19 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
   const [eraseOpen, setEraseOpen] = useState(false);
   const [eraseText, setEraseText] = useState("");
   const [busy, setBusy] = useState<"" | "reindex" | "erase">("");
+  const [personalization, setPersonalization] = useState<AiPersonalization>(() => getStoredPersonalization());
+  const [persSaved, setPersSaved] = useState(false);
+
+  useEffect(() => {
+    setPersonalization(getStoredPersonalization());
+  }, []);
+
+  const savePersonalization = (patch: Partial<AiPersonalization>) => {
+    const updated = saveStoredPersonalization(patch);
+    setPersonalization(updated);
+    setPersSaved(true);
+    setTimeout(() => setPersSaved(false), 2500);
+  };
 
   const update = async (patch: Record<string, unknown>, message: string) => {
     try {
@@ -64,7 +86,80 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
 
   return (
     <main className="settings-view page-enter" aria-labelledby="settings-title">
-      <header><p className="eyebrow">Preferences, privacy &amp; legal</p><h1 id="settings-title">Settings</h1><p>Everything here is stored on this computer. Current backend: <strong>{providerLabel}</strong>.</p></header>
+      <header>
+        <p className="eyebrow">Preferences, profile &amp; legal</p>
+        <h1 id="settings-title">Settings &amp; Profile</h1>
+        <p>Everything here is stored locally on this computer. Active AI backend: <strong>{providerLabel}</strong>.</p>
+      </header>
+
+      {/* AI Personalization & Profile Section */}
+      <section className="settings-section personalization-section" aria-labelledby="profile-title">
+        <div className="settings-card-head">
+          <span className="section-head-icon"><UserCheck size={22} aria-hidden="true" /></span>
+          <div>
+            <h2 id="profile-title">Personalize Verity AI</h2>
+            <p>Customize how Verity interacts with you. Choose your preferred study tone, learning style, and custom instructions for all chats and summaries.</p>
+          </div>
+        </div>
+
+        <div className="personalization-grid">
+          <label className="field">
+            <span>Your Name / Nickname</span>
+            <input
+              type="text"
+              value={personalization.learnerName}
+              onChange={(e) => savePersonalization({ learnerName: e.target.value })}
+              placeholder="e.g. Alex, Sam, Doctor, Student"
+              maxLength={60}
+            />
+            <small>Verity will address you naturally by this name.</small>
+          </label>
+
+          <label className="field">
+            <span>AI Persona &amp; Tone</span>
+            <select
+              value={personalization.persona}
+              onChange={(e) => savePersonalization({ persona: e.target.value as AiPersona })}
+            >
+              {Object.entries(PERSONA_DESCRIPTIONS).map(([key, info]) => (
+                <option value={key} key={key}>{info.label}</option>
+              ))}
+            </select>
+            <small>{PERSONA_DESCRIPTIONS[personalization.persona]?.tone}</small>
+          </label>
+
+          <label className="field">
+            <span>Learning Style</span>
+            <select
+              value={personalization.learningStyle}
+              onChange={(e) => savePersonalization({ learningStyle: e.target.value as LearningStyle })}
+            >
+              {Object.entries(LEARNING_STYLE_DESCRIPTIONS).map(([key, info]) => (
+                <option value={key} key={key}>{info.label}</option>
+              ))}
+            </select>
+            <small>{LEARNING_STYLE_DESCRIPTIONS[personalization.learningStyle]?.desc}</small>
+          </label>
+
+          <label className="field field--full">
+            <span>Custom Instructions for Verity</span>
+            <textarea
+              rows={3}
+              value={personalization.customInstructions}
+              onChange={(e) => savePersonalization({ customInstructions: e.target.value })}
+              placeholder="e.g. I am preparing for board exams. Always explain terms in simple terms first, then show mathematical formulas. Use bullet points."
+              maxLength={1200}
+            />
+            <small>Special directions or background knowledge Verity should consider in every response.</small>
+          </label>
+        </div>
+
+        {persSaved && (
+          <div className="saved-badge-row">
+            <span className="saved-badge"><Sparkles size={14} aria-hidden="true" /> Personalization saved to local profile</span>
+          </div>
+        )}
+      </section>
 
       <section className="settings-section" aria-labelledby="ai-title">
         <div className="settings-card-head"><span><Cpu size={20} aria-hidden="true" /></span><div><h2 id="ai-title">AI backend</h2><p>Powers RAG search, summaries, podcasts, flashcards, and quizzes. Switching backends keeps your notes; use “Re-index all notes” below so semantic search uses the new embedding model.</p></div></div>
@@ -83,7 +178,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
         </section>
 
         <section className="settings-card" aria-labelledby="diag-title">
-          <div className="settings-card-head"><span><ShieldCheck size={20} aria-hidden="true" /></span><div><h2 id="diag-title">Privacy &amp; diagnostics</h2><p>NitroAI has no analytics, tracking, or crash-upload endpoint. Diagnostics, if enabled, are written to a local file only.</p></div></div>
+          <div className="settings-card-head"><span><ShieldCheck size={20} aria-hidden="true" /></span><div><h2 id="diag-title">Privacy &amp; diagnostics</h2><p>Verity AI has no analytics, tracking, or crash-upload endpoint. Diagnostics, if enabled, are written to a local file only.</p></div></div>
           <label className="toggle-row" htmlFor="diagnostics-setting">
             <span><strong>Local diagnostics log</strong><small>{environment.logPath}</small></span>
             <input id="diagnostics-setting" type="checkbox" role="switch" aria-checked={settings.diagnosticsOptIn} checked={settings.diagnosticsOptIn} onChange={(event) => void update({ diagnosticsOptIn: event.target.checked }, event.target.checked ? "Local diagnostics enabled." : "Diagnostics disabled.")} />
@@ -92,9 +187,9 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
         </section>
 
         <section className="settings-card" aria-labelledby="theme-title">
-          <div className="settings-card-head"><span><Palette size={20} aria-hidden="true" /></span><div><h2 id="theme-title">Appearance</h2><p>High-contrast palettes tested against WCAG 2.1 AA for text and controls.</p></div></div>
+          <div className="settings-card-head"><span><Palette size={20} aria-hidden="true" /></span><div><h2 id="theme-title">Appearance</h2><p>Catppuccin Mocha palette tested against WCAG 2.1 AA for text and controls.</p></div></div>
           <button type="button" className="theme-choice" onClick={() => void update({ theme: settings.theme === "dark" ? "light" : "dark" }, "Theme updated.")}>
-            <span>{settings.theme === "dark" ? <Moon size={20} aria-hidden="true" /> : <Sun size={20} aria-hidden="true" />}<span><strong>{settings.theme === "dark" ? "Dark" : "Light"} theme</strong><small>Switch to {settings.theme === "dark" ? "light" : "dark"}</small></span></span><ChevronRight size={18} aria-hidden="true" />
+            <span>{settings.theme === "dark" ? <Moon size={20} aria-hidden="true" /> : <Sun size={20} aria-hidden="true" />}<span><strong>{settings.theme === "dark" ? "Catppuccin Mocha (Dark)" : "Light"} theme</strong><small>Switch to {settings.theme === "dark" ? "light" : "Catppuccin Mocha dark"} theme</small></span></span><ChevronRight size={18} aria-hidden="true" />
           </button>
         </section>
 
@@ -117,7 +212,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
         </section>
 
         <section className="settings-card settings-card--wide" aria-labelledby="about-title">
-          <div className="settings-card-head"><span><Info size={20} aria-hidden="true" /></span><div><h2 id="about-title">About NitroAI</h2><p>Version {environment.version} · Local-first AI study workspace for Windows.</p></div></div>
+          <div className="settings-card-head"><span><Info size={20} aria-hidden="true" /></span><div><h2 id="about-title">About Verity AI</h2><p>Version {environment.version} · Local-first AI study workspace.</p></div></div>
           <dl className="data-grid about-grid">
             <div><dt>Publisher</dt><dd>{publisher.name}</dd></div>
             <div><dt>Legal entity</dt><dd>{publisher.legalEntity}</dd></div>
@@ -138,7 +233,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
         </section>
       </div>
 
-      <Modal open={eraseOpen} title="Erase all local data" description="This permanently deletes everything NitroAI stores on this computer and restarts setup." onClose={() => setEraseOpen(false)}>
+      <Modal open={eraseOpen} title="Erase all local data" description="This permanently deletes everything Verity AI stores on this computer and restarts setup." onClose={() => setEraseOpen(false)}>
         <form className="folder-form" onSubmit={erase}>
           <label className="field"><span>Type ERASE to confirm</span><input value={eraseText} onChange={(event) => setEraseText(event.target.value)} autoComplete="off" /></label>
           <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setEraseOpen(false)}>Cancel</button><button type="submit" className="primary-button danger" disabled={eraseText !== "ERASE" || busy === "erase"}>{busy === "erase" ? "Erasing…" : "Erase everything"}</button></div>

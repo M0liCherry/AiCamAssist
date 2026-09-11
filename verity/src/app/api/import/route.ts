@@ -4,6 +4,7 @@ import { getDb, type Database } from "@/db";
 import { chapters, notes } from "@/db/schema";
 import { cleanText, fail, HttpError, ok, readJson, requireInt } from "@/lib/http";
 import { countWords, importFromUrl, normalizeText, parseUploadedFile, type ParsedSource } from "@/lib/ingest";
+import { generateStudyNotesFromTranscript } from "@/lib/ai/generate";
 import { indexNote } from "@/lib/rag";
 import { getProviderConfig } from "@/lib/settings";
 import type { ProviderConfig } from "@/lib/ai/provider";
@@ -11,15 +12,30 @@ import type { ProviderConfig } from "@/lib/ai/provider";
 export const dynamic = "force-dynamic";
 
 async function storeSource(db: Database, cfg: ProviderConfig, chapterId: number, subjectId: number, source: ParsedSource, titleOverride: string) {
+  const noteTitle = titleOverride || source.title;
+  let noteContent = source.text;
+
+  if (source.sourceType === "youtube" || source.sourceType === "audio") {
+    if (cfg.provider !== "none") {
+      try {
+        noteContent = await generateStudyNotesFromTranscript(cfg, noteTitle, source.text, source.sourceLabel, source.sourceType);
+      } catch {
+        noteContent = `# ${noteTitle}\n\n*Source: ${source.sourceLabel}*\n\n## Overview\nTranscribed from ${source.sourceType === "youtube" ? "YouTube video" : "audio recording"}.\n\n## Transcript & Notes\n\n${source.text}`;
+      }
+    } else {
+      noteContent = `# ${noteTitle}\n\n*Source: ${source.sourceLabel}*\n\n## Overview\nTranscribed from ${source.sourceType === "youtube" ? "YouTube video" : "audio recording"}.\n\n## Transcript & Notes\n\n${source.text}`;
+    }
+  }
+
   const [note] = await db
     .insert(notes)
     .values({
       chapterId,
-      title: titleOverride || source.title,
-      content: source.text,
+      title: noteTitle,
+      content: noteContent,
       sourceType: source.sourceType,
       sourceLabel: source.sourceLabel.slice(0, 600),
-      wordCount: countWords(source.text),
+      wordCount: countWords(noteContent),
       status: "processing",
       indexState: "none",
     })
