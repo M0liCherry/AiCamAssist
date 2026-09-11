@@ -1,3 +1,0 @@
-# AiCamAssist
-
-im anxiety btw
