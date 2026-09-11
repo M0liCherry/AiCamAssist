@@ -1,111 +1,186 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+:root,
+[data-theme="mocha"] {
+  color-scheme: dark;
+  --ctp-base: #1e1e2e;
+  --ctp-mantle: #181825;
+  --ctp-crust: #11111b;
+  --ctp-surface0: #313244;
+  --ctp-surface1: #45475a;
+  --ctp-surface2: #585b70;
+  --ctp-subtext0: #a6adc8;
+  --ctp-text: #cdd6f4;
+  --ctp-blue: #89b4fa;
+  --ctp-lavender: #b4befe;
+  --ctp-green: #a6e3a1;
+  --ctp-yellow: #f9e2af;
+  --ctp-red: #f38ba8;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  --bg-deep: #1e1e2e;
+  --bg-surface: #181825;
+  --bg-surface-hover: #313244;
+  --bg-card: #313244;
+  --border-color: #313244;
+  --border-hover: #45475a;
+  --text-main: #cdd6f4;
+  --text-muted: #a6adc8;
+  --text-inverse: #11111b;
+  --sidebar-width: 240px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+[data-theme="macchiato"] {
+  color-scheme: dark;
+  --ctp-base: #24273a;
+  --ctp-mantle: #1e2030;
+  --ctp-crust: #181926;
+  --ctp-surface0: #363a4f;
+  --ctp-surface1: #494d64;
+  --ctp-surface2: #5b6078;
+  --ctp-subtext0: #a5adcb;
+  --ctp-text: #cad3f5;
+  --ctp-blue: #8aadf4;
+  --ctp-lavender: #b7bdf8;
+  --ctp-green: #a6da95;
+  --ctp-yellow: #eed49f;
+  --ctp-red: #ed8796;
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+  --bg-deep: #24273a;
+  --bg-surface: #1e2030;
+  --bg-surface-hover: #363a4f;
+  --bg-card: #363a4f;
+  --border-color: #363a4f;
+  --border-hover: #494d64;
+  --text-main: #cad3f5;
+  --text-muted: #a5adcb;
+  --text-inverse: #181926;
+}
+
+[data-theme="frappe"] {
+  color-scheme: dark;
+  --ctp-base: #303446;
+  --ctp-mantle: #292c3c;
+  --ctp-crust: #232634;
+  --ctp-surface0: #414559;
+  --ctp-surface1: #51576d;
+  --ctp-surface2: #626880;
+  --ctp-subtext0: #a5adce;
+  --ctp-text: #c6d0f5;
+  --ctp-blue: #8caaee;
+  --ctp-lavender: #babbf1;
+  --ctp-green: #a6d189;
+  --ctp-yellow: #e5c890;
+  --ctp-red: #e78284;
+
+  --bg-deep: #303446;
+  --bg-surface: #292c3c;
+  --bg-surface-hover: #414559;
+  --bg-card: #414559;
+  --border-color: #414559;
+  --border-hover: #51576d;
+  --text-main: #c6d0f5;
+  --text-muted: #a5adce;
+  --text-inverse: #232634;
+}
+
+[data-theme="latte"] {
+  color-scheme: light;
+  --ctp-base: #eff1f5;
+  --ctp-mantle: #e6e9ef;
+  --ctp-crust: #dce0e8;
+  --ctp-surface0: #ccd0da;
+  --ctp-surface1: #bcc0cc;
+  --ctp-surface2: #acb0be;
+  --ctp-subtext0: #6c6f85;
+  --ctp-text: #4c4f69;
+  --ctp-blue: #1e66f5;
+  --ctp-lavender: #7287fd;
+  --ctp-green: #40a02b;
+  --ctp-yellow: #df8e1d;
+  --ctp-red: #d20f39;
+
+  --bg-deep: #eff1f5;
+  --bg-surface: #e6e9ef;
+  --bg-surface-hover: #ccd0da;
+  --bg-card: #ccd0da;
+  --border-color: #ccd0da;
+  --border-hover: #bcc0cc;
+  --text-main: #4c4f69;
+  --text-muted: #6c6f85;
+  --text-inverse: #ffffff;
+}
+
+[data-font="mono"] * {
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, Consolas, monospace !important;
+}
+
+[data-font="dyslexic"] * {
+  font-family: Verdana, Arial, sans-serif !important;
+  letter-spacing: 0.04em !important;
+  line-height: 1.65 !important;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+}
+
+html, body {
+  background-color: var(--bg-deep);
+  color: var(--text-main);
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
+  width: 100vw;
+  height: 100vh;
   display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-body {
+  overflow: hidden;
   margin: 0;
+  padding: 0;
+  border: none;
+  max-width: none;
+  text-align: left;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+/* Flat minimalist scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+button:active {
+  transform: scale(0.98);
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+input, textarea, select {
+  font-family: inherit;
+  color: var(--text-main);
+  outline: none;
 }
