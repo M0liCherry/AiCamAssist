@@ -110,7 +110,16 @@ export async function POST(request: NextRequest) {
     }
 
     const config = await getPodcastAudioConfig();
-    const engine = (body.engine || config.engine || "elevenlabs") as "elevenlabs" | "kokoclone";
+    const rawEngine = body.engine || config.engine || "speechSynthesis";
+    if (rawEngine !== "elevenlabs" && rawEngine !== "kokoclone") {
+      throw new HttpError(
+        rawEngine === "speechSynthesis"
+          ? "Browser speech synthesis runs on your device — there is no server audio to generate."
+          : "Unknown podcast audio engine.",
+        400,
+      );
+    }
+    const engine = rawEngine;
     const apiKey = (body.apiKey ? String(body.apiKey).trim() : "") || config.elevenLabsApiKey;
     const hostVoice = body.hostVoice ? String(body.hostVoice) : config.elevenLabsHostVoice;
     const guestVoice = body.guestVoice ? String(body.guestVoice) : config.elevenLabsGuestVoice;

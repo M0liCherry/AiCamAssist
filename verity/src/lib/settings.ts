@@ -90,9 +90,17 @@ export async function recordDiagnostic(context: string, error: unknown) {
 export async function getSettingsRow(): Promise<Settings> {
   const db = await getDb();
   const [row] = await db.select().from(settings).limit(1);
-  const resolved = row ?? (await db.insert(settings).values({}).returning())[0];
-  diagnosticsEnabled = resolved.diagnosticsOptIn;
-  return resolved;
+  if (row) {
+    diagnosticsEnabled = row.diagnosticsOptIn;
+    return row;
+  }
+  // First boot: pin the singleton row to id 1 so concurrent starters collide
+  // on the primary key instead of creating duplicates; the loser re-reads.
+  await db.insert(settings).values({ id: 1 }).onConflictDoNothing({ target: settings.id });
+  const [created] = await db.select().from(settings).limit(1);
+  if (!created) throw new Error("Settings could not be initialized.");
+  diagnosticsEnabled = created.diagnosticsOptIn;
+  return created;
 }
 
 export function toProviderConfig(row: Pick<Settings, "provider" | "model" | "embeddingModel" | "endpoint" | "apiKeyEncrypted">): ProviderConfig {
