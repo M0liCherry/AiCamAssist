@@ -41,6 +41,12 @@ export async function GET(request: NextRequest) {
       const parts = range.replace(/bytes=/, "").split("-");
       const start = parseInt(parts[0], 10);
       const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start > end || end >= fileSize) {
+        return new Response("Requested range not satisfiable.", {
+          status: 416,
+          headers: { "Content-Range": `bytes */${fileSize}` },
+        });
+      }
       const chunkSize = end - start + 1;
       const fileStream = fs.createReadStream(filePath, { start, end });
 

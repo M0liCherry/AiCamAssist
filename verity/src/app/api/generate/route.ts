@@ -118,11 +118,18 @@ export async function PATCH(request: NextRequest) {
 
     if (body.attempt && typeof body.attempt === "object") {
       const attempt = body.attempt as { answers?: Record<string, number>; score?: number; total?: number; topicBreakdown?: Record<string, { correct: number; total: number }> };
+      const [asset] = await db.select({ id: generatedAssets.id }).from(generatedAssets).where(eq(generatedAssets.id, assetId));
+      if (!asset) throw new HttpError("Study set not found.", 404);
+      const score = Number(attempt.score ?? 0);
+      const total = Number(attempt.total ?? 0);
+      if (!Number.isFinite(score) || !Number.isFinite(total) || score < 0 || total < 0) {
+        throw new HttpError("Score and total must be valid numbers.");
+      }
       await db.insert(quizAttempts).values({
         assetId,
         answers: attempt.answers ?? {},
-        score: Number(attempt.score ?? 0),
-        total: Number(attempt.total ?? 0),
+        score,
+        total,
         topicBreakdown: attempt.topicBreakdown ?? {},
       });
       const attempts = await db.select().from(quizAttempts).where(eq(quizAttempts.assetId, assetId)).orderBy(desc(quizAttempts.id)).limit(10);

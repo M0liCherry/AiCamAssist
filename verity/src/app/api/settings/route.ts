@@ -1,4 +1,6 @@
 import { eq } from "drizzle-orm";
+import fs from "node:fs";
+import path from "node:path";
 import type { NextRequest } from "next/server";
 import { APP_VERSION, PUBLISHER, STT_MODELS } from "@/config/app";
 import { getDb, isDesktopMode, usesEmbeddedDatabase } from "@/db";
@@ -133,6 +135,9 @@ export async function DELETE(request: NextRequest) {
     await db.delete(chapters);
     await db.delete(subjects);
     await db.delete(settings);
+    // Remove generated files too (keeps local.key and cached models so setup stays cheap).
+    fs.rmSync(path.join(dataDirectory(), "media"), { recursive: true, force: true });
+    fs.rmSync(diagnosticsLogPath(), { force: true });
     setDiagnostics(false);
     return ok({ ok: true });
   } catch (error) {
