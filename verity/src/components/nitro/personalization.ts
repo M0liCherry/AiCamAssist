@@ -34,13 +34,13 @@ export const LEARNING_STYLE_DESCRIPTIONS: Record<LearningStyle, { label: string;
 };
 
 export function getStoredPersonalization(): AiPersonalization {
-  if (typeof window === "undefined") return DEFAULT_PERSONALIZATION;
+  if (typeof window === "undefined") return { ...DEFAULT_PERSONALIZATION };
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PERSONALIZATION;
+    if (!raw) return { ...DEFAULT_PERSONALIZATION };
     return { ...DEFAULT_PERSONALIZATION, ...(JSON.parse(raw) as Partial<AiPersonalization>) };
   } catch {
-    return DEFAULT_PERSONALIZATION;
+    return { ...DEFAULT_PERSONALIZATION };
   }
 }
 
