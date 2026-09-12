@@ -561,7 +561,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
           </div>
 
           <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-            {(!kokoDetailedStatus?.installed || !kokoDetailedStatus?.venvReady) && (
+            {(!kokoDetailedStatus?.installed || !kokoDetailedStatus?.venvReady) ? (
               <button
                 type="button"
                 className="primary-button compact"
@@ -569,6 +569,16 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
                 disabled={settingUpKoko}
               >
                 <Download size={14} /> {settingUpKoko ? "Setting up KokoClone…" : "Download & Set Up KokoClone"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="secondary-button compact"
+                onClick={setupKokoClone}
+                disabled={settingUpKoko}
+                title="Reinstall or update KokoClone Python dependencies"
+              >
+                <Download size={14} /> {settingUpKoko ? "Installing packages…" : "Reinstall / Update Dependencies"}
               </button>
             )}
 

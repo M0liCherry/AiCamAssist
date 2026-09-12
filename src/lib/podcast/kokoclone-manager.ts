@@ -83,7 +83,7 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
     } catch {
       // Fallback to clone if not registered as submodule
       try {
-        await execAsync("git clone https://github.com/Ashish-Patnaik/kokoclone.git kokoclone", { cwd: paths.root });
+        await execAsync("git clone https://github.com/C1ph3r404/kokoclone.git kokoclone", { cwd: paths.root });
       } catch (err) {
         return {
           ok: false,
@@ -94,7 +94,7 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
   }
 
   // 2. Create venv if missing
-  const updatedPaths = getKokoclonePaths();
+  let updatedPaths = getKokoclonePaths();
   if (!updatedPaths.hasVenv) {
     try {
       // Try uv first for ultra fast installation
@@ -109,26 +109,38 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
         };
       }
     }
+  }
 
-    // 3. Install requirements
+  updatedPaths = getKokoclonePaths();
+
+  // 3. Install requirements into the virtual environment
+  const hasPyproject = fs.existsSync(path.join(updatedPaths.kokoDir, "pyproject.toml"));
+  const installTarget = hasPyproject ? "-e ." : "-r requirements.txt";
+
+  try {
+    const pythonArg = updatedPaths.pythonBin ? ` --python "${updatedPaths.pythonBin}"` : "";
+    await execAsync(`uv pip install${pythonArg} ${installTarget}`, {
+      cwd: updatedPaths.kokoDir,
+      maxBuffer: 10 * 1024 * 1024,
+    });
+  } catch {
     try {
-      await execAsync("uv pip install -r requirements.txt", { cwd: updatedPaths.kokoDir });
-    } catch {
-      try {
-        const pipCmd = process.platform === "win32" ? ".venv\\Scripts\\pip" : ".venv/bin/pip";
-        await execAsync(`${pipCmd} install -r requirements.txt`, { cwd: updatedPaths.kokoDir });
-      } catch (err) {
-        return {
-          ok: false,
-          message: `Failed to install KokoClone requirements: ${err instanceof Error ? err.message : String(err)}`,
-        };
-      }
+      const pipCmd = process.platform === "win32" ? path.join(".venv", "Scripts", "pip") : path.join(".venv", "bin", "pip");
+      await execAsync(`"${pipCmd}" install ${installTarget}`, {
+        cwd: updatedPaths.kokoDir,
+        maxBuffer: 10 * 1024 * 1024,
+      });
+    } catch (err) {
+      return {
+        ok: false,
+        message: `Failed to install KokoClone requirements: ${err instanceof Error ? err.message : String(err)}`,
+      };
     }
   }
 
   return {
     ok: true,
-    message: "KokoClone submodule and Python environment are successfully set up!",
+    message: "KokoClone submodule and Python dependencies are successfully installed and ready!",
   };
 }
 
