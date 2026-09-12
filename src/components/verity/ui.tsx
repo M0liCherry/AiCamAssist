@@ -45,19 +45,86 @@ export function ConsentField({ id, checked, onChange, children, compact = false 
   );
 }
 
+export function extractYoutubeId(input?: string | null): string | null {
+  if (!input) return null;
+  const iframeMatch = input.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+  const target = iframeMatch ? iframeMatch[1] : input.trim();
+  const match = target.match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/)([\w-]{6,})/i);
+  if (match) return match[1];
+  try {
+    const url = new URL(target);
+    const host = url.hostname.replace(/^(www|m|music)\./, "");
+    if (host === "youtu.be") return url.pathname.slice(1).split("/")[0] || null;
+    if (host === "youtube.com" || host === "youtube-nocookie.com") {
+      if (url.pathname === "/watch") return url.searchParams.get("v");
+      const pMatch = url.pathname.match(/^\/(?:embed|shorts|live|v)\/([\w-]{6,})/);
+      return pMatch ? pMatch[1] : null;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+export function extractYoutubeTitle(input?: string | null): string {
+  if (!input) return "YouTube video";
+  const titleMatch = input.match(/title=["']([^"']+)["']/i);
+  return titleMatch ? titleMatch[1] : "YouTube video";
+}
+
+export function YoutubeEmbed({ videoId, title = "YouTube video" }: { videoId: string; title?: string }) {
+  return (
+    <div className="youtube-embed-card" role="region" aria-label={title}>
+      <div className="youtube-embed-header">
+        <span className="youtube-badge">YouTube</span>
+        <span className="youtube-title">{title}</span>
+        <a
+          href={`https://www.youtube.com/watch?v=${videoId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="youtube-open-link"
+          title="Open video on YouTube"
+        >
+          Watch on YouTube ↗
+        </a>
+      </div>
+      <div className="youtube-embed-responsive">
+        <iframe
+          src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0`}
+          title={title}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          loading="lazy"
+        />
+      </div>
+    </div>
+  );
+}
+
 export function renderInline(text: string, onCite?: (n: number) => void): ReactNode[] {
   const parts: ReactNode[] = [];
-  const regex = /(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|`[^`]+`|\[\d+(?:\]\[\d+|,\s*\d+)*\])/g;
+  const regex = /(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|`[^`]+`|\[\d+(?:\]\[\d+|,\s*\d+)*\]|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\*([^*]+)\*)/g;
   let last = 0;
   let key = 0;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(text))) {
     if (match.index > last) parts.push(text.slice(last, match.index));
     const token = match[0];
-    if (token.startsWith("***")) parts.push(<strong key={key++}><em>{token.slice(3, -3)}</em></strong>);
-    else if (token.startsWith("**")) parts.push(<strong key={key++}>{token.slice(2, -2)}</strong>);
-    else if (token.startsWith("`")) parts.push(<code key={key++}>{token.slice(1, -1)}</code>);
-    else {
+    if (token.startsWith("***")) {
+      parts.push(<strong key={key++}><em>{token.slice(3, -3)}</em></strong>);
+    } else if (token.startsWith("**")) {
+      parts.push(<strong key={key++}>{token.slice(2, -2)}</strong>);
+    } else if (token.startsWith("`")) {
+      parts.push(<code key={key++}>{token.slice(1, -1)}</code>);
+    } else if (token.startsWith("[") && token.includes("](") && match[2] && match[3]) {
+      parts.push(
+        <a key={key++} href={match[3]} target="_blank" rel="noopener noreferrer" className="doc-link">
+          {match[2]}
+        </a>,
+      );
+    } else if (token.startsWith("*") && token.endsWith("*")) {
+      parts.push(<em key={key++}>{token.slice(1, -1)}</em>);
+    } else {
       const numbers = token.replace(/[[\]]/g, " ").split(/[\s,]+/).filter(Boolean).map(Number);
       parts.push(
         <span key={key++} className="cite-group">
@@ -77,14 +144,21 @@ export function renderInline(text: string, onCite?: (n: number) => void): ReactN
   return parts;
 }
 
-/** Text-only Markdown renderer (headings, lists, quotes, code blocks). Never injects HTML. */
+/** Markdown renderer with YouTube embed, disclosure details, headings, lists, quotes, and code blocks. */
 export function MarkdownDocument({ content, onCite, compact = false }: { content: string; onCite?: (n: number) => void; compact?: boolean }) {
   const lines = content.replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
+  const seenYoutubeIds = new Set<string>();
   let codeBuffer: string[] | null = null;
+  let detailsBuffer: string[] | null = null;
+  let detailsSummary = "";
+  let iframeBuffer: string[] | null = null;
+
   lines.forEach((line, index) => {
     const key = `${index}`;
-    if (line.trim().startsWith("```")) {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith("```")) {
       if (codeBuffer) {
         blocks.push(<pre key={key}><code>{codeBuffer.join("\n")}</code></pre>);
         codeBuffer = null;
@@ -95,6 +169,80 @@ export function MarkdownDocument({ content, onCite, compact = false }: { content
       codeBuffer.push(line);
       return;
     }
+
+    // Multiline iframe buffering
+    if (iframeBuffer !== null) {
+      iframeBuffer.push(line);
+      if (trimmed.includes("</iframe>") || trimmed.endsWith(">")) {
+        const fullIframe = iframeBuffer.join(" ");
+        iframeBuffer = null;
+        const ytId = extractYoutubeId(fullIframe);
+        if (ytId && !seenYoutubeIds.has(ytId)) {
+          seenYoutubeIds.add(ytId);
+          blocks.push(<YoutubeEmbed key={key} videoId={ytId} title={extractYoutubeTitle(fullIframe)} />);
+          return;
+        }
+      } else {
+        return;
+      }
+    }
+
+    if (trimmed.includes("<iframe") && !trimmed.includes("</iframe>")) {
+      iframeBuffer = [line];
+      return;
+    }
+
+    // YouTube iframe or standalone link detection
+    if (
+      trimmed.includes("<iframe") ||
+      trimmed.includes("youtube-nocookie.com") ||
+      trimmed.includes("youtube.com") ||
+      trimmed.includes("youtu.be") ||
+      trimmed.startsWith("[youtube:") ||
+      trimmed.startsWith("<div class=\"youtube-embed")
+    ) {
+      const ytId = extractYoutubeId(trimmed);
+      if (ytId && !seenYoutubeIds.has(ytId)) {
+        seenYoutubeIds.add(ytId);
+        blocks.push(<YoutubeEmbed key={key} videoId={ytId} title={extractYoutubeTitle(trimmed)} />);
+        return;
+      }
+    }
+
+    // Collapsible transcript / details handling
+    if (trimmed.startsWith("<details")) {
+      const summaryMatch = trimmed.match(/<summary>([\s\S]*?)<\/summary>/i);
+      detailsSummary = summaryMatch ? summaryMatch[1] : "Verbatim Transcript";
+      detailsBuffer = [];
+      return;
+    }
+    if (trimmed.startsWith("</details>")) {
+      if (detailsBuffer !== null) {
+        blocks.push(
+          <details key={key} className="transcript-details">
+            <summary className="transcript-summary">{detailsSummary || "Verbatim Transcript"}</summary>
+            <div className="transcript-details-content">
+              {detailsBuffer.map((dLine, dIdx) => (
+                <p key={dIdx}>{renderInline(dLine, onCite)}</p>
+              ))}
+            </div>
+          </details>,
+        );
+        detailsBuffer = null;
+        detailsSummary = "";
+      }
+      return;
+    }
+    if (detailsBuffer !== null) {
+      if (trimmed.startsWith("<summary>")) {
+        const sMatch = trimmed.match(/<summary>([\s\S]*?)<\/summary>/i);
+        if (sMatch) detailsSummary = sMatch[1];
+      } else {
+        detailsBuffer.push(line);
+      }
+      return;
+    }
+
     if (line.startsWith("### ")) blocks.push(<h3 key={key}>{renderInline(line.slice(4), onCite)}</h3>);
     else if (line.startsWith("## ")) blocks.push(<h2 key={key}>{renderInline(line.slice(3), onCite)}</h2>);
     else if (line.startsWith("# ")) blocks.push(<h1 key={key}>{renderInline(line.slice(2), onCite)}</h1>);
@@ -104,7 +252,22 @@ export function MarkdownDocument({ content, onCite, compact = false }: { content
     else if (!line.trim()) blocks.push(<div className="doc-spacer" key={key} aria-hidden="true" />);
     else blocks.push(<p key={key}>{renderInline(line, onCite)}</p>);
   });
+
   if (codeBuffer) blocks.push(<pre key="tail"><code>{(codeBuffer as string[]).join("\n")}</code></pre>);
+  if (Array.isArray(detailsBuffer)) {
+    const finalBuffer: string[] = detailsBuffer;
+    blocks.push(
+      <details key="tail-details" className="transcript-details">
+        <summary className="transcript-summary">{detailsSummary || "Verbatim Transcript"}</summary>
+        <div className="transcript-details-content">
+          {finalBuffer.map((dLine, dIdx) => (
+            <p key={dIdx}>{renderInline(dLine, onCite)}</p>
+          ))}
+        </div>
+      </details>,
+    );
+  }
+
   return <div className={`markdown-document ${compact ? "markdown-document--compact" : ""}`}>{blocks}</div>;
 }
 

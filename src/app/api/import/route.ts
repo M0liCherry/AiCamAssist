@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { getDb, type Database } from "@/db";
 import { chapters, notes } from "@/db/schema";
 import { cleanText, fail, HttpError, ok, readJson, requireInt } from "@/lib/http";
-import { countWords, importFromUrl, normalizeText, parseUploadedFile, type ParsedSource } from "@/lib/ingest";
+import { countWords, extractYoutubeId, importFromUrl, normalizeText, parseUploadedFile, type ParsedSource } from "@/lib/ingest";
 import { generateStudyNotesFromTranscript } from "@/lib/ai/generate";
 import { indexNote } from "@/lib/rag";
 import { getProviderConfig } from "@/lib/settings";
@@ -15,15 +15,18 @@ async function storeSource(db: Database, cfg: ProviderConfig, chapterId: number,
   const noteTitle = titleOverride || source.title;
   let noteContent = source.text;
 
-  if (source.sourceType === "youtube" || source.sourceType === "audio") {
+  const videoId = source.videoId || extractYoutubeId(source.sourceLabel);
+  const effectiveSourceType = videoId ? "youtube" : (source.sourceType as "youtube" | "audio" | string);
+
+  if (effectiveSourceType === "youtube" || effectiveSourceType === "audio") {
     if (cfg.provider !== "none") {
       try {
-        noteContent = await generateStudyNotesFromTranscript(cfg, noteTitle, source.text, source.sourceLabel, source.sourceType);
+        noteContent = await generateStudyNotesFromTranscript(cfg, noteTitle, source.text, source.sourceLabel, effectiveSourceType as "youtube" | "audio", videoId);
       } catch {
-        noteContent = `# ${noteTitle}\n\n*Source: ${source.sourceLabel}*\n\n## Overview\nTranscribed from ${source.sourceType === "youtube" ? "YouTube video" : "audio recording"}.\n\n## Transcript & Notes\n\n${source.text}`;
+        noteContent = `# ${noteTitle}\n\n*Source: [${source.sourceLabel}](${source.sourceLabel})*\n\n## Overview\nTranscribed from ${effectiveSourceType === "youtube" ? "YouTube video" : "audio recording"}.\n\n## Transcript & Notes\n\n${source.text}`;
       }
     } else {
-      noteContent = `# ${noteTitle}\n\n*Source: ${source.sourceLabel}*\n\n## Overview\nTranscribed from ${source.sourceType === "youtube" ? "YouTube video" : "audio recording"}.\n\n## Transcript & Notes\n\n${source.text}`;
+      noteContent = `# ${noteTitle}\n\n*Source: [${source.sourceLabel}](${source.sourceLabel})*\n\n## Overview\nTranscribed from ${effectiveSourceType === "youtube" ? "YouTube video" : "audio recording"}.\n\n## Transcript & Notes\n\n${source.text}`;
     }
   }
 
@@ -33,7 +36,7 @@ async function storeSource(db: Database, cfg: ProviderConfig, chapterId: number,
       chapterId,
       title: noteTitle,
       content: noteContent,
-      sourceType: source.sourceType,
+      sourceType: effectiveSourceType,
       sourceLabel: source.sourceLabel.slice(0, 600),
       wordCount: countWords(noteContent),
       status: "processing",

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { NextRequest } from "next/server";
 import { APP_VERSION, PUBLISHER, STT_MODELS } from "@/config/app";
-import { getDb, isDesktopMode, usesEmbeddedDatabase } from "@/db";
+import { getDb, usesEmbeddedDatabase } from "@/db";
 import { chapters, chatMessages, chunks, flashcardProgress, generatedAssets, notes, quizAttempts, settings, subjects } from "@/db/schema";
 import { PROVIDER_PRESETS, type Provider } from "@/lib/ai/provider";
 import { cleanText, fail, HttpError, ok, readJson } from "@/lib/http";
@@ -15,7 +15,6 @@ const PROVIDERS: Provider[] = ["none", "gemini", "anthropic", "ollama", "llamacp
 
 function environment() {
   return {
-    desktop: isDesktopMode(),
     dataDir: dataDirectory(),
     database: usesEmbeddedDatabase() ? "PGlite (embedded PostgreSQL, local folder)" : "PostgreSQL server",
     version: APP_VERSION,

@@ -148,6 +148,7 @@ export async function generateStudyNotesFromTranscript(
   transcript: string,
   sourceLabel: string,
   sourceType: "youtube" | "audio",
+  videoId?: string | null,
 ): Promise<string> {
   const sample = transcript.slice(0, 16000);
   const prompt = `Source: ${sourceLabel} (${sourceType === "youtube" ? "YouTube video" : "Spoken audio recording"})\nTitle: "${title}"\n\nTranscript:\n${sample}\n\nConvert this transcript into clear, comprehensive study notes in Markdown:\n# ${title}\n\n## Overview\n(2-3 paragraphs explaining the core concepts and background)\n\n## Key Takeaways & Core Concepts\n(bullet points with bolded key terms)\n\n## Detailed Study Notes\n(organized by main topics discussed)\n\n## Verbatim Transcript\n<details><summary>Click to expand full transcript</summary>\n\n${transcript.slice(0, 8000)}\n\n</details>`;
@@ -161,13 +162,23 @@ export async function generateStudyNotesFromTranscript(
       ],
       { temperature: 0.3, maxTokens: isLocalProvider(cfg.provider) ? 1600 : 4000, timeoutMs: 12000 },
     );
-    const cleaned = stripThinking(text).trim();
-    if (cleaned.length > 50) return cleaned;
+    let cleaned = stripThinking(text).trim();
+    if (cleaned.length > 50) {
+      if (!cleaned.includes(sourceLabel)) {
+        const headingMatch = cleaned.match(/^#[^\n]*\n+/);
+        if (headingMatch) {
+          cleaned = cleaned.slice(0, headingMatch[0].length) + `*Source: [${sourceLabel}](${sourceLabel})*\n` + cleaned.slice(headingMatch[0].length);
+        } else {
+          cleaned = `# ${title}\n\n*Source: [${sourceLabel}](${sourceLabel})*\n\n${cleaned}`;
+        }
+      }
+      return cleaned;
+    }
   } catch {
     // Fallback below
   }
 
-  return `# ${title}\n\n*Source: ${sourceLabel}*\n\n## Overview\nTranscribed from ${sourceType === "youtube" ? "YouTube video" : "audio recording"} for study and revision.\n\n## Detailed Notes & Transcript\n\n${transcript}`;
+  return `# ${title}\n\n*Source: [${sourceLabel}](${sourceLabel})*\n\n## Overview\nTranscribed from ${sourceType === "youtube" ? "YouTube video" : "audio recording"} for study and revision.\n\n## Detailed Notes & Transcript\n\n${transcript}`;
 }
 
 export async function answerQuestion(

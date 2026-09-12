@@ -38,8 +38,8 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
 
   useEffect(() => {
     const onScoreUpdate = () => setScoresVersion((v) => v + 1);
-    window.addEventListener("nitro:scores-updated", onScoreUpdate);
-    return () => window.removeEventListener("nitro:scores-updated", onScoreUpdate);
+    window.addEventListener("verity:scores-updated", onScoreUpdate);
+    return () => window.removeEventListener("verity:scores-updated", onScoreUpdate);
   }, []);
 
   const scopeInfo = useMemo(() => {
@@ -68,7 +68,7 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
     return aggregateSubjectScores(activeSubject);
   }, [activeSubject, scoresVersion]);
 
-  // Tree badges must refresh on score changes too (nitro:scores-updated).
+  // Tree badges must refresh on score changes too (verity:scores-updated).
   const treeScores = useMemo(() => {
     void scoresVersion;
     const subs = new Map<number, ReturnType<typeof aggregateSubjectScores>>();

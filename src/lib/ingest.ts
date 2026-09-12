@@ -1,6 +1,12 @@
 import { HttpError } from "@/lib/http";
 
-export type ParsedSource = { title: string; text: string; sourceType: string; sourceLabel: string };
+export type ParsedSource = {
+  title: string;
+  text: string;
+  sourceType: string;
+  sourceLabel: string;
+  videoId?: string | null;
+};
 
 const MAX_TEXT_CHARS = 1_500_000;
 const MAX_FILE_BYTES = 60 * 1024 * 1024;
@@ -167,7 +173,7 @@ async function fetchRemote(url: string, timeoutMs = 20_000) {
   }
 }
 
-function youtubeId(url: URL): string | null {
+export function youtubeId(url: URL): string | null {
   const host = url.hostname.replace(/^(www|m|music)\./, "");
   if (host === "youtu.be") return url.pathname.slice(1).split("/")[0] || null;
   if (host === "youtube.com" || host === "youtube-nocookie.com") {
@@ -176,6 +182,20 @@ function youtubeId(url: URL): string | null {
     return match ? match[1] : null;
   }
   return null;
+}
+
+export function extractYoutubeId(input: string): string | null {
+  if (!input) return null;
+  const iframeMatch = input.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+  const target = iframeMatch ? iframeMatch[1] : input.trim();
+  const match = target.match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/)([\w-]{6,})/i);
+  if (match) return match[1];
+  try {
+    const url = new URL(target);
+    return youtubeId(url);
+  } catch {
+    return null;
+  }
 }
 
 /** Extracts a JSON array that follows `"key":` using bracket matching (string-aware). */
@@ -206,12 +226,12 @@ function extractJsonArray(source: string, key: string): string | null {
 
 const INNERTUBE_CLIENT_VERSION = "20.10.38";
 const INNERTUBE_USER_AGENT = `com.google.android.youtube/${INNERTUBE_CLIENT_VERSION} (Linux; U; Android 14)`;
-const DESKTOP_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const BROWSER_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 async function fetchYoutubeTitle(videoId: string, fallback: string): Promise<string> {
   try {
     const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`, {
-      headers: { "user-agent": DESKTOP_USER_AGENT },
+      headers: { "user-agent": BROWSER_USER_AGENT },
     });
     if (oembedRes.ok) {
       const data = (await oembedRes.json()) as { title?: string };
@@ -298,7 +318,7 @@ async function importYoutube(videoId: string, original: string): Promise<ParsedS
   }
 
   const subResp = await fetch(track.baseUrl, {
-    headers: { "user-agent": DESKTOP_USER_AGENT, accept: "*/*" },
+    headers: { "user-agent": BROWSER_USER_AGENT, accept: "*/*" },
   });
   if (!subResp.ok) {
     throw new HttpError("Could not retrieve the video caption track.", 502);
@@ -335,6 +355,7 @@ async function importYoutube(videoId: string, original: string): Promise<ParsedS
     text: paragraphize(joined).slice(0, MAX_TEXT_CHARS),
     sourceType: "youtube",
     sourceLabel: original,
+    videoId,
   };
 }
 

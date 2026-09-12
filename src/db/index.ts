@@ -7,31 +7,25 @@ import * as schema from "./schema";
 /**
  * VerityAI runs against two interchangeable PostgreSQL-dialect engines:
  *  - Embedded PGlite (default): a local database folder, no server to install.
- *    Used on the desktop (%AppData%\VerityAI via NITRO_DATA_DIR) and whenever
- *    DATABASE_URL is not configured (falls back to ./.nitro).
- *  - PostgreSQL server: used when DATABASE_URL is set and NITRO_DATA_DIR is not.
+ *    Used whenever DATABASE_URL is not configured (falls back to ./.verity).
+ *  - PostgreSQL server: used when DATABASE_URL is set.
  * Both share the same Drizzle schema and query code.
  */
 export type Database = NodePgDatabase<typeof schema>;
 
 const globalForDb = globalThis as typeof globalThis & {
-  __nitroDb?: Promise<Database>;
-  __nitroPool?: Pool;
+  __verityDb?: Promise<Database>;
+  __verityPool?: Pool;
 };
 
 /** Local data directory (database, encryption key, model cache, logs). */
 export function dataDirectory() {
-  return path.resolve(process.env.NITRO_DATA_DIR || ".nitro");
-}
-
-/** True when running inside the Electron shell (or with an explicit data dir). */
-export function isDesktopMode() {
-  return process.env.NITRO_DESKTOP === "1" || Boolean(process.env.NITRO_DATA_DIR);
+  return path.resolve(process.env.VERITY_DATA_DIR || ".verity");
 }
 
 /** True when the embedded PGlite engine is used instead of a PostgreSQL server. */
 export function usesEmbeddedDatabase() {
-  return Boolean(process.env.NITRO_DATA_DIR) || !process.env.DATABASE_URL;
+  return Boolean(process.env.VERITY_DATA_DIR) || !process.env.DATABASE_URL;
 }
 
 async function createEmbedded(): Promise<Database> {
@@ -46,7 +40,7 @@ async function createEmbedded(): Promise<Database> {
     const client = new PGlite(databaseDir);
     await client.waitReady;
     const db = drizzle(client, { schema });
-    const migrationsFolder = process.env.NITRO_MIGRATIONS_DIR || path.join(process.cwd(), "drizzle");
+    const migrationsFolder = process.env.VERITY_MIGRATIONS_DIR || path.join(process.cwd(), "drizzle");
     if (!fs.existsSync(migrationsFolder)) {
       throw new Error(`migrations folder not found at ${migrationsFolder}`);
     }
@@ -72,18 +66,18 @@ async function createEmbedded(): Promise<Database> {
 
 async function createDatabase(): Promise<Database> {
   if (usesEmbeddedDatabase()) return createEmbedded();
-  const pool = globalForDb.__nitroPool ?? new Pool({ connectionString: process.env.DATABASE_URL });
-  globalForDb.__nitroPool = pool;
+  const pool = globalForDb.__verityPool ?? new Pool({ connectionString: process.env.DATABASE_URL });
+  globalForDb.__verityPool = pool;
   return drizzleNodePg(pool, { schema });
 }
 
 /** Lazily initialises (and migrates, in embedded mode) the shared database. */
 export function getDb(): Promise<Database> {
-  if (!globalForDb.__nitroDb) {
-    globalForDb.__nitroDb = createDatabase().catch((error) => {
-      globalForDb.__nitroDb = undefined;
+  if (!globalForDb.__verityDb) {
+    globalForDb.__verityDb = createDatabase().catch((error) => {
+      globalForDb.__verityDb = undefined;
       throw error;
     });
   }
-  return globalForDb.__nitroDb;
+  return globalForDb.__verityDb;
 }

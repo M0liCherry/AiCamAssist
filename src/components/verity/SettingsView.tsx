@@ -705,7 +705,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
           <dl className="data-grid">
             <div><dt>Data folder</dt><dd><code>{environment.dataDir}</code></dd></div>
             <div><dt>Database</dt><dd>{environment.database}</dd></div>
-            <div><dt>Mode</dt><dd>{environment.desktop ? "Desktop (Electron)" : "Server / development"} · {environment.platform}</dd></div>
+            <div><dt>Platform</dt><dd>{environment.platform}</dd></div>
           </dl>
           <div className="button-row">
             <button type="button" className="secondary-button compact" onClick={reindexAll} disabled={busy === "reindex"}><RefreshCw size={15} aria-hidden="true" />{busy === "reindex" ? "Re-indexing…" : "Re-index all notes"}</button>

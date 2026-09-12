@@ -119,6 +119,7 @@ export function PodcastsView(props: StudyProps) {
   const [rate, setRate] = useState(1);
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const transcriptTurnRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const script = data?.asset?.payload ?? null;
   const supported = typeof window !== "undefined" && "speechSynthesis" in window;
   const playingRef = useRef(false);
@@ -199,10 +200,52 @@ export function PodcastsView(props: StudyProps) {
     };
   }, [supported]);
 
+  const [turnAudioDurations, setTurnAudioDurations] = useState<Record<number, number>>({});
+  const turnRef = useRef(turn);
+  useEffect(() => {
+    turnRef.current = turn;
+  }, [turn]);
+  const rateRef = useRef(rate);
+  useEffect(() => {
+    rateRef.current = rate;
+  }, [rate]);
+
   const turnDurations = useMemo(() => {
-    if (!script) return [];
-    return script.turns.map((t) => Math.max(2, Math.round(t.text.split(/\s+/).length / (2.5 * rate))));
-  }, [script, rate]);
+    if (!script?.turns?.length) return [];
+    return script.turns.map((t, idx) => {
+      if (turnAudioDurations[idx] && turnAudioDurations[idx] > 0) {
+        return turnAudioDurations[idx];
+      }
+      return Math.max(2, Math.round(t.text.split(/\s+/).length / (2.5 * rate)));
+    });
+  }, [script?.turns, rate, turnAudioDurations]);
+
+  const updateCurrentWordHighlight = useCallback((turnIndex: number, timeInTurn: number) => {
+    if (!script?.turns[turnIndex]) {
+      setWordIndex(-1);
+      return;
+    }
+    const words = script.turns[turnIndex].text.trim().split(/\s+/).filter(Boolean);
+    if (!words.length) {
+      setWordIndex(-1);
+      return;
+    }
+    const duration = turnAudioDurations[turnIndex] || turnDurations[turnIndex] || Math.max(2, words.length * 0.35);
+    const safeDuration = Math.max(duration, 0.1);
+    const withinTurn = Math.max(0, Math.min(timeInTurn, safeDuration));
+    const index = Math.min(words.length - 1, Math.max(0, Math.floor((withinTurn / safeDuration) * words.length)));
+    setWordIndex(index);
+  }, [script, turnAudioDurations, turnDurations]);
+
+  useEffect(() => {
+    if (!playing) return;
+    const activeTurn = transcriptTurnRefs.current[turn];
+    if (!activeTurn) return;
+    const frame = window.requestAnimationFrame(() => {
+      activeTurn.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [turn, playing]);
 
   const turnStarts = useMemo(() => {
     let curr = 0;
@@ -214,18 +257,22 @@ export function PodcastsView(props: StudyProps) {
   }, [turnDurations]);
 
   const totalDuration = useMemo(() => {
-    if (script?.audioUrl && realAudioDuration > 0) return Math.round(realAudioDuration);
-    return turnDurations.reduce((a, b) => a + b, 0);
-  }, [script?.audioUrl, realAudioDuration, turnDurations]);
+    if (!turnDurations.length) return 0;
+    return Math.max(1, Math.round(turnDurations.reduce((a, b) => a + b, 0)));
+  }, [turnDurations]);
 
   useEffect(() => {
     setTurn(0);
+    turnRef.current = 0;
     setWordIndex(-1);
     setCurrentTime(0);
+    setTurnAudioDurations({});
     if (audioRef.current) {
       try {
         audioRef.current.currentTime = 0;
         audioRef.current.pause();
+        audioRef.current.removeAttribute("src");
+        audioRef.current.load();
       } catch {}
     }
     setPlaying(false);
@@ -289,24 +336,41 @@ export function PodcastsView(props: StudyProps) {
   );
 
   const playTurnAudio = useCallback(
-    (index: number) => {
+    (index: number, startOffset: number = 0) => {
       if (!script || !script.turns[index]) return;
       const targetTurn = script.turns[index];
       setTurn(index);
+      turnRef.current = index;
       setWordIndex(-1);
 
       if (supported) window.speechSynthesis.cancel();
 
       if (targetTurn.audioUrl && audioRef.current) {
-        audioRef.current.src = targetTurn.audioUrl;
-        audioRef.current.currentTime = 0;
-        audioRef.current
-          .play()
-          .then(() => {
-            setPlaying(true);
-            playingRef.current = true;
-          })
-          .catch(() => {});
+        const audio = audioRef.current;
+        const targetUrl = targetTurn.audioUrl;
+        const isSameSrc = Boolean(audio.src && (audio.src.endsWith(targetUrl) || audio.src === targetUrl));
+        if (!isSameSrc) {
+          audio.src = targetUrl;
+        }
+        audio.currentTime = startOffset;
+        audio.playbackRate = rateRef.current;
+        setPlaying(true);
+        playingRef.current = true;
+
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            if (err.name === "AbortError") {
+              const onCanPlay = () => {
+                audio.removeEventListener("canplay", onCanPlay);
+                if (playingRef.current) {
+                  audio.play().catch(() => {});
+                }
+              };
+              audio.addEventListener("canplay", onCanPlay);
+            }
+          });
+        }
         return;
       }
 
@@ -327,11 +391,12 @@ export function PodcastsView(props: StudyProps) {
 
   // Time tracker for synthetic speech mode
   useEffect(() => {
-    if (!playing || script?.audioUrl) return;
+    if (!playing || script?.turns[turn]?.audioUrl) return;
     const interval = window.setInterval(() => {
       setCurrentTime((prev) => {
-        const turnStart = turnStarts[turn] ?? 0;
-        const turnDur = turnDurations[turn] ?? 3;
+        const curIdx = turnRef.current;
+        const turnStart = turnStarts[curIdx] ?? 0;
+        const turnDur = turnDurations[curIdx] ?? 3;
         const next = prev + 0.25;
         if (next <= turnStart + turnDur) {
           return next;
@@ -340,19 +405,27 @@ export function PodcastsView(props: StudyProps) {
       });
     }, 250);
     return () => window.clearInterval(interval);
-  }, [playing, turn, turnStarts, turnDurations, script?.audioUrl]);
+  }, [playing, turn, turnStarts, turnDurations, script?.turns]);
 
   const toggle = () => {
-    if (audioRef.current && (script?.turns[turn]?.audioUrl || script?.audioUrl)) {
+    if (!script) return;
+    const curIdx = turnRef.current;
+    const currentTurnObj = script.turns[curIdx];
+
+    if (audioRef.current && currentTurnObj?.audioUrl) {
+      const audio = audioRef.current;
       if (playing) {
-        audioRef.current.pause();
+        audio.pause();
         setPlaying(false);
         playingRef.current = false;
       } else {
-        if (!audioRef.current.src && script.turns[turn]?.audioUrl) {
-          audioRef.current.src = script.turns[turn].audioUrl;
+        const targetUrl = currentTurnObj.audioUrl;
+        const isSameSrc = Boolean(audio.src && (audio.src.endsWith(targetUrl) || audio.src === targetUrl));
+        if (!isSameSrc) {
+          audio.src = targetUrl;
         }
-        audioRef.current.play().catch(() => {});
+        audio.playbackRate = rateRef.current;
+        audio.play().catch(() => {});
         setPlaying(true);
         playingRef.current = true;
       }
@@ -364,20 +437,20 @@ export function PodcastsView(props: StudyProps) {
       playingRef.current = false;
       window.speechSynthesis.cancel();
       setPlaying(false);
-    } else speak(turn);
+    } else speak(curIdx);
   };
 
   const jump = (index: number) => {
     if (!script) return;
     const next = Math.max(0, Math.min(script.turns.length - 1, index));
-    setTurn(next);
-    setWordIndex(-1);
-
     if (script.turns[next]?.audioUrl) {
       playTurnAudio(next);
       return;
     }
 
+    setTurn(next);
+    turnRef.current = next;
+    setWordIndex(-1);
     const time = turnStarts[next] ?? 0;
     setCurrentTime(time);
 
@@ -385,25 +458,41 @@ export function PodcastsView(props: StudyProps) {
   };
 
   const handleSeek = (event: React.ChangeEvent<HTMLInputElement> | React.FormEvent<HTMLInputElement>) => {
-    const targetSec = Number(event.currentTarget.value);
+    if (!script || !turnStarts.length) return;
+    const targetSec = Math.max(0, Math.min(totalDuration, Number(event.currentTarget.value)));
     setCurrentTime(targetSec);
 
-    if (script?.audioUrl && audioRef.current) {
-      try {
-        audioRef.current.currentTime = targetSec;
-      } catch {}
-    }
-
-    if (!script || !turnStarts.length) return;
     let foundTurn = 0;
     for (let i = 0; i < turnStarts.length; i++) {
-      if (turnStarts[i] <= targetSec) foundTurn = i;
-      else break;
+      const start = turnStarts[i];
+      const dur = turnDurations[i] ?? 0;
+      if (targetSec >= start && targetSec < start + dur) {
+        foundTurn = i;
+        break;
+      }
+      if (targetSec >= start) {
+        foundTurn = i;
+      }
     }
+
+    const turnOffset = Math.max(0, targetSec - (turnStarts[foundTurn] ?? 0));
     setTurn(foundTurn);
+    turnRef.current = foundTurn;
     setWordIndex(-1);
 
-    if (playingRef.current && (!script?.audioUrl || !audioRef.current)) {
+    const targetTurnObj = script.turns[foundTurn];
+    if (audioRef.current && targetTurnObj?.audioUrl) {
+      const audio = audioRef.current;
+      const targetUrl = targetTurnObj.audioUrl;
+      const isSameSrc = Boolean(audio.src && (audio.src.endsWith(targetUrl) || audio.src === targetUrl));
+      if (!isSameSrc) {
+        audio.src = targetUrl;
+      }
+      audio.currentTime = turnOffset;
+      if (playingRef.current) {
+        audio.play().catch(() => {});
+      }
+    } else if (playingRef.current && engine === "speechSynthesis") {
       speak(foundTurn);
     }
   };
@@ -700,7 +789,7 @@ export function PodcastsView(props: StudyProps) {
     reader.readAsDataURL(file);
   };
 
-  const progress = script ? Math.round(((turn + (playing ? 0.5 : 0)) / script.turns.length) * 100) : 0;
+  const sliderPercent = totalDuration > 0 ? Math.min(100, Math.max(0, (currentTime / totalDuration) * 100)) : 0;
   const estMinutes = script ? Math.max(1, Math.round(script.turns.reduce((n, t) => n + t.text.split(/\s+/).length, 0) / 150)) : 0;
 
   return (
@@ -827,8 +916,7 @@ export function PodcastsView(props: StudyProps) {
             {/* Real Audio Player Element */}
             <audio
               ref={audioRef}
-              src={script.turns[turn]?.audioUrl || script.audioUrl || undefined}
-              preload="metadata"
+              preload="auto"
               onPlay={() => {
                 setPlaying(true);
                 playingRef.current = true;
@@ -838,23 +926,36 @@ export function PodcastsView(props: StudyProps) {
                 playingRef.current = false;
               }}
               onLoadedMetadata={(e) => {
-                if (e.currentTarget.duration && !isNaN(e.currentTarget.duration)) {
-                  setRealAudioDuration(e.currentTarget.duration);
+                const dur = e.currentTarget.duration;
+                if (dur && !isNaN(dur) && isFinite(dur)) {
+                  const curIdx = turnRef.current;
+                  setTurnAudioDurations((prev) => {
+                    if (prev[curIdx] === dur) return prev;
+                    return { ...prev, [curIdx]: dur };
+                  });
                 }
               }}
               onTimeUpdate={() => {
                 if (!audioRef.current || !script) return;
-                const turnBase = turnStarts[turn] ?? 0;
-                setCurrentTime(turnBase + (audioRef.current.currentTime || 0));
+                const curIdx = turnRef.current;
+                const turnBase = turnStarts[curIdx] ?? 0;
+                const audioTime = audioRef.current.currentTime || 0;
+                const timeInTurn = Math.max(0, audioTime);
+                setCurrentTime(turnBase + audioTime);
+                updateCurrentWordHighlight(curIdx, timeInTurn);
               }}
               onEnded={() => {
                 if (!script) return;
-                const next = turn + 1;
+                const currentTurn = turnRef.current;
+                const next = currentTurn + 1;
                 if (next < script.turns.length) {
                   if (script.turns[next]?.audioUrl) {
                     playTurnAudio(next);
                   } else if (isGeneratingContinuouslyRef.current) {
                     setWaitingForTurn(next);
+                  } else if (engine === "kokoclone") {
+                    setWaitingForTurn(next);
+                    void generateSingleTurn(next);
                   } else {
                     setPlaying(false);
                     playingRef.current = false;
@@ -863,21 +964,21 @@ export function PodcastsView(props: StudyProps) {
                   setPlaying(false);
                   playingRef.current = false;
                   setTurn(0);
+                  turnRef.current = 0;
                   setCurrentTime(0);
                 }
               }}
               style={{ display: "none" }}
               aria-hidden="true"
             />
-            <div className={`player-cover ${playing ? "player-cover--playing" : ""}`} role="img" aria-label="Live podcast audio waveform">
-              <span>N</span>
+            <div className={`player-cover ${playing ? "player-cover--playing" : ""}`} role="img" aria-label="Verity podcast audio">
               <div className="cover-wave" aria-hidden="true">
                 <i /><i /><i /><i /><i /><i />
                 <i /><i /><i /><i /><i /><i />
               </div>
               {script.audioUrl && (
                 <span className="studio-audio-badge" title="High fidelity audio generated with neural voices">
-                  <Sparkles size={12} /> Studio Audio
+                  Studio Audio
                 </span>
               )}
             </div>
@@ -888,25 +989,45 @@ export function PodcastsView(props: StudyProps) {
               <h2>{script.title}</h2>
               <p>{script.summary || props.scopeTitle}</p>
             </div>
-            <div className="waveform" role="progressbar" aria-label="Playback progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
-              {Array.from({ length: 40 }, (_, index) => <i className={(index / 40) * 100 <= progress ? "played" : ""} style={{ height: `${12 + ((index * 13) % 30)}px` }} key={index} />)}
-            </div>
             <div className="audio-timeline-wrap">
               <div className="audio-timeline-header">
                 <span className="timeline-time">{formatClock(currentTime)}</span>
+                <span className="timeline-turn-badge">
+                  Turn {turn + 1} of {script.turns.length} ({script.turns[turn]?.speaker === "host" ? "Host" : "Guest"})
+                </span>
                 <span className="timeline-time">{formatClock(totalDuration)}</span>
               </div>
               <input
                 type="range"
                 min={0}
                 max={Math.max(1, totalDuration)}
-                step={0.5}
-                value={Math.min(totalDuration, currentTime)}
+                step={0.1}
+                value={Math.min(totalDuration, Math.max(0, currentTime))}
                 onChange={handleSeek}
                 onInput={handleSeek}
                 className="audio-timeline-slider"
+                style={{
+                  background: `linear-gradient(to right, var(--violet) 0%, var(--violet) ${sliderPercent}%, var(--line) ${sliderPercent}%, var(--line) 100%)`,
+                }}
                 aria-label="Audio timeline progress"
               />
+              <div className="timeline-turn-chips" aria-label="Turn markers">
+                {script.turns.map((t, idx) => {
+                  const isCur = turn === idx;
+                  const isDone = Boolean(t.audioUrl);
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      className={`timeline-chip ${isCur ? "active" : ""} ${isDone ? "ready" : ""}`}
+                      onClick={() => playTurnAudio(idx)}
+                      title={`Turn ${idx + 1} (${t.speaker === "host" ? "Host" : "Guest"}): ${isDone ? "Click to play" : "Click to select"}`}
+                    >
+                      <span>{t.speaker === "host" ? "H" : "G"}{idx + 1}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div className="player-controls">
               <button type="button" className="icon-button" onClick={() => jump(turn - 1)} aria-label="Previous turn" disabled={turn === 0}><SkipBack size={18} aria-hidden="true" /></button>
@@ -1195,6 +1316,9 @@ export function PodcastsView(props: StudyProps) {
                 return (
                   <button
                     type="button"
+                    ref={(element) => {
+                      transcriptTurnRefs.current[index] = element;
+                    }}
                     onClick={() => {
                       if (item.audioUrl) {
                         playTurnAudio(index);

@@ -1,11 +1,11 @@
 "use client";
 
-import { ArrowLeft, AtSign, Check, Clock3, Edit3, Eraser, FileText, FolderInput, History, PanelRightClose, PanelRightOpen, RefreshCw, Save, Send, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, AtSign, Check, Clock3, Edit3, Eraser, FileText, FolderInput, History, PanelRightClose, PanelRightOpen, RefreshCw, Save, Send, ShieldCheck, Sparkles, Trash2, Video, X } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage, formatDate } from "./client";
 import { buildPersonalizationPrompt, getStoredPersonalization } from "./personalization";
 import type { ChatMsg, Citation, NoteFull, NoteSummary, Scope, Subject } from "./types";
-import { AiErrorAlert, EmptyState, ItemMenu, MarkdownDocument, Modal, Spinner } from "./ui";
+import { AiErrorAlert, EmptyState, extractYoutubeId, ItemMenu, MarkdownDocument, Modal, Spinner, YoutubeEmbed } from "./ui";
 
 export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiReady, providerName, onBack, onOpenNote, onNoteChanged, onConfigureAi, notify }: {
   noteId: number | null;
@@ -34,6 +34,15 @@ export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiRea
   const [moveTarget, setMoveTarget] = useState("");
   const [assistantOpen, setAssistantOpen] = useState(true);
   const [scopeNotes, setScopeNotes] = useState<NoteSummary[]>([]);
+  const [showVideo, setShowVideo] = useState(true);
+  const ytVideoId = useMemo(() => {
+    if (!note) return null;
+    return extractYoutubeId(note.sourceLabel) || extractYoutubeId(note.content);
+  }, [note]);
+  const hasInlineYoutubeEmbed = useMemo(() => {
+    if (!ytVideoId || !content) return false;
+    return content.includes("youtube-nocookie.com/embed") || content.includes("youtube.com/watch?v=") || content.includes("youtu.be/") || content.includes(ytVideoId);
+  }, [content, ytVideoId]);
   const dirty = note ? title !== note.title || content !== note.content : false;
 
   const loadNote = useCallback(async () => {
@@ -138,7 +147,7 @@ export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiRea
     return (
       <main className="study-view page-enter" aria-labelledby="editor-empty-title">
         <h1 id="editor-empty-title" className="sr-only">Document editor</h1>
-        <EmptyState icon={<FileText size={28} />} title="Open a note to start editing" copy={scopeNotes.length ? "Choose one of the notes in the current scope below, or pick another from the Notes hub." : "Import or create a note in the Notes hub, then it will open here with the Nitro assistant beside it."} action={<button type="button" className="primary-button" onClick={onBack}><ArrowLeft size={15} aria-hidden="true" />Go to Notes hub</button>} />
+        <EmptyState icon={<FileText size={28} />} title="Open a note to start editing" copy={scopeNotes.length ? "Choose one of the notes in the current scope below, or pick another from the Notes hub." : "Import or create a note in the Notes hub, then it will open here with the Verity assistant beside it."} action={<button type="button" className="primary-button" onClick={onBack}><ArrowLeft size={15} aria-hidden="true" />Go to Notes hub</button>} />
         {scopeNotes.length > 0 && (
           <ul className="notes-list compact-list" aria-label="Notes in current scope">
             {scopeNotes.map((item) => <li className="note-row" key={item.id}><button type="button" className="note-open" onClick={() => onOpenNote(item.id, item.chapterId)}><span className="note-icon" aria-hidden="true"><FileText size={16} /></span><span className="note-meta"><strong>{item.title}</strong><small>{item.wordCount.toLocaleString()} words · {item.sourceType}</small></span></button></li>)}
@@ -175,7 +184,7 @@ export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiRea
             { label: "Re-index for search", icon: <RefreshCw size={14} aria-hidden="true" />, onSelect: () => void api("/api/notes", { method: "POST", json: { action: "reindex", noteId } }).then(() => { notify("Note re-indexed."); void loadNote(); }).catch((error) => notify(errorMessage(error), "error")) },
             { label: "Delete note", icon: <Trash2 size={14} aria-hidden="true" />, danger: true, onSelect: () => void deleteNote() },
           ]} />
-          <button type="button" className="icon-button panel-toggle" onClick={() => setAssistantOpen((value) => !value)} aria-label={assistantOpen ? "Close Nitro assistant" : "Open Nitro assistant"} aria-expanded={assistantOpen}>{assistantOpen ? <PanelRightClose size={19} aria-hidden="true" /> : <PanelRightOpen size={19} aria-hidden="true" />}</button>
+          <button type="button" className="icon-button panel-toggle" onClick={() => setAssistantOpen((value) => !value)} aria-label={assistantOpen ? "Close Verity assistant" : "Open Verity assistant"} aria-expanded={assistantOpen}>{assistantOpen ? <PanelRightClose size={19} aria-hidden="true" /> : <PanelRightOpen size={19} aria-hidden="true" />}</button>
         </div>
       </header>
 
@@ -186,6 +195,20 @@ export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiRea
             <span>{note ? `${note.wordCount.toLocaleString()} words` : ""}</span>
           </div>
           {summaryError ? <div className="doc-alert"><AiErrorAlert error={summaryError} onRetry={() => void summarize()} onConfigure={onConfigureAi} /></div> : null}
+          {ytVideoId && editing && !hasInlineYoutubeEmbed && (
+            <div className="editor-video-container">
+              <div className="editor-video-bar">
+                <span className="editor-video-badge"><Video size={14} aria-hidden="true" /> Video Reference</span>
+                <button type="button" className="text-button" onClick={() => setShowVideo((v) => !v)}>
+                  {showVideo ? "Hide video" : "Show video"}
+                </button>
+              </div>
+              {showVideo && <YoutubeEmbed videoId={ytVideoId} title={note?.title} />}
+            </div>
+          )}
+          {ytVideoId && !editing && !hasInlineYoutubeEmbed && (
+            <YoutubeEmbed videoId={ytVideoId} title={note?.title} />
+          )}
           {note?.summary && !editing && (
             <section className="summary-card" aria-labelledby="summary-title">
               <h2 id="summary-title"><Sparkles size={15} aria-hidden="true" /> AI summary <small>generated by {providerName} · verify against the source</small></h2>
@@ -311,15 +334,15 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
     setRefs((current) => (current.some((r) => r.id === item.id) ? current : [...current, item]));
     setDraft((value) => value.replace(/(^|\s)@[\w-]*$/, "$1"));
     setMentionOpen(false);
-    document.getElementById("nitro-question")?.focus();
+    document.getElementById("verity-question")?.focus();
   };
   const mentionCandidates = scopeNotes.filter((item) => !refs.some((r) => r.id === item.id)).slice(0, 8);
 
   return (
     <aside className="assistant-panel" aria-label="Verity AI assistant">
       <div className="assistant-head">
-        <span className="nitro-orb" aria-hidden="true"><Sparkles size={17} /></span>
-        <div><strong>Nitro</strong><small><span className={`status-dot ${aiReady ? "ok" : "bad"}`} aria-hidden="true" /> {aiReady ? providerName : "No AI backend"}</small></div>
+        <span className="verity-orb" aria-hidden="true">V</span>
+        <div><strong>Verity</strong><small><span className={`status-dot ${aiReady ? "ok" : "bad"}`} aria-hidden="true" /> {aiReady ? providerName : "No AI backend"}</small></div>
         <button type="button" className="text-button" onClick={clear} disabled={!messages.length} aria-label="Clear conversation"><Eraser size={14} aria-hidden="true" /></button>
         <button type="button" className="icon-button assistant-close" onClick={onClose} aria-label="Close assistant"><X size={17} aria-hidden="true" /></button>
       </div>
@@ -333,7 +356,7 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
       <div className="chat-history" ref={historyRef} aria-live="polite" aria-label="Conversation">
         {!messages.length && (
           <div className="assistant-intro">
-            <span aria-hidden="true" className="assistant-intro-logo"><img src="/logo.png" alt="Verity" className="intro-logo-img" /></span>
+            <span aria-hidden="true" className="assistant-intro-logo">V</span>
             <h2>Hey, it&#39;s me, it&#39;s Verity</h2>
             <div className="intro-description">
               <p>Ask me anything</p>
@@ -345,7 +368,7 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
         )}
         {messages.map((message) => (
           <div className={`chat-message chat-message--${message.role}`} key={message.id}>
-            <span className="message-avatar" aria-label={message.role === "assistant" ? "Verity" : "You"}>{message.role === "assistant" ? <img src="/logo.png" alt="" className="msg-avatar-img" /> : "Y"}</span>
+            <span className="message-avatar" aria-label={message.role === "assistant" ? "Verity" : "You"}>{message.role === "assistant" ? "V" : "Y"}</span>
             <div className="message-body">
               {message.role === "assistant" ? <MarkdownDocument content={message.content} compact onCite={(n) => setOpenSource({ messageId: message.id, n })} /> : <p>{message.content}</p>}
               {message.citations.length > 0 && (
@@ -362,7 +385,7 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
             </div>
           </div>
         ))}
-        {sending && <div className="chat-message chat-message--assistant"><span className="message-avatar" aria-hidden="true"><img src="/logo.png" alt="" className="msg-avatar-img" /></span><div className="message-body"><p className="thinking"><Spinner label="Verity is reading your notes…" /></p></div></div>}
+        {sending && <div className="chat-message chat-message--assistant"><span className="message-avatar" aria-hidden="true">V</span><div className="message-body"><p className="thinking"><Spinner label="Verity is reading your notes…" /></p></div></div>}
       </div>
       <form className="assistant-composer" onSubmit={send}>
         {mentionOpen && mentionCandidates.length > 0 && (
@@ -372,8 +395,8 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
           </div>
         )}
         {refs.length > 0 && <div className="ref-chips" aria-label="Pinned notes">{refs.map((item) => <span className="mention-chip" key={item.id}>@{item.title}<button type="button" onClick={() => setRefs((current) => current.filter((r) => r.id !== item.id))} aria-label={`Remove ${item.title}`}><X size={12} aria-hidden="true" /></button></span>)}</div>}
-        <label htmlFor="nitro-question" className="sr-only">Ask Verity a question</label>
-        <textarea id="nitro-question" value={draft} onChange={(event) => onDraftChange(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void ask(draft.trim(), refs.map((r) => r.id)); } if (event.key === "Escape") setMentionOpen(false); }} placeholder={aiReady ? "Ask about your notes… type @ to reference a note" : "Connect an AI backend in Settings to chat"} rows={2} disabled={sending} />
+        <label htmlFor="verity-question" className="sr-only">Ask Verity a question</label>
+        <textarea id="verity-question" value={draft} onChange={(event) => onDraftChange(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void ask(draft.trim(), refs.map((r) => r.id)); } if (event.key === "Escape") setMentionOpen(false); }} placeholder={aiReady ? "Ask about your notes… type @ to reference a note" : "Connect an AI backend in Settings to chat"} rows={2} disabled={sending} />
         <AiErrorAlert error={error} onRetry={retryLast} onConfigure={onConfigureAi} />
         <div className="composer-actions">
           <div>

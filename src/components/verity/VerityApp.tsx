@@ -19,7 +19,7 @@ const NAV: { id: WorkspaceView; label: string; icon: typeof FileText }[] = [
   { id: "quizzes", label: "Quizzes", icon: ListChecks },
 ];
 
-export function NitroApp() {
+export function VerityApp() {
   const [boot, setBoot] = useState<SettingsResponse | null>(null);
   const [bootError, setBootError] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -65,8 +65,8 @@ export function NitroApp() {
         .then((data) => notify(`AI backend updated: ${data.settings.provider !== "none" ? `${data.presets[data.settings.provider].shortLabel} · ${data.settings.model}` : "none"}`, "info"))
         .catch(() => undefined);
     };
-    window.addEventListener("nitro:settings-changed", onChanged);
-    return () => window.removeEventListener("nitro:settings-changed", onChanged);
+    window.addEventListener("verity:settings-changed", onChanged);
+    return () => window.removeEventListener("verity:settings-changed", onChanged);
   }, [loadSettings, notify]);
 
   useEffect(() => {
@@ -119,10 +119,10 @@ export function NitroApp() {
     return (
       <main className="boot-screen">
         <div className="boot-card" role="alert">
-          <img src="/logo.png" alt="Verity AI" className="hero-logo-img" />
+          <span className="hero-mark" aria-hidden="true">V</span>
           <h1>Verity AI could not start</h1>
           <p>{bootError}</p>
-          <p className="help-text">The local database service may still be starting. Check the desktop log in your data folder if this persists.</p>
+          <p className="help-text">The local database service may still be starting. Check the diagnostics log if this persists.</p>
           <button type="button" className="primary-button" onClick={() => window.location.reload()}><RefreshCw size={15} aria-hidden="true" />Retry</button>
         </div>
       </main>
@@ -131,7 +131,7 @@ export function NitroApp() {
   if (!boot || !settings) {
     return (
       <main className="boot-screen" aria-busy="true">
-        <div className="boot-card" role="status"><img src="/logo.png" alt="Verity AI" className="hero-logo-img pulse" /><p>Starting Verity AI…</p></div>
+        <div className="boot-card" role="status"><span className="hero-mark pulse" aria-hidden="true">V</span><p>Starting Verity AI…</p></div>
       </main>
     );
   }
@@ -157,12 +157,12 @@ export function NitroApp() {
   };
 
   return (
-    <div className={`nitro-app ${collapsed ? "sidebar-collapsed" : ""}`}>
+    <div className={`verity-app ${collapsed ? "sidebar-collapsed" : ""}`}>
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <aside className="app-sidebar" aria-label="Primary navigation">
         <div className="brand-row">
           <button type="button" className="brand" onClick={() => setView("hub")} aria-label="Verity AI notes hub">
-            <span className="brand-icon-wrap"><img src="/logo.png" alt="" className="brand-icon-img" /></span>
+            <span className="brand-icon-wrap" aria-hidden="true">V</span>
             <b>Verity<span>AI</span></b>
           </button>
           <button type="button" className="collapse-button" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"} aria-expanded={!collapsed}>{collapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}</button>
@@ -185,7 +185,7 @@ export function NitroApp() {
       </aside>
       <div className="mobile-topbar">
         <button type="button" className="icon-button" onClick={() => setCollapsed((value) => !value)} aria-label="Toggle navigation"><Menu size={20} aria-hidden="true" /></button>
-        <button type="button" className="brand" onClick={() => setView("hub")}><span className="brand-icon-wrap"><img src="/logo.png" alt="" className="brand-icon-img" /></span><b>Verity AI</b></button>
+        <button type="button" className="brand" onClick={() => setView("hub")}><span className="brand-icon-wrap" aria-hidden="true">V</span><b>Verity AI</b></button>
       </div>
       <div className="app-content" id="main-content" tabIndex={-1}>{renderView()}</div>
       <div className="toast-region" aria-live="polite">

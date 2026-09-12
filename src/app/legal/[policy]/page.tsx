@@ -1,4 +1,4 @@
-import { LegalPage, policies, type PolicyKey } from "@/components/nitro/LegalPage";
+import { LegalPage, policies, type PolicyKey } from "@/components/verity/LegalPage";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 

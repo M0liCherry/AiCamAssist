@@ -20,9 +20,8 @@ export default defineConfig([
     "build/**",
     "next-env.d.ts",
     "kokoclone/**",
-    "desktop/**",
     "verity/**",
-    ".nitro/**",
+    ".verity/**",
     "data/**",
   ]),
 ]);

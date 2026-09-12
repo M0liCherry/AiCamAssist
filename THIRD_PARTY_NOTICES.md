@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-VerityAI bundles or downloads the following components. Each remains under its own license; full license texts ship with the respective packages in `node_modules` and are reproduced by the installer under Help → Open-source licenses.
+VerityAI bundles or downloads the following components. Each remains under its own license; full license texts ship with the respective packages in `node_modules` and are listed under Open-source licenses.
 
 | Component | License | Source |
 | --- | --- | --- |
@@ -16,8 +16,6 @@ VerityAI bundles or downloads the following components. Each remains under its o
 | @huggingface/transformers (Transformers.js) | Apache-2.0 | https://github.com/huggingface/transformers.js |
 | ONNX Runtime | MIT | https://github.com/microsoft/onnxruntime |
 | Whisper model weights (ONNX conversions by Xenova) — downloaded on first use | MIT | https://huggingface.co/Xenova/whisper-base |
-| Electron | MIT | https://github.com/electron/electron |
-| electron-builder | MIT | https://github.com/electron-userland/electron-builder |
 | Tailwind CSS | MIT | https://github.com/tailwindlabs/tailwindcss |
 
 ## Assets

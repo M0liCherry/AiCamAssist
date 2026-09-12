@@ -17,7 +17,7 @@ export class ApiError extends Error {
 /** Switches the active backend to `model` (key and endpoint are kept) and tells the app shell to refresh. */
 export async function applySuggestedModel(model: string) {
   await api("/api/settings", { method: "PUT", json: { model } });
-  window.dispatchEvent(new CustomEvent("nitro:settings-changed"));
+  window.dispatchEvent(new CustomEvent("verity:settings-changed"));
 }
 
 /** Minimal typed fetch wrapper for the local API. */
@@ -130,9 +130,8 @@ export async function transcribeAudio(file: File, onProgress: (info: { percent: 
       method: "POST",
       headers: {
         "content-type": "application/octet-stream",
-        "x-nitro-sample-rate": "16000",
         "x-verity-sample-rate": "16000",
-        ...(language ? { "x-nitro-language": language, "x-verity-language": language } : {}),
+        ...(language ? { "x-verity-language": language } : {}),
       },
       body: new Blob([slice], { type: "application/octet-stream" }),
     });

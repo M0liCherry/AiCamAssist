@@ -143,7 +143,7 @@ export const providerLabel = (provider: Provider) =>
 export const supportsEmbeddings = (cfg: ProviderConfig) =>
   cfg.provider === "gemini" || cfg.provider === "ollama" || cfg.provider === "llamacpp";
 
-export const LOCAL_CONTEXT_TOKENS = Math.max(4096, Number(process.env.NITRO_LOCAL_CONTEXT ?? 8192) || 8192);
+export const LOCAL_CONTEXT_TOKENS = Math.max(4096, Number(process.env.VERITY_LOCAL_CONTEXT ?? 8192) || 8192);
 
 /** Character budget for source material per request, sized to the backend's context window. */
 export function contextBudgetChars(cfg: ProviderConfig) {

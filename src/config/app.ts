@@ -1,13 +1,13 @@
 /**
  * Single source of truth for product identity shown in About, legal pages,
- * and the desktop installer. Publisher fields are read from NEXT_PUBLIC_*
+ * and the web app. Publisher fields are read from NEXT_PUBLIC_*
  * variables so a distributor can supply verified business details at build
  * time without editing source. Defaults are deliberately explicit about being
  * unconfigured rather than presenting fabricated company information.
  */
 export const APP_NAME = "Verity AI";
 export const APP_VERSION = "1.0.0";
-export const APP_ID = "com.verityai.desktop";
+export const APP_ID = "verity-ai-web";
 
 export type Publisher = {
   name: string;
@@ -19,10 +19,10 @@ export type Publisher = {
 };
 
 export const PUBLISHER: Publisher = {
-  name: process.env.NEXT_PUBLIC_PUBLISHER_NAME || "Verity AI Project (independent developer build)",
+  name: process.env.NEXT_PUBLIC_PUBLISHER_NAME || "Sunrays, Nathaneal, Anxiety, and Maaz",
   legalEntity:
     process.env.NEXT_PUBLIC_PUBLISHER_ENTITY ||
-    "No registered legal entity configured — set NEXT_PUBLIC_PUBLISHER_ENTITY before distribution",
+    "Sunrays, Nathaneal, Anxiety, and Maaz",
   address:
     process.env.NEXT_PUBLIC_PUBLISHER_ADDRESS ||
     "Business address not configured — set NEXT_PUBLIC_PUBLISHER_ADDRESS before distribution",

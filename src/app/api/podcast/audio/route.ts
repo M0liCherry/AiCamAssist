@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { getDb } from "@/db";
@@ -50,6 +51,7 @@ export async function GET(request: NextRequest) {
       }
       const chunkSize = end - start + 1;
       const fileStream = fs.createReadStream(filePath, { start, end });
+      const webStream = Readable.toWeb(fileStream);
 
       const headers = new Headers({
         "Content-Range": `bytes ${start}-${end}/${fileSize}`,
@@ -58,13 +60,14 @@ export async function GET(request: NextRequest) {
         "Content-Type": mimeType,
       });
 
-      return new Response(fileStream as unknown as ReadableStream, {
+      return new Response(webStream as unknown as ReadableStream, {
         status: 206,
         headers,
       });
     }
 
     const fileStream = fs.createReadStream(filePath);
+    const webStream = Readable.toWeb(fileStream);
     const headers = new Headers({
       "Content-Length": String(fileSize),
       "Content-Type": mimeType,
@@ -76,7 +79,7 @@ export async function GET(request: NextRequest) {
       headers.set("Content-Disposition", `attachment; filename="${safeFile}"`);
     }
 
-    return new Response(fileStream as unknown as ReadableStream, { headers });
+    return new Response(webStream as unknown as ReadableStream, { headers });
   } catch (error) {
     return fail(error, "Failed to load audio file.");
   }

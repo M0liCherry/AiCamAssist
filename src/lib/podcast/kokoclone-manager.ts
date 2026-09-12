@@ -17,15 +17,31 @@ export interface KokoCloneStatus {
 
 export function getKokoclonePaths() {
   const cwd = process.cwd();
-  const root = fs.existsSync(path.join(cwd, "kokoclone"))
-    ? cwd
-    : fs.existsSync(path.join(cwd, "..", "kokoclone"))
-      ? path.resolve(cwd, "..")
-      : cwd;
+  const candidateRoots = [
+    process.env.KOKOCLONE_DIR,
+    cwd,
+    path.resolve(cwd, ".."),
+    path.resolve(cwd, "..", ".."),
+    process.execPath ? path.dirname(process.execPath) : null,
+    process.execPath ? path.resolve(path.dirname(process.execPath), "..") : null,
+  ].filter(Boolean) as string[];
 
-  const kokoDir = path.join(root, "kokoclone");
+  let root = cwd;
+  let kokoDir = path.join(cwd, "kokoclone");
+
+  for (const cand of candidateRoots) {
+    if (fs.existsSync(path.join(cand, "kokoclone", "app.py"))) {
+      root = cand;
+      kokoDir = path.join(cand, "kokoclone");
+      break;
+    } else if (fs.existsSync(path.join(cand, "app.py"))) {
+      root = path.dirname(cand);
+      kokoDir = cand;
+      break;
+    }
+  }
+
   const hasCode = fs.existsSync(path.join(kokoDir, "app.py"));
-
   const venvUnix = path.join(kokoDir, ".venv", "bin", "python");
   const venvWin = path.join(kokoDir, ".venv", "Scripts", "python.exe");
   const pythonBin = fs.existsSync(venvUnix) ? venvUnix : fs.existsSync(venvWin) ? venvWin : null;
@@ -176,7 +192,7 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
     } catch {
       try {
         await execAsync(
-          `${uvCommand} pip install --python ${pyBin} "torch>=2.1.0" "torchaudio>=2.1.0" "kokoro>=0.9.0" "gradio>=6.8.0" "git+https://github.com/frothywater/kanade-tokenizer" soundfile huggingface_hub ninja setuptools "misaki[en,ja,zh]>=0.9.4"`,
+          `${uvCommand} pip install --python ${pyBin} "torch>=2.1.0" "torchaudio>=2.1.0" "kokoro>=0.9.0" "gradio>=6.8.0" "git+https://github.com/frothywater/kanade-tokenizer" soundfile huggingface_hub ninja setuptools "misaki[en,zh]>=0.9.4"`,
           { cwd: updatedPaths.kokoDir, maxBuffer: 15 * 1024 * 1024 },
         );
         installSuccess = true;
@@ -205,7 +221,7 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
 
       // 2. Install all core PyPI packages
       await execAsync(
-        `${pyBin} -m pip install "torch>=2.1.0" "torchaudio>=2.1.0" "kokoro>=0.9.0" "gradio>=6.8.0" soundfile huggingface_hub ninja setuptools "misaki[en,ja,zh]>=0.9.4"`,
+        `${pyBin} -m pip install "torch>=2.1.0" "torchaudio>=2.1.0" "kokoro>=0.9.0" "gradio>=6.8.0" soundfile huggingface_hub ninja setuptools "misaki[en,zh]>=0.9.4"`,
         { cwd: updatedPaths.kokoDir, maxBuffer: 15 * 1024 * 1024 },
       );
 
