@@ -139,6 +139,7 @@ export function PodcastsView(props: StudyProps) {
   const script = data?.asset?.payload ?? null;
   const supported = typeof window !== "undefined" && "speechSynthesis" in window;
   const playingRef = useRef(false);
+  const speakTimerRef = useRef<number | null>(null);
 
   const waveformCache = useRef<Map<string, number[]>>(new Map());
   const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
@@ -218,6 +219,10 @@ export function PodcastsView(props: StudyProps) {
     return () => {
       window.speechSynthesis.removeEventListener("voiceschanged", load);
       window.speechSynthesis.cancel();
+      if (speakTimerRef.current !== null) {
+        window.clearTimeout(speakTimerRef.current);
+        speakTimerRef.current = null;
+      }
     };
   }, [supported]);
 
@@ -258,6 +263,10 @@ export function PodcastsView(props: StudyProps) {
   const speak = useCallback(
     (index: number) => {
       if (!script || !supported) return;
+      if (speakTimerRef.current !== null) {
+        window.clearTimeout(speakTimerRef.current);
+        speakTimerRef.current = null;
+      }
       window.speechSynthesis.cancel();
       const current = script.turns[index];
       if (!current) {
@@ -305,7 +314,11 @@ export function PodcastsView(props: StudyProps) {
         setPlaying(false);
         playingRef.current = false;
       };
-      window.speechSynthesis.speak(utterance);
+      // Chrome drops utterances spoken synchronously after cancel(): defer past it.
+      speakTimerRef.current = window.setTimeout(() => {
+        speakTimerRef.current = null;
+        window.speechSynthesis.speak(utterance);
+      }, 80);
     },
     [script, supported, voices, hostVoice, guestVoice, rate, turnStarts, totalDuration],
   );
@@ -442,6 +455,18 @@ export function PodcastsView(props: StudyProps) {
       });
     }
   }, [turn, playing]);
+
+  // Heal imperative/declarative desync: if the bound src changed while we
+  // believe we're playing (regenerated URLs, turn jumps), resume playback
+  // instead of stalling silently.
+  useEffect(() => {
+    const el = audioRef.current;
+    const want = script?.turns[turn]?.audioUrl || script?.audioUrl;
+    if (playingRef.current && el && want && el.getAttribute("src") !== want) {
+      el.src = want;
+      el.play().catch(() => {});
+    }
+  }, [script, turn]);
 
   // Extract actual audio waveform peaks for the FULL episode (all turns combined)
   useEffect(() => {
