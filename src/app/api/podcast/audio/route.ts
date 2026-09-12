@@ -7,8 +7,10 @@ import { generatedAssets } from "@/db/schema";
 import { fail, HttpError, ok, readJson } from "@/lib/http";
 import {
   podcastAudioDir,
+  stitchWavBuffers,
   synthesizeElevenLabsTurn,
   synthesizeKokoClone,
+  wavDurationSec,
 } from "@/lib/podcast/audio";
 import { getKokoclonePaths } from "@/lib/podcast/kokoclone-manager";
 import { getPodcastAudioConfig } from "@/lib/settings";
@@ -104,8 +106,9 @@ export async function POST(request: NextRequest) {
     const script = asset.payload as {
       title: string;
       summary: string;
-      turns: Array<{ speaker: "host" | "guest"; text: string; audioUrl?: string }>;
+      turns: Array<{ speaker: "host" | "guest"; text: string; audioUrl?: string; duration?: number; startOffset?: number }>;
       audioUrl?: string;
+      totalDuration?: number;
     };
 
     if (!script || !Array.isArray(script.turns) || script.turns.length === 0) {
@@ -207,7 +210,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. Concatenate all contiguous or available turn MP3 buffers into an episode MP3
+    // 3. Stitch all available turn buffers into a single episode file.
+    // Turn clips from KokoClone are WAV bytes (PCM): byte-concatenating them
+    // keeps only the first header, so browsers report the first clip's length
+    // and stop there. Stitch WAVs into one valid WAV instead.
     const sortedBuffers: Buffer[] = [];
     for (let i = 0; i < script.turns.length; i++) {
       const buf = turnAudioBuffers.get(i);
@@ -216,18 +222,52 @@ export async function POST(request: NextRequest) {
 
     let fullEpisodeUrl = script.audioUrl || null;
     if (sortedBuffers.length > 0) {
-      const fullEpisodeBuffer = Buffer.concat(sortedBuffers);
-      fs.writeFileSync(path.join(dir, "full_episode.mp3"), fullEpisodeBuffer);
-      fullEpisodeUrl = `/api/podcast/audio?assetId=${assetId}&file=full_episode.mp3&v=${Date.now()}`;
+      const stitchedWav = stitchWavBuffers(sortedBuffers);
+      if (stitchedWav) {
+        const wavPath = path.join(dir, "full_episode.wav");
+        fs.writeFileSync(wavPath, stitchedWav);
+        // Also repair the legacy full_episode.mp3 (same bytes; browsers sniff
+        // WAV content) so previously saved payloads heal without regenerating.
+        try {
+          fs.writeFileSync(path.join(dir, "full_episode.mp3"), stitchedWav);
+        } catch {
+          // best-effort
+        }
+        fullEpisodeUrl = `/api/podcast/audio?assetId=${assetId}&file=full_episode.wav&v=${Date.now()}`;
+      } else {
+        const fullEpisodeBuffer = Buffer.concat(sortedBuffers);
+        fs.writeFileSync(path.join(dir, "full_episode.mp3"), fullEpisodeBuffer);
+        fullEpisodeUrl = `/api/podcast/audio?assetId=${assetId}&file=full_episode.mp3&v=${Date.now()}`;
+      }
     }
+
+    // 4. Measure exact per-turn durations (WAV headers) and conversation offsets
+    // so the player progress bar tracks the whole conversation, not one clip.
+    // Every turn gets a startOffset (missing turns sit at the cursor); measured
+    // turns also get a duration. Recomputed on every call so partial merges
+    // during streaming already carry usable offsets.
+    let cursor = 0;
+    const updatedTurnsWithOffsets = updatedTurns.map((t, i) => {
+      const buf = turnAudioBuffers.get(i);
+      const dur = buf ? wavDurationSec(buf) : undefined;
+      const startOffset = Math.round(cursor * 10) / 10;
+      if (dur && dur > 0) cursor += dur;
+      return {
+        ...t,
+        startOffset,
+        ...(dur && dur > 0 ? { duration: Math.round(dur * 10) / 10 } : {}),
+      };
+    });
+    const totalDuration = Math.round(cursor * 10) / 10;
 
     // Persist audio URLs onto the asset payload
     const updatedPayload = {
       ...script,
       audioUrl: fullEpisodeUrl,
-      turns: updatedTurns,
+      turns: updatedTurnsWithOffsets,
       audioEngine: engine,
       audioGeneratedAt: new Date().toISOString(),
+      ...(totalDuration > 0 ? { totalDuration } : {}),
     };
 
     await db
@@ -237,13 +277,14 @@ export async function POST(request: NextRequest) {
 
     return ok({
       audioUrl: fullEpisodeUrl,
-      turns: updatedTurns,
+      turns: updatedTurnsWithOffsets,
       engine,
       startTurn,
       endTurn,
       generatedSectionTurnCount: endTurn - startTurn,
       totalTurns: script.turns.length,
-      completedTurnsCount: updatedTurns.filter((t) => t.audioUrl).length,
+      completedTurnsCount: updatedTurnsWithOffsets.filter((t) => t.audioUrl).length,
+      ...(totalDuration > 0 ? { totalDuration } : {}),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to generate podcast audio.";

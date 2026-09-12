@@ -245,6 +245,132 @@ export function PodcastsView(props: StudyProps) {
     return turnDurations.reduce((a, b) => a + b, 0);
   }, [script?.audioUrl, realAudioDuration, turnDurations]);
 
+  // Real per-clip durations so waveform + progress bar track the WHOLE
+  // conversation (sum of all clips), not just the current clip.
+  const [turnAudioDurations, setTurnAudioDurations] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!script?.turns?.length) return;
+    let cancelled = false;
+    const urls = Array.from(new Set(script.turns.map((t) => t.audioUrl).filter(Boolean))) as string[];
+    const missing = urls.filter((u) => turnAudioDurations[u] === undefined);
+    if (!missing.length) return;
+    missing.forEach((url) => {
+      const el = new Audio();
+      el.preload = "metadata";
+      el.onloadedmetadata = () => {
+        if (cancelled) return;
+        const d = el.duration;
+        if (d && !isNaN(d) && isFinite(d) && d > 0) {
+          setTurnAudioDurations((prev) => (prev[url] !== undefined ? prev : { ...prev, [url]: d }));
+        }
+      };
+      el.onerror = () => {};
+      el.src = url;
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [script?.turns?.map((t) => t.audioUrl || "").join(",")]);
+
+  // Combined timeline: real clip length where measured, estimate otherwise.
+  const timelineDurations = useMemo(() => {
+    if (!script) return [] as number[];
+    return script.turns.map((t, i) => {
+      const real = t.audioUrl ? turnAudioDurations[t.audioUrl] : undefined;
+      if (real && isFinite(real) && real > 0) return real;
+      return turnDurations[i] ?? 3;
+    });
+  }, [script, turnAudioDurations, turnDurations]);
+
+  const timelineStarts = useMemo(() => {
+    let curr = 0;
+    return timelineDurations.map((d) => {
+      const s = curr;
+      curr += d;
+      return s;
+    });
+  }, [timelineDurations]);
+
+  const timelineTotal = useMemo(() => {
+    return timelineDurations.reduce((a, b) => a + b, 0);
+  }, [timelineDurations]);
+
+  // Exact server-measured offsets (WAV headers) when the episode was stitched.
+  const allTurnsReady = useMemo(
+    () => Boolean(script?.turns?.length) && (script?.turns?.every((t) => Boolean(t.audioUrl)) ?? false),
+    [script],
+  );
+
+  // Unified conversation timeline: exact server offsets first, probed lengths
+  // next, estimates last. Works for partial merges mid-stream too.
+  const { tlStarts, tlDurations } = useMemo(() => {
+    if (!script) return { tlStarts: [] as number[], tlDurations: [] as number[] };
+    const starts: number[] = [];
+    const durs: number[] = [];
+    let cursor = 0;
+    script.turns.forEach((t, i) => {
+      const d =
+        typeof t.duration === "number" && t.duration > 0 ? t.duration : (turnDurations[i] ?? 3);
+      const s = typeof t.startOffset === "number" ? t.startOffset : cursor;
+      starts.push(s);
+      durs.push(d);
+      cursor = Math.max(cursor, s + d);
+    });
+    return { tlStarts: starts, tlDurations: durs };
+  }, [script, turnDurations]);
+  const hasUsableOffsets = useMemo(
+    () => Boolean(script?.turns?.some((t) => typeof t.startOffset === "number")),
+    [script],
+  );
+  // Progressive merged mode: play the single stitched episode as soon as the
+  // first segments are merged (H1+H2…), not only when everything is ready.
+  // Progress, waveform and seeking then track the growing conversation.
+  // (Legacy corrupt full_episode.mp3 without offsets stays in per-clip mode.)
+  const fullFileMode = Boolean(
+    script?.audioUrl && /file=full_episode/.test(script.audioUrl) && completedTurnsCount > 0 &&
+      (/full_episode\.wav/.test(script.audioUrl) || hasUsableOffsets),
+  );
+  const tlTotal = useMemo(() => {
+    if (fullFileMode && realAudioDuration > 0) return realAudioDuration;
+    if (tlStarts.length) {
+      const last = tlStarts.length - 1;
+      return (tlStarts[last] ?? 0) + (tlDurations[last] ?? 0);
+    }
+    return timelineTotal;
+  }, [fullFileMode, realAudioDuration, tlStarts, tlDurations, timelineTotal]);
+
+  const displayTotal = tlTotal;
+  const pendingSeekRef = useRef<number | null>(null);
+  const prevEndRef = useRef<number | null>(null);
+
+  // Turn index containing a timestamp on the unified timeline.
+  const turnAtTime = useCallback(
+    (time: number) => {
+      if (!script?.turns?.length) return 0;
+      let found = 0;
+      for (let i = 0; i < tlStarts.length; i++) {
+        if ((tlStarts[i] ?? 0) <= time) found = i;
+        else break;
+      }
+      return found;
+    },
+    [script, tlStarts],
+  );
+
+  // Preload the next clip while the current one plays for gapless autoplay.
+  useEffect(() => {
+    if (!playing || !script?.turns?.length) return;
+    const nextUrl = script.turns[turn + 1]?.audioUrl;
+    if (!nextUrl) return;
+    try {
+      const el = new Audio();
+      el.preload = "auto";
+      el.src = nextUrl;
+    } catch {}
+  }, [playing, turn, script]);
+
   useEffect(() => {
     setTurn(0);
     setWordIndex(-1);
@@ -295,7 +421,7 @@ export function PodcastsView(props: StudyProps) {
       utterance.onstart = () => {
         setTurn(index);
         setWordIndex(0);
-        const startTime = turnStarts[index] ?? 0;
+        const startTime = timelineStarts[index] ?? 0;
         setCurrentTime(startTime);
         setPlaying(true);
         playingRef.current = true;
@@ -307,7 +433,7 @@ export function PodcastsView(props: StudyProps) {
           setPlaying(false);
           playingRef.current = false;
           setWordIndex(-1);
-          setCurrentTime(totalDuration);
+          setCurrentTime(timelineTotal);
         }
       };
       utterance.onerror = () => {
@@ -320,7 +446,7 @@ export function PodcastsView(props: StudyProps) {
         window.speechSynthesis.speak(utterance);
       }, 80);
     },
-    [script, supported, voices, hostVoice, guestVoice, rate, turnStarts, totalDuration],
+    [script, supported, voices, hostVoice, guestVoice, rate, timelineStarts, timelineTotal],
   );
 
   const playTurnAudio = useCallback(
@@ -332,9 +458,32 @@ export function PodcastsView(props: StudyProps) {
 
       if (supported) window.speechSynthesis.cancel();
 
+      // Merged episode: seek inside the single file instead of swapping clips.
+      if (fullFileMode && script.audioUrl && audioRef.current) {
+        const offset = tlStarts[index] ?? 0;
+        setCurrentTime(offset);
+        try {
+          if (audioRef.current.getAttribute("src") !== script.audioUrl) {
+            audioRef.current.src = script.audioUrl;
+          }
+          try {
+            audioRef.current.currentTime = offset;
+          } catch {
+            pendingSeekRef.current = offset;
+          }
+          audioRef.current.play().then(() => {
+            setPlaying(true);
+            playingRef.current = true;
+          }).catch(() => {});
+        } catch {}
+        return;
+      }
+
       if (targetTurn.audioUrl && audioRef.current) {
         audioRef.current.src = targetTurn.audioUrl;
         audioRef.current.currentTime = 0;
+        // Jump the combined progress bar to the start of this turn.
+        setCurrentTime(tlStarts[index] ?? 0);
         audioRef.current
           .play()
           .then(() => {
@@ -349,24 +498,47 @@ export function PodcastsView(props: StudyProps) {
         speak(index);
       }
     },
-    [script, supported, speak, engine],
+    [script, supported, speak, engine, fullFileMode, tlStarts],
   );
 
   useEffect(() => {
     if (waitingForTurn !== null && script?.turns[waitingForTurn]?.audioUrl) {
       const turnToPlay = waitingForTurn;
       setWaitingForTurn(null);
-      playTurnAudio(turnToPlay);
+      if (fullFileMode && script?.audioUrl && audioRef.current) {
+        // Merged file grew while we waited: continue from where we left off.
+        try {
+          if (audioRef.current.getAttribute("src") !== script.audioUrl) {
+            audioRef.current.src = script.audioUrl;
+          }
+          const resume = prevEndRef.current ?? tlStarts[turnToPlay] ?? 0;
+          try {
+            audioRef.current.currentTime = resume;
+          } catch {
+            pendingSeekRef.current = resume;
+          }
+          setCurrentTime(resume);
+          setTurn(turnToPlay);
+          setWordIndex(-1);
+          audioRef.current.play().then(() => {
+            setPlaying(true);
+            playingRef.current = true;
+          }).catch(() => {});
+        } catch {}
+        prevEndRef.current = null;
+      } else {
+        playTurnAudio(turnToPlay);
+      }
     }
-  }, [script, waitingForTurn, playTurnAudio]);
+  }, [script, waitingForTurn, playTurnAudio, fullFileMode, tlStarts]);
 
-  // Time tracker for synthetic speech mode
+  // Time tracker for synthetic speech mode (combined conversation timeline)
   useEffect(() => {
     if (!playing || script?.audioUrl) return;
     const interval = window.setInterval(() => {
       setCurrentTime((prev) => {
-        const turnStart = turnStarts[turn] ?? 0;
-        const turnDur = turnDurations[turn] ?? 3;
+        const turnStart = tlStarts[turn] ?? 0;
+        const turnDur = tlDurations[turn] ?? 3;
         const next = prev + 0.25;
         if (next <= turnStart + turnDur) {
           return next;
@@ -375,16 +547,57 @@ export function PodcastsView(props: StudyProps) {
       });
     }, 250);
     return () => window.clearInterval(interval);
-  }, [playing, turn, turnStarts, turnDurations, script?.audioUrl]);
+  }, [playing, turn, tlStarts, tlDurations, script?.audioUrl]);
+
+  // Seek inside the single merged file (full-file mode) or load one clip (playlist mode).
+  const seekToTurn = useCallback(
+    (index: number, autoplay = true) => {
+      if (!script || !audioRef.current) return;
+      const next = Math.max(0, Math.min(script.turns.length - 1, index));
+      const offset = tlStarts[next] ?? 0;
+      setTurn(next);
+      setWordIndex(-1);
+      setCurrentTime(offset);
+      try {
+        if (fullFileMode && script.audioUrl) {
+          if (audioRef.current.getAttribute("src") !== script.audioUrl) {
+            audioRef.current.src = script.audioUrl;
+          }
+          try {
+            audioRef.current.currentTime = offset;
+          } catch {
+            pendingSeekRef.current = offset;
+          }
+        } else {
+          const clipUrl = script.turns[next]?.audioUrl;
+          if (clipUrl) {
+            if (audioRef.current.getAttribute("src") !== clipUrl) audioRef.current.src = clipUrl;
+            audioRef.current.currentTime = 0;
+          }
+        }
+        if (autoplay) {
+          audioRef.current.play().then(() => {
+            setPlaying(true);
+            playingRef.current = true;
+          }).catch(() => {});
+        }
+      } catch {}
+    },
+    [script, fullFileMode, tlStarts],
+  );
 
   const toggle = () => {
-    if (audioRef.current && (script?.turns[turn]?.audioUrl || script?.audioUrl)) {
+    if (audioRef.current && (fullFileMode || script?.turns[turn]?.audioUrl || script?.audioUrl)) {
       if (playing) {
         audioRef.current.pause();
         setPlaying(false);
         playingRef.current = false;
       } else {
-        if (!audioRef.current.src && script.turns[turn]?.audioUrl) {
+        if (fullFileMode && script?.audioUrl) {
+          if (!audioRef.current.getAttribute("src") || audioRef.current.getAttribute("src") !== script.audioUrl) {
+            audioRef.current.src = script.audioUrl;
+          }
+        } else if (!audioRef.current.src && script?.turns[turn]?.audioUrl) {
           audioRef.current.src = script.turns[turn].audioUrl;
         }
         audioRef.current.play().catch(() => {});
@@ -405,15 +618,14 @@ export function PodcastsView(props: StudyProps) {
   const jump = (index: number) => {
     if (!script) return;
     const next = Math.max(0, Math.min(script.turns.length - 1, index));
-    setTurn(next);
-    setWordIndex(-1);
-
-    if (script.turns[next]?.audioUrl) {
-      playTurnAudio(next);
+    if (fullFileMode || script.turns[next]?.audioUrl) {
+      seekToTurn(next, true);
       return;
     }
 
-    const time = turnStarts[next] ?? 0;
+    const time = tlStarts[next] ?? 0;
+    setTurn(next);
+    setWordIndex(-1);
     setCurrentTime(time);
 
     if (playing) speak(next);
@@ -423,20 +635,46 @@ export function PodcastsView(props: StudyProps) {
     const targetSec = Number(event.currentTarget.value);
     setCurrentTime(targetSec);
 
-    if (script?.audioUrl && audioRef.current) {
+    if (!script || !audioRef.current) return;
+    const foundTurn = turnAtTime(targetSec);
+    setTurn(foundTurn);
+    setWordIndex(-1);
+
+    // Single merged file: seek natively — progress + waveform follow automatically.
+    if (fullFileMode) {
+      try {
+        if (audioRef.current.getAttribute("src") !== script.audioUrl && script.audioUrl) {
+          audioRef.current.src = script.audioUrl;
+        }
+        audioRef.current.currentTime = targetSec;
+        if (playingRef.current) audioRef.current.play().catch(() => {});
+      } catch {
+        pendingSeekRef.current = targetSec;
+      }
+      return;
+    }
+
+    if (script.audioUrl && !script.turns[foundTurn]?.audioUrl) {
       try {
         audioRef.current.currentTime = targetSec;
       } catch {}
     }
 
-    if (!script || !turnStarts.length) return;
-    let foundTurn = 0;
-    for (let i = 0; i < turnStarts.length; i++) {
-      if (turnStarts[i] <= targetSec) foundTurn = i;
-      else break;
+    if (!tlStarts.length) return;
+
+    // Playlist mode: load that turn's clip at the right offset and keep playing.
+    const offset = Math.max(0, targetSec - (tlStarts[foundTurn] ?? 0));
+    const clipUrl = script.turns[foundTurn]?.audioUrl;
+    if (clipUrl && audioRef.current) {
+      try {
+        if (audioRef.current.getAttribute("src") !== clipUrl) audioRef.current.src = clipUrl;
+        audioRef.current.currentTime = Math.min(offset, Math.max(0, (tlDurations[foundTurn] ?? 1) - 0.1));
+        if (playingRef.current) {
+          audioRef.current.play().catch(() => {});
+        }
+      } catch {}
+      return;
     }
-    setTurn(foundTurn);
-    setWordIndex(-1);
 
     if (playingRef.current && (!script?.audioUrl || !audioRef.current)) {
       speak(foundTurn);
@@ -457,16 +695,30 @@ export function PodcastsView(props: StudyProps) {
   }, [turn, playing]);
 
   // Heal imperative/declarative desync: if the bound src changed while we
-  // believe we're playing (regenerated URLs, turn jumps), resume playback
-  // instead of stalling silently.
+  // believe we're playing (regenerated URLs, turn jumps, progressive stitches),
+  // swap to the new merged file keeping the live position — no restart.
   useEffect(() => {
     const el = audioRef.current;
-    const want = script?.turns[turn]?.audioUrl || script?.audioUrl;
+    const want = fullFileMode && script?.audioUrl ? script.audioUrl : script?.turns[turn]?.audioUrl || script?.audioUrl;
     if (playingRef.current && el && want && el.getAttribute("src") !== want) {
+      let keepTime: number | undefined;
+      try {
+        keepTime = el.currentTime;
+      } catch {
+        keepTime = currentTime;
+      }
       el.src = want;
+      try {
+        if (keepTime !== undefined && isFinite(keepTime) && keepTime > 0) {
+          el.currentTime = Math.min(keepTime, Math.max(0, (el.duration || tlTotal) - 0.2));
+        }
+      } catch {
+        if (keepTime !== undefined) pendingSeekRef.current = keepTime;
+      }
       el.play().catch(() => {});
     }
-  }, [script, turn]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [script, turn, fullFileMode]);
 
   // Extract actual audio waveform peaks for the FULL episode (all turns combined)
   useEffect(() => {
@@ -600,30 +852,39 @@ export function PodcastsView(props: StudyProps) {
     };
   }, [fullAudioKey, hasGeneratedAudio, data?.asset?.id, script, turnDurations]);
 
-  const fullAudioProgress = Math.min(100, Math.max(0, (currentTime / Math.max(1, totalDuration)) * 100));
+  const fullAudioProgress = Math.min(100, Math.max(0, (currentTime / Math.max(1, displayTotal)) * 100));
 
   const handleWaveformClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!script || totalDuration <= 0) return;
+    if (!script || displayTotal <= 0) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const ratio = Math.max(0, Math.min(1, clickX / rect.width));
-    const targetTotalSec = ratio * totalDuration;
+    const targetTotalSec = ratio * displayTotal;
 
-    // Find which turn contains targetTotalSec
-    let foundTurn = 0;
-    for (let i = 0; i < turnStarts.length; i++) {
-      if (turnStarts[i] <= targetTotalSec) {
-        foundTurn = i;
-      } else {
-        break;
-      }
-    }
+    // Find which turn contains targetTotalSec on the combined timeline
+    const foundTurn = turnAtTime(targetTotalSec);
 
     setTurn(foundTurn);
     setWordIndex(-1);
     setCurrentTime(targetTotalSec);
 
-    const turnOffset = Math.max(0, targetTotalSec - (turnStarts[foundTurn] ?? 0));
+    if (fullFileMode && audioRef.current && script.audioUrl) {
+      try {
+        if (audioRef.current.getAttribute("src") !== script.audioUrl) {
+          audioRef.current.src = script.audioUrl;
+        }
+        audioRef.current.currentTime = targetTotalSec;
+        audioRef.current.play().then(() => {
+          setPlaying(true);
+          playingRef.current = true;
+        }).catch(() => {});
+      } catch {
+        pendingSeekRef.current = targetTotalSec;
+      }
+      return;
+    }
+
+    const turnOffset = Math.max(0, targetTotalSec - (tlStarts[foundTurn] ?? 0));
 
     const targetTurnAudio = script.turns[foundTurn]?.audioUrl;
     if (targetTurnAudio && audioRef.current) {
@@ -686,7 +947,7 @@ export function PodcastsView(props: StudyProps) {
 
         setGeneratingTurnIndex(i);
 
-        const res = await api<{ audioUrl: string; turns: Array<any> }>("/api/podcast/audio", {
+        const res = await api<{ audioUrl: string; turns: Array<any>; totalDuration?: number }>("/api/podcast/audio", {
           method: "POST",
           json: {
             assetId: data.asset.id,
@@ -713,15 +974,20 @@ export function PodcastsView(props: StudyProps) {
                 audioUrl: res.audioUrl,
                 turns: res.turns,
                 audioEngine: engine,
+                ...(typeof res.totalDuration === "number" ? { totalDuration: res.totalDuration } : {}),
               },
             },
           };
         });
 
         // The instant the first turn is generated, auto-play immediately so playback begins with zero wait!
+        // Prefer the freshly stitched merged file (H1 already merged) over the lone clip.
         if (i === 0 || (!playingRef.current && turn === i)) {
-          if (res.turns[i]?.audioUrl && audioRef.current) {
-            audioRef.current.src = res.turns[i].audioUrl;
+          const firstSrc =
+            (res.audioUrl && /file=full_episode/.test(res.audioUrl) ? res.audioUrl : null) ||
+            res.turns[i]?.audioUrl;
+          if (firstSrc && audioRef.current) {
+            audioRef.current.src = firstSrc;
             audioRef.current.currentTime = 0;
             audioRef.current
               .play()
@@ -847,6 +1113,52 @@ export function PodcastsView(props: StudyProps) {
       setPlaying(false);
       playingRef.current = false;
       props.notify("Studio podcast audio generated successfully!", "success");
+    } catch (err) {
+      setSynthesisError(errorMessage(err));
+    } finally {
+      setSynthesizing(false);
+    }
+  };
+
+  // Re-stitch already-generated turn clips into one valid merged episode
+  // (repairs legacy corrupt full_episode.mp3) without re-synthesizing anything.
+  const repairMergedAudio = async () => {
+    if (!data?.asset?.id || !script?.turns?.length) return;
+    setSynthesizing(true);
+    setSynthesisError(null);
+    try {
+      const res = await api<{ audioUrl: string; turns: Array<any>; totalDuration?: number }>("/api/podcast/audio", {
+        method: "POST",
+        json: {
+          assetId: data.asset.id,
+          engine,
+          apiKey: inlineElevenKey.trim() || undefined,
+          hostVoice: elevenHostVoice,
+          guestVoice: elevenGuestVoice,
+          kokoCloneEndpoint: kokoEndpoint,
+          hostRefAudio: hostRefAudio,
+          guestRefAudio: guestRefAudio,
+          startTurn: 0,
+          endTurn: 0,
+        },
+      });
+      setData((prev) => {
+        if (!prev || !prev.asset) return prev;
+        return {
+          ...prev,
+          asset: {
+            ...prev.asset,
+            payload: {
+              ...prev.asset.payload,
+              audioUrl: res.audioUrl,
+              turns: res.turns,
+              audioEngine: engine,
+              ...(typeof res.totalDuration === "number" ? { totalDuration: res.totalDuration } : {}),
+            },
+          },
+        };
+      });
+      props.notify("Merged episode repaired — one continuous file with whole-conversation progress!", "success");
     } catch (err) {
       setSynthesisError(errorMessage(err));
     } finally {
@@ -995,14 +1307,26 @@ export function PodcastsView(props: StudyProps) {
             </button>
           )}
 
+          {script && engine !== "speechSynthesis" && !fullFileMode && allTurnsReady && (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={repairMergedAudio}
+              disabled={synthesizing}
+              title="Re-stitch the ready turn clips into one continuous file (fixes progress bar + autoplay)"
+            >
+              {synthesizing ? <Spinner label="Repairing…" /> : <><WandSparkles size={16} /> Repair merged audio</>}
+            </button>
+          )}
+
           {script?.audioUrl && (
             <a
               href={`${script.audioUrl}&download=1`}
-              download={`${script.title.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "podcast"}.mp3`}
+              download={`${script.title.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "podcast"}${script.audioUrl.includes("full_episode.wav") ? ".wav" : ".mp3"}`}
               className="secondary-button compact"
-              title="Download generated MP3 podcast"
+              title={script.audioUrl.includes("full_episode.wav") ? "Download merged WAV episode" : "Download generated podcast audio"}
             >
-              <Download size={15} /> Download MP3
+              <Download size={15} /> {script.audioUrl.includes("full_episode.wav") ? "Download WAV" : "Download MP3"}
             </a>
           )}
         </div>
@@ -1050,11 +1374,11 @@ export function PodcastsView(props: StudyProps) {
       ) : (
         <section className="podcast-layout" aria-label="Podcast player and transcript">
           <div className="podcast-player" tabIndex={0} onKeyDown={onPlayerKey} aria-label="Podcast player. Space plays or pauses, arrow keys change turn.">
-            {/* Real Audio Player Element */}
+            {/* Real Audio Player Element — merged episode in single-file mode, chained clips otherwise */}
             <audio
               ref={audioRef}
-              src={script.turns[turn]?.audioUrl || script.audioUrl || undefined}
-              preload="metadata"
+              src={fullFileMode && script.audioUrl ? script.audioUrl : script.turns[turn]?.audioUrl || script.audioUrl || undefined}
+              preload="auto"
               onPlay={() => {
                 setPlaying(true);
                 playingRef.current = true;
@@ -1064,15 +1388,48 @@ export function PodcastsView(props: StudyProps) {
                 playingRef.current = false;
               }}
               onLoadedMetadata={(e) => {
-                if (e.currentTarget.duration && !isNaN(e.currentTarget.duration)) {
-                  setRealAudioDuration(e.currentTarget.duration);
+                const d = e.currentTarget.duration;
+                if (d && !isNaN(d) && isFinite(d) && d > 0) {
+                  setRealAudioDuration(d);
+                  // Feed playlist probing so per-clip progress converges on real lengths.
+                  try {
+                    const src = e.currentTarget.getAttribute("src") || e.currentTarget.src;
+                    const match = script.turns.findIndex((t) => t.audioUrl && src.includes(t.audioUrl));
+                    if (match >= 0 && script.turns[match]?.audioUrl) {
+                      const url = script.turns[match].audioUrl!;
+                      setTurnAudioDurations((prev) => (prev[url] !== undefined ? prev : { ...prev, [url]: d }));
+                    }
+                  } catch {}
+                  if (pendingSeekRef.current !== null) {
+                    try {
+                      e.currentTarget.currentTime = pendingSeekRef.current;
+                    } catch {}
+                    pendingSeekRef.current = null;
+                  }
                 }
               }}
               onTimeUpdate={() => {
                 if (!audioRef.current || !script) return;
-                const turnBase = turnStarts[turn] ?? 0;
-                const turnTime = audioRef.current.currentTime || 0;
-                setCurrentTime(turnBase + turnTime);
+                const pos = audioRef.current.currentTime || 0;
+                if (fullFileMode) {
+                  // Native whole-conversation progress; map time → active turn for the transcript.
+                  setCurrentTime(pos);
+                  setTurn(turnAtTime(pos));
+                  const activeTurn = script.turns[turnAtTime(pos)];
+                  if (activeTurn?.text) {
+                    const start = tlStarts[turnAtTime(pos)] ?? 0;
+                    const dur = tlDurations[turnAtTime(pos)] ?? Math.max(1, activeTurn.duration || 5);
+                    const words = activeTurn.text.split(/\s+/).filter(Boolean);
+                    if (words.length > 0 && dur > 0) {
+                      const fraction = Math.min(0.99, Math.max(0, (pos - start) / dur));
+                      setWordIndex(Math.floor(fraction * words.length));
+                    }
+                  }
+                  return;
+                }
+                // Playlist mode: start of this turn + position inside the clip.
+                const turnBase = tlStarts[turn] ?? 0;
+                setCurrentTime(turnBase + pos);
                 const currentText = script.turns[turn]?.text;
                 if (currentText) {
                   const turnDur = audioRef.current.duration && !isNaN(audioRef.current.duration) && audioRef.current.duration > 0
@@ -1080,22 +1437,53 @@ export function PodcastsView(props: StudyProps) {
                     : Math.max(1, script.turns[turn]?.duration || 5);
                   const words = currentText.split(/\s+/).filter(Boolean);
                   if (words.length > 0) {
-                    const fraction = Math.min(0.99, turnTime / turnDur);
+                    const fraction = Math.min(0.99, pos / turnDur);
                     setWordIndex(Math.floor(fraction * words.length));
                   }
                 }
               }}
               onEnded={() => {
                 if (!script) return;
+                if (fullFileMode) {
+                  // Merged file ended: more segments still streaming in?
+                  // Remember where we stopped so the next stitch resumes instantly.
+                  if (isGeneratingContinuouslyRef.current && !allTurnsReady) {
+                    try {
+                      prevEndRef.current = audioRef.current?.currentTime || tlTotal;
+                    } catch {
+                      prevEndRef.current = tlTotal;
+                    }
+                    const missing = script.turns.findIndex((t) => !t.audioUrl);
+                    setWaitingForTurn(missing >= 0 ? missing : script.turns.length - 1);
+                    setPlaying(true);
+                    playingRef.current = true;
+                    return;
+                  }
+                  // Natural end of the whole conversation.
+                  setPlaying(false);
+                  playingRef.current = false;
+                  setTurn(0);
+                  setCurrentTime(0);
+                  return;
+                }
+                // Autoplay the next turn the moment the previous clip ends.
                 const next = turn + 1;
                 if (next < script.turns.length) {
                   if (script.turns[next]?.audioUrl) {
                     playTurnAudio(next);
                   } else if (isGeneratingContinuouslyRef.current) {
                     setWaitingForTurn(next);
+                  } else if (engine === "speechSynthesis") {
+                    speak(next);
                   } else {
-                    setPlaying(false);
-                    playingRef.current = false;
+                    // Skip turns with no audio yet so the conversation keeps flowing.
+                    const following = script.turns.findIndex((t, i) => i > turn && t.audioUrl);
+                    if (following >= 0) {
+                      playTurnAudio(following);
+                    } else {
+                      setPlaying(false);
+                      playingRef.current = false;
+                    }
                   }
                 } else {
                   setPlaying(false);
@@ -1158,19 +1546,19 @@ export function PodcastsView(props: StudyProps) {
             <div className="audio-timeline-wrap">
               <div className="audio-timeline-header">
                 <span className="timeline-time">{formatClock(currentTime)}</span>
-                <span className="timeline-time">{formatClock(totalDuration)}</span>
+                <span className="timeline-time">{formatClock(displayTotal)}</span>
               </div>
               <input
                 type="range"
                 min={0}
-                max={Math.max(1, totalDuration)}
+                max={Math.max(1, displayTotal)}
                 step={0.5}
-                value={Math.min(totalDuration, currentTime)}
+                value={Math.min(displayTotal, currentTime)}
                 onChange={handleSeek}
                 onInput={handleSeek}
                 className="audio-timeline-slider"
                 aria-label="Audio timeline progress"
-                style={{ "--seek-percent": `${Math.min(100, Math.max(0, (currentTime / Math.max(1, totalDuration)) * 100))}%` } as React.CSSProperties}
+                style={{ "--seek-percent": `${Math.min(100, Math.max(0, (currentTime / Math.max(1, displayTotal)) * 100))}%` } as React.CSSProperties}
               />
             </div>
             <div className="player-controls">
@@ -1423,7 +1811,7 @@ export function PodcastsView(props: StudyProps) {
                               key={idx}
                               className={`turn-chip ${isGen ? "turn-chip--ready" : ""} ${isCurrent ? "turn-chip--generating" : ""} ${isSpeaking ? "turn-chip--speaking" : ""}`}
                               title={`Turn ${idx + 1} (${t.speaker}): ${isCurrent ? "Synthesizing now..." : isGen ? "Cloned audio ready (click to play)" : "Waiting (click to generate)"}`}
-                              onClick={() => (isGen ? playTurnAudio(idx) : void generateSingleTurn(idx))}
+                              onClick={() => (isGen ? (fullFileMode ? seekToTurn(idx, true) : playTurnAudio(idx)) : void generateSingleTurn(idx))}
                             >
                               <span className="chip-speaker">{t.speaker === "host" ? "H" : "G"}{idx + 1}</span>
                               {isCurrent ? (
@@ -1455,7 +1843,9 @@ export function PodcastsView(props: StudyProps) {
                     ref={active ? activeTurnRef : undefined}
                     type="button"
                     onClick={() => {
-                      if (item.audioUrl) {
+                      if (fullFileMode) {
+                        seekToTurn(index, true);
+                      } else if (item.audioUrl) {
                         playTurnAudio(index);
                       } else {
                         setTurn(index);

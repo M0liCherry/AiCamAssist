@@ -2162,14 +2162,14 @@ kbd {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
   margin-top: 28px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .podcast-player,
 .transcript-card {
   width: 100%;
   min-width: 0;
-  height: 100%;
+  height: auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2502,12 +2502,24 @@ kbd {
   overscroll-behavior: contain;
 }
 
-/* Keep the transcript from stretching the player column: it scrolls
-   internally (lyrics-style with the active-turn auto-scroll) while the
-   row height stays driven by the player card. */
+/* Both columns are capped to the same height and scroll internally,
+   so neither card stretches the page. */
 @media (min-width: 1101px) {
+  .podcast-player {
+    max-height: 720px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    position: sticky;
+    top: 16px;
+  }
   .transcript-card {
-    max-height: 860px;
+    min-height: 480px;
+    max-height: 720px;
+    position: sticky;
+    top: 16px;
+  }
+  .transcript-stream {
+    max-height: 640px;
   }
 }
 

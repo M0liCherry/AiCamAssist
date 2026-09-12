@@ -147,7 +147,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
 
   const startKokoServer = async () => {
     setStartingKoko(true);
-    setKokoTestResult({ ok: true, text: "Launching local KokoClone server on port 7860…" });
+    setKokoTestResult({ ok: true, text: "Launching local KokoClone server on port 7860… (model load can take ~1 min)" });
     try {
       const res = await api<{ ok: boolean; message: string; status?: any }>("/api/podcast/voices", {
         method: "POST",
@@ -156,11 +156,32 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
       if (res.status) setKokoDetailedStatus(res.status);
       setKokoTestResult({ ok: res.ok, text: res.message });
       notify(res.message, res.ok ? "success" : "error");
+      // If the process launched but HTTP isn't up yet (slow model load),
+      // keep polling status so the button doesn't flip back to "Stopped".
+      if (res.ok && res.status && !res.status.serverRunning) {
+        for (let i = 0; i < 20; i++) {
+          await new Promise((r) => setTimeout(r, 3000));
+          try {
+            const s = await api<{ installed: boolean; venvReady: boolean; serverRunning: boolean; endpoint: string; message?: string }>("/api/podcast/voices", {
+              method: "POST",
+              json: { action: "kokoclone-status", endpoint: kokoEndpointInput.trim() },
+            });
+            setKokoDetailedStatus(s);
+            if (s.serverRunning) {
+              setKokoTestResult({ ok: true, text: `KokoClone server is now online at ${s.endpoint}.` });
+              break;
+            }
+          } catch {
+            // keep polling
+          }
+        }
+      }
     } catch (err) {
       setKokoTestResult({ ok: false, text: `Server startup failed: ${errorMessage(err)}` });
       notify(`Startup failed: ${errorMessage(err)}`, "error");
     } finally {
       setStartingKoko(false);
+      void fetchKokoDetailedStatus();
     }
   };
 

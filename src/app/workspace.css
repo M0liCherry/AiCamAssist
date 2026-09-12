@@ -1218,12 +1218,29 @@
   border-top: 1px solid var(--line);
 }
 
-.sections-pills-row,
-.continuous-track {
+.sections-pills-row {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   align-items: center;
+}
+
+/* Uniform turn-chip grid: every H1/G2/… chip gets equal width and rows fill
+   evenly no matter how many turns exist. */
+.continuous-track {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 8px;
+  align-items: stretch;
+}
+
+.continuous-track .turn-chip {
+  justify-content: center;
+  text-align: center;
+  min-height: 34px;
+  padding: 6px 8px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .section-pill-btn,

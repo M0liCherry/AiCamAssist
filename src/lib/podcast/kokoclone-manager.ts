@@ -39,6 +39,36 @@ export function getKokoclonePaths() {
   };
 }
 
+function isPidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function pythonBinMatchesPlatform(pythonBin: string | null): boolean {
+  if (!pythonBin) return false;
+  const normalized = pythonBin.replace(/\\/g, "/");
+  const isWindowsVenv = /\/\.venv\/Scripts\/python\.exe$/i.test(normalized);
+  const isUnixVenv = /\/\.venv\/bin\/python$/.test(normalized);
+  if (process.platform === "win32") {
+    return isWindowsVenv;
+  }
+  return isUnixVenv;
+}
+
+function readLogTail(logPath: string, maxChars = 2000): string {
+  try {
+    if (!fs.existsSync(logPath)) return "";
+    const content = fs.readFileSync(logPath, "utf8");
+    return content.slice(-maxChars).trim();
+  } catch {
+    return "";
+  }
+}
+
 export async function checkKokoCloneStatus(endpoint: string = "http://127.0.0.1:7860"): Promise<KokoCloneStatus> {
   const cleanEndpoint = (endpoint || "http://127.0.0.1:7860").replace(/\/+$/, "");
   const paths = getKokoclonePaths();
@@ -108,8 +138,17 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
     }
   }
 
-  // 2. Create venv if missing
+  // 2. Create venv if missing (or recreate if it was built for another OS,
+  // e.g. Windows .venv/Scripts/python.exe while Node runs on Linux/WSL)
   let updatedPaths = getKokoclonePaths();
+  if (updatedPaths.hasVenv && !pythonBinMatchesPlatform(updatedPaths.pythonBin)) {
+    try {
+      fs.rmSync(path.join(updatedPaths.kokoDir, ".venv"), { recursive: true, force: true });
+    } catch {
+      // best-effort; recreate below will surface errors
+    }
+    updatedPaths = getKokoclonePaths();
+  }
   if (!updatedPaths.hasVenv) {
     try {
       // Try uv first for ultra fast installation (with seed packages like pip)
@@ -176,7 +215,7 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
     } catch {
       try {
         await execAsync(
-          `${uvCommand} pip install --python ${pyBin} "torch>=2.1.0" "torchaudio>=2.1.0" "kokoro>=0.9.0" "gradio>=6.8.0" "git+https://github.com/frothywater/kanade-tokenizer" soundfile huggingface_hub ninja setuptools "misaki[en,ja,zh]>=0.9.4"`,
+          `${uvCommand} pip install --python ${pyBin} "torch>=2.1.0" "torchaudio>=2.1.0" "kokoro-onnx[gpu]>=0.5.0" "gradio>=6.8.0" "git+https://github.com/frothywater/kanade-tokenizer" soundfile huggingface_hub ninja setuptools "misaki[en,ja,zh]>=0.9.4"`,
           { cwd: updatedPaths.kokoDir, maxBuffer: 15 * 1024 * 1024 },
         );
         installSuccess = true;
@@ -203,9 +242,9 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
         });
       }
 
-      // 2. Install all core PyPI packages
+      // 2. Install all core PyPI packages (kokoro-onnx, NOT the unrelated "kokoro" PyTorch package)
       await execAsync(
-        `${pyBin} -m pip install "torch>=2.1.0" "torchaudio>=2.1.0" "kokoro>=0.9.0" "gradio>=6.8.0" soundfile huggingface_hub ninja setuptools "misaki[en,ja,zh]>=0.9.4"`,
+        `${pyBin} -m pip install "torch>=2.1.0" "torchaudio>=2.1.0" "kokoro-onnx[gpu]>=0.5.0" "gradio>=6.8.0" soundfile huggingface_hub ninja setuptools "misaki[en,ja,zh]>=0.9.4"`,
         { cwd: updatedPaths.kokoDir, maxBuffer: 15 * 1024 * 1024 },
       );
 
@@ -230,6 +269,20 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
         message: `Failed to install KokoClone requirements: ${err instanceof Error ? err.message : String(err)}`,
       };
     }
+  }
+
+  // 3. Verify key imports so a half-installed venv fails fast with a clear message
+  // (e.g. "kokoro" PyPI package is NOT "kokoro-onnx" — importing the wrong one hides the bug).
+  try {
+    await execAsync(`${pyBin} -c "import kokoro_onnx, gradio, kanade_tokenizer, misaki, soundfile"`, {
+      cwd: updatedPaths.kokoDir,
+      maxBuffer: 5 * 1024 * 1024,
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      message: `KokoClone dependencies are incomplete (missing kokoro-onnx or friends): ${err instanceof Error ? err.message : String(err)}. Click “Reinstall / Update Dependencies” again.`,
+    };
   }
 
   // 4. Ensure model weights from PatnaikAshish/kokoclone are pre-downloaded
@@ -266,42 +319,146 @@ export async function startKokoCloneServer(endpoint: string = "http://127.0.0.1:
     return { ok: false, message: "KokoClone Python environment (.venv) is not found. Please set it up first." };
   }
 
+  // The venv must match the OS Node is running on. A Windows venv
+  // (.venv/Scripts/python.exe) cannot be spawned from Linux/WSL and dies instantly.
+  if (!pythonBinMatchesPlatform(status.pythonBin)) {
+    return {
+      ok: false,
+      message:
+        process.platform === "win32"
+          ? "KokoClone .venv was created for Linux/macOS but the app runs on Windows. Click “Reinstall / Update Dependencies” to rebuild it."
+          : "KokoClone .venv was created for Windows but the app server runs on Linux/WSL. Click “Reinstall / Update Dependencies” to rebuild it for Linux.",
+    };
+  }
+
+  // Clean up a stale .server.pid left by a crashed process so stop/status stay accurate.
+  const pidPath = path.join(status.kokoDir, ".server.pid");
+  const logPath = path.join(status.kokoDir, "koko-server.log");
   try {
+    if (fs.existsSync(pidPath)) {
+      const pid = parseInt(fs.readFileSync(pidPath, "utf8").trim(), 10);
+      if (Number.isNaN(pid) || !isPidAlive(pid)) {
+        fs.unlinkSync(pidPath);
+      }
+    }
+  } catch {
+    // best-effort
+  }
+
+  let childPid: number | undefined;
+  try {
+    const logFd = fs.openSync(logPath, "a");
+    fs.writeFileSync(logFd, `\n\n=== KokoClone launch ${new Date().toISOString()} ===\n`);
     const child = spawn(status.pythonBin, ["app.py"], {
       cwd: status.kokoDir,
       detached: true,
-      stdio: "ignore",
+      stdio: ["ignore", logFd, logFd],
+      windowsHide: true,
     });
 
-    if (child.pid) {
+    const spawnError = await new Promise<Error | null>((resolve) => {
+      child.once("error", (err) => resolve(err instanceof Error ? err : new Error(String(err))));
+      setImmediate(() => resolve(null));
+    });
+    if (spawnError) {
       try {
-        fs.writeFileSync(path.join(status.kokoDir, ".server.pid"), String(child.pid), "utf8");
+        fs.closeSync(logFd);
       } catch {
-        // pid write is best-effort
+        // ignore
       }
+      return {
+        ok: false,
+        message: `Failed to launch KokoClone server: ${spawnError.message}. See kokoclone/koko-server.log for details.`,
+      };
+    }
+
+    childPid = child.pid;
+    if (!childPid) {
+      try {
+        fs.closeSync(logFd);
+      } catch {
+        // ignore
+      }
+      const tail = readLogTail(logPath);
+      return {
+        ok: false,
+        message: `Failed to launch KokoClone server (no process started).${tail ? ` Log: ${tail.slice(-500)}` : ""}`,
+      };
+    }
+
+    try {
+      fs.writeFileSync(pidPath, String(childPid), "utf8");
+    } catch {
+      // pid write is best-effort
     }
 
     child.unref();
+    // Close our copy of the log fd in the parent; the child keeps its own.
+    try {
+      fs.closeSync(logFd);
+    } catch {
+      // ignore
+    }
 
-    // Poll endpoint for up to 10 seconds
+    let earlyExit: number | NodeJS.Signals | null = null;
+    child.once("exit", (code, signal) => {
+      earlyExit = code ?? signal ?? 0;
+    });
+
+    // Poll endpoint for up to 120 seconds (Kanade + Kokoro ONNX + vocoder load is slow).
+    // Also bail out early if the child died so the UI doesn't flip back to "Stopped" silently.
     const cleanEndpoint = status.endpoint;
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 120; i++) {
       await new Promise((r) => setTimeout(r, 1000));
+      if (earlyExit !== null || child.exitCode !== null || child.signalCode !== null) {
+        try {
+          fs.unlinkSync(pidPath);
+        } catch {
+          // ignore
+        }
+        const tail = readLogTail(logPath);
+        return {
+          ok: false,
+          message: `KokoClone server exited during startup (code ${child.exitCode ?? earlyExit ?? "?"}).${tail ? ` Last log lines: ${tail.slice(-800)}` : " See kokoclone/koko-server.log for details."}`,
+        };
+      }
       try {
         const res = await fetch(`${cleanEndpoint}/`, { signal: AbortSignal.timeout(1500) });
         if (res.ok || res.status < 500) {
-          return { ok: true, message: `KokoClone server started successfully on ${cleanEndpoint} (PID ${child.pid}).` };
+          return { ok: true, message: `KokoClone server started successfully on ${cleanEndpoint} (PID ${childPid}).` };
         }
       } catch {
         // still starting up...
       }
     }
 
+    // Still alive but HTTP not up after 120s — keep it running and let the UI keep polling.
+    if (child.exitCode === null && childPid && isPidAlive(childPid)) {
+      return {
+        ok: true,
+        message: `KokoClone server process launched (PID ${childPid}) but is still loading model weights. Wait ~1 minute then press Refresh. See kokoclone/koko-server.log for progress.`,
+      };
+    }
+
+    try {
+      fs.unlinkSync(pidPath);
+    } catch {
+      // ignore
+    }
+    const tail = readLogTail(logPath);
     return {
-      ok: true,
-      message: `KokoClone server process launched (PID ${child.pid}). Loading model weights in the background...`,
+      ok: false,
+      message: `KokoClone server process did not come online.${tail ? ` Last log lines: ${tail.slice(-800)}` : ""}`,
     };
   } catch (err) {
+    // Don't leave a stale pid behind on failure.
+    if (childPid) {
+      try {
+        fs.unlinkSync(pidPath);
+      } catch {
+        // ignore
+      }
+    }
     return {
       ok: false,
       message: `Failed to launch KokoClone server: ${err instanceof Error ? err.message : String(err)}`,
@@ -323,13 +480,16 @@ export async function stopKokoCloneServer(endpoint: string = "http://127.0.0.1:7
         try {
           if (process.platform === "win32") {
             await execAsync(`taskkill /pid ${pid} /T /F`);
-          } else {
+          } else if (isPidAlive(pid)) {
             process.kill(pid, "SIGTERM");
-            await new Promise((r) => setTimeout(r, 500));
-            try {
-              process.kill(pid, "SIGKILL");
-            } catch {
-              // process already exited
+            await new Promise((r) => setTimeout(r, 2000));
+            // Only escalate if the process survived SIGTERM (don't kill a PID that already exited).
+            if (isPidAlive(pid)) {
+              try {
+                process.kill(pid, "SIGKILL");
+              } catch {
+                // process already exited
+              }
             }
           }
           killed = true;

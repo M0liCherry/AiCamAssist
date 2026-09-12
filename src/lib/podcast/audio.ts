@@ -29,6 +29,119 @@ export function podcastAudioDir(assetId: number | string): string {
   return dir;
 }
 
+/* ---------------- WAV inspection + stitching (no ffmpeg needed) ----------------
+ * KokoClone serves WAV bytes (PCM) even though we persist them as turn_*.mp3.
+ * Naively concatenating WAV files only keeps the first header, so the stitched
+ * "full_episode.mp3" reports the first clip's length and browsers stop there.
+ * These helpers parse PCM WAVs and re-stitch them into one valid WAV. */
+
+export interface ParsedWavPcm {
+  pcm: Buffer;
+  sampleRate: number;
+  numChannels: number;
+  bitsPerSample: number;
+  durationSec: number;
+}
+
+export function isWavBuffer(buf: Buffer): boolean {
+  return (
+    buf.length > 12 &&
+    buf.toString("ascii", 0, 4) === "RIFF" &&
+    buf.toString("ascii", 8, 12) === "WAVE"
+  );
+}
+
+/** Parse a PCM WAV buffer, skipping ancillary chunks (fact, LIST, bext, ...). Returns null if not PCM WAV. */
+export function parseWavPcm(buf: Buffer): ParsedWavPcm | null {
+  try {
+    if (!isWavBuffer(buf) || buf.length < 44) return null;
+    let offset = 12;
+    let audioFormat = -1;
+    let numChannels = 0;
+    let sampleRate = 0;
+    let bitsPerSample = 0;
+    let dataStart = -1;
+    let dataLen = 0;
+
+    while (offset + 8 <= buf.length) {
+      const chunkId = buf.toString("ascii", offset, offset + 4);
+      const chunkSize = buf.readUInt32LE(offset + 4);
+      const chunkDataStart = offset + 8;
+      if (chunkDataStart + chunkSize > buf.length + 1) break; // corrupt
+      if (chunkId === "fmt ") {
+        audioFormat = buf.readUInt16LE(chunkDataStart);
+        numChannels = buf.readUInt16LE(chunkDataStart + 2);
+        sampleRate = buf.readUInt32LE(chunkDataStart + 4);
+        bitsPerSample = buf.readUInt16LE(chunkDataStart + 14);
+      } else if (chunkId === "data") {
+        // Use the first data chunk (PCM payload).
+        if (dataStart === -1) {
+          dataStart = chunkDataStart;
+          dataLen = Math.min(chunkSize, buf.length - chunkDataStart);
+        }
+      }
+      offset = chunkDataStart + chunkSize + (chunkSize % 2); // chunks are word-aligned
+    }
+
+    if (audioFormat !== 1 || dataStart === -1 || !sampleRate || !numChannels || !bitsPerSample) return null;
+    const pcm = buf.subarray(dataStart, dataStart + dataLen);
+    const bytesPerSec = (sampleRate * numChannels * bitsPerSample) / 8;
+    return {
+      pcm: Buffer.from(pcm),
+      sampleRate,
+      numChannels,
+      bitsPerSample,
+      durationSec: bytesPerSec > 0 ? pcm.length / bytesPerSec : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function wavDurationSec(buf: Buffer): number | null {
+  const parsed = parseWavPcm(buf);
+  return parsed && parsed.durationSec > 0 ? parsed.durationSec : null;
+}
+
+/**
+ * Stitch multiple PCM WAV buffers into one valid WAV buffer.
+ * Returns null when buffers are missing, not WAV, or formats differ.
+ */
+export function stitchWavBuffers(buffers: Buffer[]): Buffer | null {
+  if (!buffers.length) return null;
+  const parsed = buffers.map(parseWavPcm);
+  if (parsed.some((p) => !p)) return null;
+  const first = parsed[0]!;
+  for (const p of parsed) {
+    if (
+      !p ||
+      p.sampleRate !== first.sampleRate ||
+      p.numChannels !== first.numChannels ||
+      p.bitsPerSample !== first.bitsPerSample
+    ) {
+      return null;
+    }
+  }
+  const pcmParts = (parsed as ParsedWavPcm[]).map((p) => p.pcm);
+  const dataLen = pcmParts.reduce((n, b) => n + b.length, 0);
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + dataLen, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20); // PCM
+  header.writeUInt16LE(first.numChannels, 22);
+  header.writeUInt32LE(first.sampleRate, 24);
+  const byteRate = (first.sampleRate * first.numChannels * first.bitsPerSample) / 8;
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE((first.numChannels * first.bitsPerSample) / 8, 32);
+  header.writeUInt16LE(first.bitsPerSample, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(dataLen, 40);
+  return Buffer.concat([header, ...pcmParts]);
+}
+
 /** Lists all available voices for ElevenLabs with fallbacks */
 export async function listElevenLabsVoices(apiKey?: string): Promise<PodcastVoiceInfo[]> {
   if (!apiKey) return DEFAULT_ELEVENLABS_VOICES;

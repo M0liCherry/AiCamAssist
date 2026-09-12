@@ -90,7 +90,7 @@ export type SearchHit = { id: number; title: string; snippet: string; sourceType
 export type Citation = { n: number; noteId: number; noteTitle: string; chunkId: number; snippet: string };
 export type ChatMsg = { id: number; role: "user" | "assistant"; content: string; citations: Citation[]; createdAt: string };
 
-export type PodcastTurn = { speaker: "host" | "guest"; text: string; audioUrl?: string; duration?: number };
+  export type PodcastTurn = { speaker: "host" | "guest"; text: string; audioUrl?: string; duration?: number; startOffset?: number };
 export type PodcastScript = {
   title: string;
   summary: string;
