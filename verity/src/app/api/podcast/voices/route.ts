@@ -108,6 +108,7 @@ export async function POST(request: NextRequest) {
       if (!audioBase64) throw new HttpError("Reference audio data is required.", 400);
 
       const rawBase64 = audioBase64.includes(",") ? audioBase64.split(",")[1] : audioBase64;
+      if (!rawBase64) throw new HttpError("Reference audio data is required.", 400);
       const audioBuffer = Buffer.from(rawBase64, "base64");
       const fileName = String(body.fileName || "reference.wav");
 
