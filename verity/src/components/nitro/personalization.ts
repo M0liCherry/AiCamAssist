@@ -38,7 +38,15 @@ export function getStoredPersonalization(): AiPersonalization {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_PERSONALIZATION };
-    return { ...DEFAULT_PERSONALIZATION, ...(JSON.parse(raw) as Partial<AiPersonalization>) };
+    const parsed = JSON.parse(raw) as Partial<AiPersonalization>;
+    // Stored values predate validation: fall back per-field so a corrupt
+    // entry can't produce undefined lookups and blank selects downstream.
+    return {
+      learnerName: typeof parsed.learnerName === "string" ? parsed.learnerName : DEFAULT_PERSONALIZATION.learnerName,
+      persona: parsed.persona && parsed.persona in PERSONA_DESCRIPTIONS ? parsed.persona : DEFAULT_PERSONALIZATION.persona,
+      customInstructions: typeof parsed.customInstructions === "string" ? parsed.customInstructions : DEFAULT_PERSONALIZATION.customInstructions,
+      learningStyle: parsed.learningStyle && parsed.learningStyle in LEARNING_STYLE_DESCRIPTIONS ? parsed.learningStyle : DEFAULT_PERSONALIZATION.learningStyle,
+    };
   } catch {
     return { ...DEFAULT_PERSONALIZATION };
   }
@@ -50,7 +58,6 @@ export function saveStoredPersonalization(data: Partial<AiPersonalization>): AiP
     const current = getStoredPersonalization();
     const updated = { ...current, ...data };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    window.dispatchEvent(new CustomEvent("verity:personalization-updated", { detail: updated }));
     return updated;
   } catch {
     return { ...DEFAULT_PERSONALIZATION, ...data };
@@ -62,7 +69,8 @@ export function buildPersonalizationPrompt(data: AiPersonalization): string {
   if (data.learnerName.trim()) {
     parts.push(`The user's name is ${data.learnerName.trim()}. Address them by name when appropriate.`);
   }
-  const persona = PERSONA_DESCRIPTIONS[data.persona];
+  const personaKey = data.persona === "custom" && !data.customInstructions.trim() ? "friendly" : data.persona;
+  const persona = PERSONA_DESCRIPTIONS[personaKey];
   if (persona) {
     parts.push(`Persona & Tone: Adopt a ${persona.label} approach (${persona.tone}).`);
   }

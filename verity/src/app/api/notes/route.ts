@@ -104,7 +104,8 @@ export async function POST(request: NextRequest) {
       if (!note) throw new HttpError("Note not found.", 404);
       if (!note.content.trim()) throw new HttpError("This note is empty; add content before summarizing.");
       const cfg = requireProvider(await getProviderConfig());
-      const summary = await summarizeNote(cfg, note.title, note.content.slice(0, 60_000));
+      const personalization = typeof body.personalization === "string" ? cleanText(body.personalization, 1500) || undefined : undefined;
+      const summary = await summarizeNote(cfg, note.title, note.content.slice(0, 60_000), personalization);
       const [updated] = await db.update(notes).set({ summary, updatedAt: new Date() }).where(eq(notes.id, noteId)).returning();
       return ok({ note: updated });
     }

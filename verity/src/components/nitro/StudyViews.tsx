@@ -3,7 +3,7 @@
 import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, Circle, Cloud, Download, Eye, EyeOff, Gauge, Headphones, ListChecks, Music, Pause, Play, Radio, RefreshCw, RotateCcw, SkipBack, SkipForward, Sparkles, SquareStack, Trophy, Upload, Volume2, Wand2, WandSparkles, XCircle } from "lucide-react";
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, errorMessage, formatClock, formatDate } from "./client";
-import { getStoredPersonalization, LEARNING_STYLE_DESCRIPTIONS, PERSONA_DESCRIPTIONS } from "./personalization";
+import { buildPersonalizationPrompt, getStoredPersonalization, LEARNING_STYLE_DESCRIPTIONS, PERSONA_DESCRIPTIONS } from "./personalization";
 import { saveFlashcardSessionScore, saveQuizAttemptScore } from "./studyScores";
 import type { Asset, AssetResponse, CardProgress, FlashcardDeck, PodcastScript, QuizAttempt, QuizPayload, Scope, Subject } from "./types";
 import { AiErrorAlert, InlineAlert, Modal, ScopeBar, Spinner, StatusPill } from "./ui";
@@ -55,7 +55,7 @@ function useAsset<T>(kind: "podcast" | "flashcards" | "quiz", scope: Scope | nul
       setGenerating(true);
       setError(null);
       try {
-        setData(await api<AssetResponse<T>>("/api/generate", { method: "POST", json: { scopeType: scope.scopeType, scopeId: scope.scopeId, kind, ...options } }));
+        setData(await api<AssetResponse<T>>("/api/generate", { method: "POST", json: { scopeType: scope.scopeType, scopeId: scope.scopeId, kind, personalization: buildPersonalizationPrompt(getStoredPersonalization()), ...options } }));
       } catch (err) {
         setError(err);
       } finally {

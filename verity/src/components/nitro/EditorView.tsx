@@ -98,7 +98,7 @@ export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiRea
     setSummarizing(true);
     setSummaryError(null);
     try {
-      const data = await api<{ note: NoteFull }>("/api/notes", { method: "POST", json: { action: "summarize", noteId: note.id } });
+      const data = await api<{ note: NoteFull }>("/api/notes", { method: "POST", json: { action: "summarize", noteId: note.id, personalization: buildPersonalizationPrompt(getStoredPersonalization()) } });
       setNote({ ...note, summary: data.note.summary });
       notify("Summary generated.");
     } catch (error) {
