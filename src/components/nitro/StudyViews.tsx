@@ -99,9 +99,26 @@ function StudyShell({ props, icon, eyebrow, title, copy, children, ariaId, pageC
 }
 
 function GenerationNotice({ asset, generating, providerName, label }: { asset: Asset<unknown> | null; generating: boolean; providerName: string; label: string }) {
-  if (generating) return <p className="gen-status" role="status"><Spinner label={`Generating ${label} with ${providerName}… local models can take a minute or two.`} /></p>;
+  if (generating) {
+    return (
+      <div className="gen-notice gen-notice--generating" role="status">
+        <Spinner label={`Generating ${label} with ${providerName}… local models can take a minute or two.`} />
+      </div>
+    );
+  }
   if (!asset) return null;
-  return <p className="gen-status">Generated {formatDate(asset.createdAt)} from {asset.sourceNoteCount} note{asset.sourceNoteCount === 1 ? "" : "s"} with {String(asset.options.model ?? providerName)}{asset.options.truncated ? " · long notes were sampled to fit the model context" : ""}.</p>;
+  return (
+    <div className="gen-notice" role="status">
+      <div className="gen-notice-content">
+        <span className="gen-notice-icon"><Sparkles size={15} aria-hidden="true" /></span>
+        <span className="gen-notice-label">Generated asset</span>
+        <span className="gen-pill gen-pill--date">{formatDate(asset.createdAt)}</span>
+        <span className="gen-pill gen-pill--notes">{asset.sourceNoteCount} note{asset.sourceNoteCount === 1 ? "" : "s"}</span>
+        <span className="gen-pill gen-pill--model">{String(asset.options.model ?? providerName)}</span>
+        {Boolean(asset.options.truncated) && <span className="gen-pill gen-pill--truncated">Sampled</span>}
+      </div>
+    </div>
+  );
 }
 
 /* ---------------------------------- Podcasts --------------------------------- */
@@ -116,12 +133,17 @@ export function PodcastsView(props: StudyProps) {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [hostVoice, setHostVoice] = useState("");
   const [guestVoice, setGuestVoice] = useState("");
-  const [rate, setRate] = useState(1);
+  const rate = 1;
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const script = data?.asset?.payload ?? null;
   const supported = typeof window !== "undefined" && "speechSynthesis" in window;
   const playingRef = useRef(false);
+
+  const waveformCache = useRef<Map<string, number[]>>(new Map());
+  const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
+  const [waveformLoading, setWaveformLoading] = useState(false);
+  const activeTurnRef = useRef<HTMLButtonElement | null>(null);
 
   // Audio Engine & Custom Voice States
   const [engine, setEngine] = useState<"speechSynthesis" | "elevenlabs" | "kokoclone">("speechSynthesis");
@@ -408,13 +430,192 @@ export function PodcastsView(props: StudyProps) {
     }
   };
 
-  const handleRateChange = (selectedRate: number) => {
-    setRate(selectedRate);
-    if (audioRef.current) {
-      audioRef.current.playbackRate = selectedRate;
+  const fullAudioKey = `${data?.asset?.id ?? ""}-${script?.audioUrl ?? ""}-${script?.turns?.map((t) => t.audioUrl || "").join(",")}`;
+  const hasGeneratedAudio = Boolean(script?.audioUrl || script?.turns?.some((t) => Boolean(t.audioUrl)));
+
+  // Auto-scroll active turn into view like live lyrics
+  useEffect(() => {
+    if (playing && activeTurnRef.current) {
+      activeTurnRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
     }
-    if (playingRef.current && !script?.audioUrl) {
-      speak(turn);
+  }, [turn, playing]);
+
+  // Extract actual audio waveform peaks for the FULL episode (all turns combined)
+  useEffect(() => {
+    if (!hasGeneratedAudio || !data?.asset?.id || !script?.turns?.length) {
+      setWaveformPeaks([]);
+      setWaveformLoading(false);
+      return;
+    }
+
+    if (waveformCache.current.has(fullAudioKey)) {
+      setWaveformPeaks(waveformCache.current.get(fullAudioKey)!);
+      return;
+    }
+
+    let cancelled = false;
+    setWaveformLoading(true);
+
+    async function extractFullEpisodePeaks() {
+      const TOTAL_BARS = 56;
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+
+      // 1. Try fetching full_episode.mp3 (the full concatenated podcast audio)
+      const assetId = data?.asset?.id;
+      const fullUrl = script?.audioUrl || (assetId ? `/api/podcast/audio?assetId=${assetId}&file=full_episode.mp3` : null);
+      if (fullUrl) {
+        try {
+          const response = await fetch(fullUrl);
+          if (response.ok && AudioCtx) {
+          const arrayBuffer = await response.arrayBuffer();
+          const audioCtx = new AudioCtx();
+          const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+          const rawData = audioBuffer.getChannelData(0);
+          const step = Math.floor(rawData.length / TOTAL_BARS);
+          const peaks: number[] = [];
+
+          for (let i = 0; i < TOTAL_BARS; i++) {
+            const start = i * step;
+            const end = Math.min(start + step, rawData.length);
+            let max = 0;
+            const sampleStep = Math.max(1, Math.floor(step / 60));
+            for (let j = start; j < end; j += sampleStep) {
+              const val = Math.abs(rawData[j] || 0);
+              if (val > max) max = val;
+            }
+            peaks.push(max);
+          }
+
+          await audioCtx.close().catch(() => {});
+
+          const highest = Math.max(...peaks, 0.001);
+          const normalized = peaks.map((p) => Math.max(0.12, Math.min(1, p / highest)));
+
+          if (!cancelled) {
+            waveformCache.current.set(fullAudioKey, normalized);
+            setWaveformPeaks(normalized);
+            setWaveformLoading(false);
+          }
+          return;
+        }
+      } catch {
+        // Fall through to turn-by-turn multi-clip assembly
+      }
+    }
+
+      // 2. If full episode audio file is not ready yet, assemble peaks from each generated turn clip
+      try {
+        if (!AudioCtx) throw new Error("No AudioContext");
+        const turnDurSum = turnDurations.reduce((a, b) => a + b, 0) || 1;
+        const allTurnPeaks: number[] = [];
+
+        for (let i = 0; i < script!.turns.length; i++) {
+          const t = script!.turns[i];
+          const turnFraction = (turnDurations[i] ?? 3) / turnDurSum;
+          const turnBars = Math.max(2, Math.round(turnFraction * TOTAL_BARS));
+
+          if (t.audioUrl) {
+            try {
+              const res = await fetch(t.audioUrl);
+              if (res.ok) {
+                const buf = await res.arrayBuffer();
+                const audioCtx = new AudioCtx();
+                const decoded = await audioCtx.decodeAudioData(buf);
+                const ch = decoded.getChannelData(0);
+                const step = Math.floor(ch.length / turnBars);
+                for (let b = 0; b < turnBars; b++) {
+                  const s = b * step;
+                  const e = Math.min(s + step, ch.length);
+                  let m = 0;
+                  const sampleStep = Math.max(1, Math.floor(step / 40));
+                  for (let j = s; j < e; j += sampleStep) {
+                    const v = Math.abs(ch[j] || 0);
+                    if (v > m) m = v;
+                  }
+                  allTurnPeaks.push(m);
+                }
+                await audioCtx.close().catch(() => {});
+                continue;
+              }
+            } catch {
+              // Ignore single turn decode error
+            }
+          }
+
+          // Placeholder resting bars for turn without audio yet
+          for (let b = 0; b < turnBars; b++) {
+            allTurnPeaks.push(0.05);
+          }
+        }
+
+        const highest = Math.max(...allTurnPeaks, 0.001);
+        const normalized = allTurnPeaks.slice(0, TOTAL_BARS).map((p) => Math.max(0.12, Math.min(1, p / highest)));
+
+        if (!cancelled) {
+          waveformCache.current.set(fullAudioKey, normalized);
+          setWaveformPeaks(normalized);
+          setWaveformLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          const fallbackPeaks = Array.from({ length: TOTAL_BARS }, (_, i) => 0.18 + 0.65 * Math.abs(Math.sin(i * 0.38 + Math.cos(i * 0.6))));
+          setWaveformPeaks(fallbackPeaks);
+          setWaveformLoading(false);
+        }
+      }
+    }
+
+    extractFullEpisodePeaks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fullAudioKey, hasGeneratedAudio, data?.asset?.id, script, turnDurations]);
+
+  const fullAudioProgress = Math.min(100, Math.max(0, (currentTime / Math.max(1, totalDuration)) * 100));
+
+  const handleWaveformClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!script || totalDuration <= 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+    const targetTotalSec = ratio * totalDuration;
+
+    // Find which turn contains targetTotalSec
+    let foundTurn = 0;
+    for (let i = 0; i < turnStarts.length; i++) {
+      if (turnStarts[i] <= targetTotalSec) {
+        foundTurn = i;
+      } else {
+        break;
+      }
+    }
+
+    setTurn(foundTurn);
+    setWordIndex(-1);
+    setCurrentTime(targetTotalSec);
+
+    const turnOffset = Math.max(0, targetTotalSec - (turnStarts[foundTurn] ?? 0));
+
+    const targetTurnAudio = script.turns[foundTurn]?.audioUrl;
+    if (targetTurnAudio && audioRef.current) {
+      audioRef.current.src = targetTurnAudio;
+      audioRef.current.currentTime = turnOffset;
+      audioRef.current
+        .play()
+        .then(() => {
+          setPlaying(true);
+          playingRef.current = true;
+        })
+        .catch(() => {});
+      return;
+    }
+
+    if (playingRef.current) {
+      speak(foundTurn);
     }
   };
 
@@ -845,7 +1046,19 @@ export function PodcastsView(props: StudyProps) {
               onTimeUpdate={() => {
                 if (!audioRef.current || !script) return;
                 const turnBase = turnStarts[turn] ?? 0;
-                setCurrentTime(turnBase + (audioRef.current.currentTime || 0));
+                const turnTime = audioRef.current.currentTime || 0;
+                setCurrentTime(turnBase + turnTime);
+                const currentText = script.turns[turn]?.text;
+                if (currentText) {
+                  const turnDur = audioRef.current.duration && !isNaN(audioRef.current.duration) && audioRef.current.duration > 0
+                    ? audioRef.current.duration
+                    : Math.max(1, script.turns[turn]?.duration || 5);
+                  const words = currentText.split(/\s+/).filter(Boolean);
+                  if (words.length > 0) {
+                    const fraction = Math.min(0.99, turnTime / turnDur);
+                    setWordIndex(Math.floor(fraction * words.length));
+                  }
+                }
               }}
               onEnded={() => {
                 if (!script) return;
@@ -870,10 +1083,13 @@ export function PodcastsView(props: StudyProps) {
               aria-hidden="true"
             />
             <div className={`player-cover ${playing ? "player-cover--playing" : ""}`} role="img" aria-label="Live podcast audio waveform">
-              <span>N</span>
+              <span className="player-cover-icon"><Headphones size={38} aria-hidden="true" /></span>
               <div className="cover-wave" aria-hidden="true">
                 <i /><i /><i /><i /><i /><i />
                 <i /><i /><i /><i /><i /><i />
+              </div>
+              <div className="cover-equalizer-bars" aria-hidden="true">
+                <span /><span /><span /><span /><span /><span /><span /><span /><span />
               </div>
               {script.audioUrl && (
                 <span className="studio-audio-badge" title="High fidelity audio generated with neural voices">
@@ -882,15 +1098,38 @@ export function PodcastsView(props: StudyProps) {
               )}
             </div>
             <div className="player-copy">
-              <span className="eyebrow">
+              <span className="player-meta">
                 Audio overview · {String(data?.asset?.options.length ?? length)} · ≈{estMinutes} min {script.audioEngine ? `· ${script.audioEngine}` : ""}
               </span>
               <h2>{script.title}</h2>
               <p>{script.summary || props.scopeTitle}</p>
             </div>
-            <div className="waveform" role="progressbar" aria-label="Playback progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
-              {Array.from({ length: 40 }, (_, index) => <i className={(index / 40) * 100 <= progress ? "played" : ""} style={{ height: `${12 + ((index * 13) % 30)}px` }} key={index} />)}
-            </div>
+            {hasGeneratedAudio && (
+              <div
+                className={`waveform ${waveformLoading ? "waveform--loading" : ""}`}
+                role="progressbar"
+                aria-label="Full podcast audio waveform progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(fullAudioProgress)}
+                onClick={handleWaveformClick}
+                title="Click anywhere to seek across the full podcast"
+              >
+                {(waveformPeaks.length ? waveformPeaks : Array.from({ length: 56 }, () => 0.2)).map((peak, index, arr) => {
+                  const barPercent = (index / arr.length) * 100;
+                  const isPlayed = barPercent <= fullAudioProgress;
+                  const isHead = Math.abs(barPercent - fullAudioProgress) < 100 / arr.length;
+                  const barHeight = Math.round(6 + peak * 34);
+                  return (
+                    <i
+                      key={index}
+                      className={`${isPlayed ? "played" : ""} ${isHead && playing ? "playback-head" : ""}`}
+                      style={{ height: `${barHeight}px` }}
+                    />
+                  );
+                })}
+              </div>
+            )}
             <div className="audio-timeline-wrap">
               <div className="audio-timeline-header">
                 <span className="timeline-time">{formatClock(currentTime)}</span>
@@ -906,26 +1145,19 @@ export function PodcastsView(props: StudyProps) {
                 onInput={handleSeek}
                 className="audio-timeline-slider"
                 aria-label="Audio timeline progress"
+                style={{ "--seek-percent": `${Math.min(100, Math.max(0, (currentTime / Math.max(1, totalDuration)) * 100))}%` } as React.CSSProperties}
               />
             </div>
             <div className="player-controls">
-              <button type="button" className="icon-button" onClick={() => jump(turn - 1)} aria-label="Previous turn" disabled={turn === 0}><SkipBack size={18} aria-hidden="true" /></button>
-              <button type="button" className="play-button" onClick={toggle} aria-label={playing ? "Pause" : "Play"}>{playing ? <Pause size={20} aria-hidden="true" /> : <Play size={20} aria-hidden="true" />}</button>
-              <button type="button" className="icon-button" onClick={() => jump(turn + 1)} aria-label="Next turn" disabled={turn >= script.turns.length - 1}><SkipForward size={18} aria-hidden="true" /></button>
-              <div className="speed-buttons" role="group" aria-label="Playback speed">
-                {[0.85, 1, 1.15].map((selectedRate) => (
-                  <button
-                    key={selectedRate}
-                    type="button"
-                    className={`speed-btn ${rate === selectedRate ? "active" : ""}`}
-                    onClick={() => handleRateChange(selectedRate)}
-                    aria-pressed={rate === selectedRate}
-                    aria-label={`Playback speed ${selectedRate}x`}
-                  >
-                    {selectedRate}x
-                  </button>
-                ))}
-              </div>
+              <button type="button" className="icon-button" onClick={() => jump(turn - 1)} aria-label="Previous turn" disabled={turn === 0}>
+                <SkipBack size={20} aria-hidden="true" />
+              </button>
+              <button type="button" className="play-button" onClick={toggle} aria-label={playing ? "Pause" : "Play"}>
+                {playing ? <Pause size={22} aria-hidden="true" /> : <Play size={22} aria-hidden="true" />}
+              </button>
+              <button type="button" className="icon-button" onClick={() => jump(turn + 1)} aria-label="Next turn" disabled={turn >= script.turns.length - 1}>
+                <SkipForward size={20} aria-hidden="true" />
+              </button>
             </div>
 
             {/* Voice and Voice Cloning Controls */}
@@ -1191,9 +1423,11 @@ export function PodcastsView(props: StudyProps) {
             <div className="transcript-stream">
               {script.turns.map((item, index) => {
                 const active = index === turn;
-                const words = item.text.split(/\s+/);
+                const words = item.text.split(/\s+/).filter(Boolean);
                 return (
                   <button
+                    key={`${index}-${item.speaker}`}
+                    ref={active ? activeTurnRef : undefined}
                     type="button"
                     onClick={() => {
                       if (item.audioUrl) {
@@ -1206,12 +1440,29 @@ export function PodcastsView(props: StudyProps) {
                     }}
                     className={`transcript-turn ${active ? "active" : ""}`}
                     aria-current={active ? "true" : undefined}
-                    key={`${index}-${item.speaker}`}
                   >
                     <span className={`speaker-avatar speaker-avatar--${item.speaker === "host" ? "H" : "G"}`} aria-label={item.speaker === "host" ? "Host" : "Guest"}>{item.speaker === "host" ? "H" : "G"}</span>
-                    <span>
+                    <span className="transcript-turn-content">
                       <strong>{item.speaker === "host" ? "Host" : "Guest"}</strong>
-                      <span>{active && playing ? words.map((word, wi) => <span key={wi} className={wi === wordIndex ? "word-active" : wi < wordIndex ? "word-done" : ""}>{word} </span>) : item.text}</span>
+                      <span className="transcript-turn-text">
+                        {active
+                          ? words.map((word, wi) => {
+                              let cls = "";
+                              if (playing) {
+                                if (wi === wordIndex) cls = "word-active";
+                                else if (wi < wordIndex) cls = "word-done";
+                                else cls = "word-upcoming";
+                              } else if (wordIndex >= 0 && wi <= wordIndex) {
+                                cls = "word-done";
+                              }
+                              return (
+                                <span key={wi} className={cls}>
+                                  {word}{" "}
+                                </span>
+                              );
+                            })
+                          : item.text}
+                      </span>
                     </span>
                     {generatingTurnIndex === index && (
                       <span className="turn-generating-badge">
@@ -1387,7 +1638,22 @@ export function FlashcardsView(props: StudyProps) {
             </div>
           </div>
           <div className="end-screen-card">
-            <span className="end-screen-icon" aria-hidden="true"><Trophy size={36} /></span>
+            <div className="confetti-burst" aria-hidden="true">
+              <span className="confetti-c c1" />
+              <span className="confetti-c c2" />
+              <span className="confetti-c c3" />
+              <span className="confetti-c c4" />
+              <span className="confetti-c c5" />
+              <span className="confetti-c c6" />
+              <span className="confetti-c c7" />
+              <span className="confetti-c c8" />
+              <span className="confetti-c c9" />
+              <span className="confetti-c c10" />
+              <span className="confetti-c c11" />
+              <span className="confetti-c c12" />
+            </div>
+            <span className="end-screen-icon winning-trophy" aria-hidden="true"><Trophy size={46} /></span>
+            <div className="winning-badge">🎉 Deck Complete!</div>
             <h2>Session Complete!</h2>
             <p className="end-screen-subtitle">You have completed reviewing all {cards.length} cards in this deck.</p>
             <div className="end-screen-stats">
@@ -1536,7 +1802,7 @@ export function QuizzesView(props: StudyProps) {
   };
 
   return (
-    <StudyShell props={props} icon={<ListChecks size={25} />} eyebrow="Knowledge check" title="Test your understanding" copy="Multiple-choice questions written from the selected notes, with instant explanations and mastery tracked by topic." ariaId="quiz-title">
+    <StudyShell props={props} pageClass="quiz-view" icon={<ListChecks size={25} />} eyebrow="Knowledge check" title="Test your understanding" copy="Multiple-choice questions written from the selected notes, with instant explanations and mastery tracked by topic." ariaId="quiz-title">
       <div ref={headerSentinelRef} className="generator-controls">
         <button type="button" className="primary-button" onClick={() => (aiReady ? setSetupOpen(true) : onConfigureAi())} disabled={generating || !scope}>{questions.length ? <RefreshCw size={17} aria-hidden="true" /> : <WandSparkles size={17} aria-hidden="true" />}{questions.length ? "New quiz" : "Generate quiz"}</button>
         {questions.length > 0 && <button type="button" className="secondary-button" onClick={() => { setAnswers({}); setSubmitted(false); }}><RotateCcw size={15} aria-hidden="true" />Retake</button>}

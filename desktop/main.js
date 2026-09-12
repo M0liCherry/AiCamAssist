@@ -128,7 +128,7 @@ function createWindow() {
     minHeight: 640,
     show: false,
     title: PRODUCT,
-    backgroundColor: nativeTheme.shouldUseDarkColors ? "#0e0f14" : "#f5f5f8",
+    backgroundColor: nativeTheme.shouldUseDarkColors ? "#141218" : "#fef7ff",
     icon: path.join(__dirname, "build", "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),

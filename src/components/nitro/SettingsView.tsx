@@ -282,14 +282,14 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
 
   return (
     <main className="settings-view page-enter" aria-labelledby="settings-title">
-      <header>
-        <p className="eyebrow">Preferences, profile &amp; legal</p>
-        <h1 id="settings-title">Settings &amp; Profile</h1>
-        <p>Everything here is stored locally on this computer. Active AI backend: <strong>{providerLabel}</strong>.</p>
+      <header className="settings-header">
+        <p className="eyebrow">Preferences</p>
+        <h1 id="settings-title">Settings</h1>
+        <p className="settings-subtitle">Everything here is stored locally on this computer. Active AI backend: <strong>{providerLabel}</strong>.</p>
       </header>
 
       {/* AI Personalization & Profile Section */}
-      <section className="settings-section personalization-section" aria-labelledby="profile-title">
+      <section className="settings-card settings-card--wide personalization-section" aria-labelledby="profile-title">
         <div className="settings-card-head">
           <span className="section-head-icon"><UserCheck size={22} aria-hidden="true" /></span>
           <div>
@@ -357,64 +357,66 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
         )}
       </section>
 
-      <section className="settings-section" aria-labelledby="ai-title">
-        <div className="settings-card-head"><span><Cpu size={20} aria-hidden="true" /></span><div><h2 id="ai-title">AI backend</h2><p>Powers RAG search, summaries, podcasts, flashcards, and quizzes. Switching backends keeps your notes; use “Re-index all notes” below so semantic search uses the new embedding model.</p></div></div>
+      <section className="settings-card settings-card--wide" aria-labelledby="ai-title">
+        <div className="settings-card-head">
+          <span className="section-head-icon"><Cpu size={22} aria-hidden="true" /></span>
+          <div>
+            <h2 id="ai-title">AI Backend</h2>
+            <p>Powers RAG search, summaries, podcasts, flashcards, and quizzes. Switching backends keeps your notes; use “Re-index all notes” below so semantic search uses the new embedding model.</p>
+          </div>
+        </div>
         <ProviderForm key={`${settings.provider}-${settings.model}-${settings.providerConsentAt ?? ""}`} boot={boot} mode="settings" onSaved={(next) => { onSettings(next); notify("AI backend saved."); }} />
       </section>
 
       {/* Podcast Voices & Voice Cloning Section */}
-      <section className="settings-section podcast-settings-section" aria-labelledby="podcast-audio-title">
+      <section className="settings-card settings-card--wide podcast-settings-section" aria-labelledby="podcast-audio-title">
         <div className="settings-card-head">
-          <span><Headphones size={20} aria-hidden="true" /></span>
+          <span className="section-head-icon"><Headphones size={22} aria-hidden="true" /></span>
           <div>
             <h2 id="podcast-audio-title">Podcast Audio &amp; Voice Cloning</h2>
             <p>Generate high-fidelity conversational audio for podcasts. Use free system speech, ElevenLabs studio AI voices, or KokoClone zero-shot voice cloning.</p>
           </div>
         </div>
 
-        <div className="personalization-grid" style={{ marginBottom: 18 }}>
-          <label className="field field--full">
-            <span>Default Podcast Audio Engine</span>
-            <div className="provider-grid" style={{ marginTop: 6 }}>
-              <button
-                type="button"
-                className={`provider-card ${settings.podcastAudioEngine === "speechSynthesis" ? "selected" : ""}`}
-                onClick={() => void update({ podcastAudioEngine: "speechSynthesis" }, "Default voice set to System Speech.")}
-              >
-                <span className="card-radio" aria-hidden="true">{settings.podcastAudioEngine === "speechSynthesis" ? <Check size={12} /> : null}</span>
-                <strong>System Speech (OS Voices)</strong>
-                <p>Free, fast, 100% offline via browser speech synthesis.</p>
-              </button>
+        <div className="field field--full" style={{ marginTop: 6 }}>
+          <span>Default Podcast Audio Engine</span>
+          <div className="provider-grid" style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className={`provider-card ${settings.podcastAudioEngine === "speechSynthesis" ? "selected" : ""}`}
+              onClick={() => void update({ podcastAudioEngine: "speechSynthesis" }, "Default voice set to System Speech.")}
+            >
+              <span className="card-radio" aria-hidden="true">{settings.podcastAudioEngine === "speechSynthesis" ? <Check size={12} /> : null}</span>
+              <strong>System Speech (OS Voices)</strong>
+              <p>Free, fast, 100% offline via browser speech synthesis.</p>
+            </button>
 
-              <button
-                type="button"
-                className={`provider-card ${settings.podcastAudioEngine === "elevenlabs" ? "selected" : ""}`}
-                onClick={() => void update({ podcastAudioEngine: "elevenlabs" }, "Default voice set to ElevenLabs.")}
-              >
-                <span className="card-radio" aria-hidden="true">{settings.podcastAudioEngine === "elevenlabs" ? <Check size={12} /> : null}</span>
-                <strong>ElevenLabs AI Studio</strong>
-                <p>Human-quality voices, personalized voice design from your profile, and instant voice cloning.</p>
-              </button>
+            <button
+              type="button"
+              className={`provider-card ${settings.podcastAudioEngine === "elevenlabs" ? "selected" : ""}`}
+              onClick={() => void update({ podcastAudioEngine: "elevenlabs" }, "Default voice set to ElevenLabs.")}
+            >
+              <span className="card-radio" aria-hidden="true">{settings.podcastAudioEngine === "elevenlabs" ? <Check size={12} /> : null}</span>
+              <strong>ElevenLabs AI Studio</strong>
+              <p>Human-quality voices, personalized voice design from your profile, and instant voice cloning.</p>
+            </button>
 
-              <button
-                type="button"
-                className={`provider-card ${settings.podcastAudioEngine === "kokoclone" ? "selected" : ""}`}
-                onClick={() => void update({ podcastAudioEngine: "kokoclone" }, "Default voice set to KokoClone.")}
-              >
-                <span className="card-radio" aria-hidden="true">{settings.podcastAudioEngine === "kokoclone" ? <Check size={12} /> : null}</span>
-                <strong>KokoClone (Local Cloner)</strong>
-                <p>Zero-shot voice cloning with your reference audio on local Kokoro-ONNX server.</p>
-              </button>
-            </div>
-          </label>
+            <button
+              type="button"
+              className={`provider-card ${settings.podcastAudioEngine === "kokoclone" ? "selected" : ""}`}
+              onClick={() => void update({ podcastAudioEngine: "kokoclone" }, "Default voice set to KokoClone.")}
+            >
+              <span className="card-radio" aria-hidden="true">{settings.podcastAudioEngine === "kokoclone" ? <Check size={12} /> : null}</span>
+              <strong>KokoClone (Local Cloner)</strong>
+              <p>Zero-shot voice cloning with your reference audio on local Kokoro-ONNX server.</p>
+            </button>
+          </div>
         </div>
 
         {/* ElevenLabs Configuration */}
-        <div className="settings-subsection" style={{ borderTop: "1px solid var(--line)", paddingTop: 16, marginTop: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
-              <Cloud size={16} /> ElevenLabs Configuration
-            </h3>
+        <div className="settings-subsection">
+          <div className="settings-subsection-head">
+            <h3><Cloud size={16} /> ElevenLabs Configuration</h3>
             {settings.hasElevenLabsKey ? (
               <span className="status-pill status-pill--green">
                 <strong>Active</strong> Key: {settings.elevenLabsKeyHint}
@@ -449,7 +451,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
             </label>
 
             <div className="field settings-action-field">
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div className="button-row" style={{ marginTop: 0 }}>
                 {elevenKeyInput.trim().length > 0 && (
                   <button type="button" className="primary-button compact" onClick={saveElevenKey}>
                     Save Key
@@ -473,15 +475,13 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
           </div>
 
           {elevenTestResult && (
-            <div style={{ marginTop: 10 }}>
-              <InlineAlert tone={elevenTestResult.ok ? "success" : "error"}>
-                {elevenTestResult.text}
-              </InlineAlert>
-            </div>
+            <InlineAlert tone={elevenTestResult.ok ? "success" : "error"}>
+              {elevenTestResult.text}
+            </InlineAlert>
           )}
 
           {/* Voice Selection & Personalized Voice Creator */}
-          <div className="personalization-grid" style={{ marginTop: 16 }}>
+          <div className="personalization-grid">
             <label className="field">
               <span>Speaker 1 (Host Voice)</span>
               <select
@@ -499,7 +499,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
                   ))
                 )}
               </select>
-              <div style={{ marginTop: 6 }}>
+              <div style={{ marginTop: 8 }}>
                 <button
                   type="button"
                   className="secondary-button compact"
@@ -530,7 +530,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
                   ))
                 )}
               </select>
-              <div style={{ marginTop: 6 }}>
+              <div style={{ marginTop: 8 }}>
                 <button
                   type="button"
                   className="secondary-button compact"
@@ -546,19 +546,15 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
           </div>
 
           {designNotice && (
-            <div style={{ marginTop: 10 }}>
-              <InlineAlert tone={designNotice.tone}>{designNotice.text}</InlineAlert>
-            </div>
+            <InlineAlert tone={designNotice.tone}>{designNotice.text}</InlineAlert>
           )}
         </div>
 
         {/* KokoClone Configuration */}
-        <div className="settings-subsection" style={{ borderTop: "1px solid var(--line)", paddingTop: 16, marginTop: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
-              <Radio size={16} /> KokoClone Voice Cloning (Local Submodule)
-            </h3>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <div className="settings-subsection">
+          <div className="settings-subsection-head">
+            <h3><Radio size={16} /> KokoClone Voice Cloning (Local Submodule)</h3>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <span className={`status-pill ${kokoDetailedStatus?.installed ? "status-pill--green" : "status-pill--gray"}`}>
                 {kokoDetailedStatus?.installed ? "Submodule Ready" : "Submodule Missing"}
               </span>
@@ -580,7 +576,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+          <div className="button-row" style={{ marginTop: 4 }}>
             {(!kokoDetailedStatus?.installed || !kokoDetailedStatus?.venvReady) ? (
               <button
                 type="button"
@@ -619,7 +615,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
                 className="secondary-button compact"
                 onClick={stopKokoServer}
                 disabled={stoppingKoko}
-                style={{ color: "var(--red)" }}
+                style={{ color: "var(--md-sys-color-error)", borderColor: "var(--md-sys-color-error)" }}
               >
                 <Square size={14} /> {stoppingKoko ? "Stopping server…" : "Stop KokoClone Server"}
               </button>
@@ -639,7 +635,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
             </label>
 
             <div className="field settings-action-field">
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div className="button-row" style={{ marginTop: 0 }}>
                 {kokoEndpointInput !== settings.kokoCloneEndpoint && (
                   <button type="button" className="primary-button compact" onClick={saveKokoEndpoint}>
                     Save Endpoint
@@ -658,25 +654,31 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
           </div>
 
           {kokoTestResult && (
-            <div style={{ marginTop: 10 }}>
-              <InlineAlert tone={kokoTestResult.ok ? "success" : "error"}>
-                {kokoTestResult.text}
-              </InlineAlert>
-            </div>
+            <InlineAlert tone={kokoTestResult.ok ? "success" : "error"}>
+              {kokoTestResult.text}
+            </InlineAlert>
           )}
 
-          <p className="help-text" style={{ marginTop: 10 }}>
-            KokoClone is linked as a Git submodule in <code>kokoclone/</code>. To start it manually in a terminal, run:
-            <br />
-            <code>cd kokoclone && .venv/bin/python app.py</code>
-          </p>
+          <div className="terminal-note">
+            <p>
+              KokoClone is linked as a Git submodule in <code>kokoclone/</code>. To start it manually in a terminal, run:
+            </p>
+            <code>cd kokoclone &amp;&amp; .venv/bin/python app.py</code>
+          </div>
         </div>
       </section>
 
       <div className="settings-grid">
         <section className="settings-card" aria-labelledby="stt-title">
-          <div className="settings-card-head"><span><Mic size={20} aria-hidden="true" /></span><div><h2 id="stt-title">Speech-to-text</h2><p>Audio uploads are transcribed on this PC with Whisper (Transformers.js + ONNX Runtime). Larger models are more accurate but slower.</p></div></div>
-          <label className="field"><span>Whisper model</span>
+          <div className="settings-card-head">
+            <span className="section-head-icon"><Mic size={20} aria-hidden="true" /></span>
+            <div>
+              <h2 id="stt-title">Speech-to-text</h2>
+              <p>Audio uploads are transcribed on this PC with Whisper (Transformers.js + ONNX Runtime). Larger models are more accurate but slower.</p>
+            </div>
+          </div>
+          <label className="field" style={{ marginTop: 14 }}>
+            <span>Whisper model</span>
             <select value={settings.sttModel} onChange={(event) => void update({ sttModel: event.target.value }, "Speech model updated.")}>
               {sttModels.map((model) => <option value={model} key={model}>{model.replace("Xenova/", "")} {model.endsWith("tiny") ? "(fastest, ~40 MB)" : model.endsWith("base") ? "(balanced, ~75 MB)" : "(most accurate, ~250 MB)"}</option>)}
             </select>
@@ -685,23 +687,54 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
         </section>
 
         <section className="settings-card" aria-labelledby="diag-title">
-          <div className="settings-card-head"><span><ShieldCheck size={20} aria-hidden="true" /></span><div><h2 id="diag-title">Privacy &amp; diagnostics</h2><p>Verity AI has no analytics, tracking, or crash-upload endpoint. Diagnostics, if enabled, are written to a local file only.</p></div></div>
-          <label className="toggle-row" htmlFor="diagnostics-setting">
-            <span><strong>Local diagnostics log</strong><small>{environment.logPath}</small></span>
-            <input id="diagnostics-setting" type="checkbox" role="switch" aria-checked={settings.diagnosticsOptIn} checked={settings.diagnosticsOptIn} onChange={(event) => void update({ diagnosticsOptIn: event.target.checked }, event.target.checked ? "Local diagnostics enabled." : "Diagnostics disabled.")} />
-          </label>
+          <div className="settings-card-head">
+            <span className="section-head-icon"><ShieldCheck size={20} aria-hidden="true" /></span>
+            <div>
+              <h2 id="diag-title">Privacy &amp; diagnostics</h2>
+              <p>Verity AI has no analytics, tracking, or crash-upload endpoint. Diagnostics, if enabled, are written to a local file only.</p>
+            </div>
+          </div>
+          <div className="toggle-row">
+            <div>
+              <strong>Local diagnostics log</strong>
+              <small>{environment.logPath}</small>
+            </div>
+            <label className="switch" htmlFor="diagnostics-setting">
+              <input id="diagnostics-setting" type="checkbox" role="switch" aria-checked={settings.diagnosticsOptIn} checked={settings.diagnosticsOptIn} onChange={(event) => void update({ diagnosticsOptIn: event.target.checked }, event.target.checked ? "Local diagnostics enabled." : "Diagnostics disabled.")} />
+              <span className="switch-slider" aria-hidden="true" />
+            </label>
+          </div>
           <p className="help-text">Privacy Policy accepted {settings.privacyConsentAt ? new Date(settings.privacyConsentAt).toLocaleString() : "—"}.{settings.providerConsentAt ? ` API transmission consent given ${new Date(settings.providerConsentAt).toLocaleString()}.` : ""}</p>
         </section>
 
         <section className="settings-card" aria-labelledby="theme-title">
-          <div className="settings-card-head"><span><Palette size={20} aria-hidden="true" /></span><div><h2 id="theme-title">Appearance</h2><p>Catppuccin Mocha palette tested against WCAG 2.1 AA for text and controls.</p></div></div>
+          <div className="settings-card-head">
+            <span className="section-head-icon"><Palette size={20} aria-hidden="true" /></span>
+            <div>
+              <h2 id="theme-title">Appearance</h2>
+              <p>Google Material 3 dynamic color scheme with accessibility compliance.</p>
+            </div>
+          </div>
           <button type="button" className="theme-choice" onClick={() => void update({ theme: settings.theme === "dark" ? "light" : "dark" }, "Theme updated.")}>
-            <span>{settings.theme === "dark" ? <Moon size={20} aria-hidden="true" /> : <Sun size={20} aria-hidden="true" />}<span><strong>{settings.theme === "dark" ? "Catppuccin Mocha (Dark)" : "Light"} theme</strong><small>Switch to {settings.theme === "dark" ? "light" : "Catppuccin Mocha dark"} theme</small></span></span><ChevronRight size={18} aria-hidden="true" />
+            <span>
+              {settings.theme === "dark" ? <Moon size={22} aria-hidden="true" /> : <Sun size={22} aria-hidden="true" />}
+              <span>
+                <strong>{settings.theme === "dark" ? "Material 3 Dark" : "Material 3 Light"} theme</strong>
+                <small>Switch to {settings.theme === "dark" ? "light" : "dark"} theme</small>
+              </span>
+            </span>
+            <ChevronRight size={18} aria-hidden="true" />
           </button>
         </section>
 
         <section className="settings-card" aria-labelledby="data-title">
-          <div className="settings-card-head"><span><Database size={20} aria-hidden="true" /></span><div><h2 id="data-title">Data &amp; storage</h2><p>Notes, embeddings, chats, and generated study material never leave this folder unless you export them.</p></div></div>
+          <div className="settings-card-head">
+            <span className="section-head-icon"><Database size={20} aria-hidden="true" /></span>
+            <div>
+              <h2 id="data-title">Data &amp; storage</h2>
+              <p>Notes, embeddings, chats, and generated study material never leave this folder unless you export them.</p>
+            </div>
+          </div>
           <dl className="data-grid">
             <div><dt>Data folder</dt><dd><code>{environment.dataDir}</code></dd></div>
             <div><dt>Database</dt><dd>{environment.database}</dd></div>
@@ -719,7 +752,13 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
         </section>
 
         <section className="settings-card settings-card--wide" aria-labelledby="about-title">
-          <div className="settings-card-head"><span><Info size={20} aria-hidden="true" /></span><div><h2 id="about-title">About Verity AI</h2><p>Version {environment.version} · Local-first AI study workspace.</p></div></div>
+          <div className="settings-card-head">
+            <span className="section-head-icon"><Info size={20} aria-hidden="true" /></span>
+            <div>
+              <h2 id="about-title">About Verity AI</h2>
+              <p>Version {environment.version} · Local-first AI study workspace.</p>
+            </div>
+          </div>
           <dl className="data-grid about-grid">
             <div><dt>Publisher</dt><dd>{publisher.name}</dd></div>
             <div><dt>Legal entity</dt><dd>{publisher.legalEntity}</dd></div>
@@ -730,10 +769,10 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
           </dl>
           <InlineAlert tone="info">Publisher fields are read from build-time configuration (NEXT_PUBLIC_PUBLISHER_*). Distributors must supply verified business details and monitored contact addresses before release; the “.example” addresses shown in developer builds are non-deliverable placeholders.</InlineAlert>
           <nav className="settings-links" aria-label="Legal documents">
-            <a href="/legal/privacy">Privacy Policy<ChevronRight size={16} aria-hidden="true" /></a>
-            <a href="/legal/terms">Terms &amp; Conditions<ChevronRight size={16} aria-hidden="true" /></a>
-            <a href="/legal/telemetry">Telemetry &amp; Diagnostics Policy<ChevronRight size={16} aria-hidden="true" /></a>
-            <a href="/legal/license">License, Refunds &amp; Support<ChevronRight size={16} aria-hidden="true" /></a>
+            <a href="/legal/privacy"><span>Privacy Policy</span><ChevronRight size={16} aria-hidden="true" /></a>
+            <a href="/legal/terms"><span>Terms &amp; Conditions</span><ChevronRight size={16} aria-hidden="true" /></a>
+            <a href="/legal/telemetry"><span>Telemetry &amp; Diagnostics Policy</span><ChevronRight size={16} aria-hidden="true" /></a>
+            <a href="/legal/license"><span>License, Refunds &amp; Support</span><ChevronRight size={16} aria-hidden="true" /></a>
             <a href="/legal/accessibility"><span className="link-icon"><Accessibility size={15} aria-hidden="true" />Accessibility Statement</span><ChevronRight size={16} aria-hidden="true" /></a>
             <a href="/legal/licenses"><span className="link-icon"><HardDrive size={15} aria-hidden="true" />Open-source licenses</span><ChevronRight size={16} aria-hidden="true" /></a>
           </nav>

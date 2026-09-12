@@ -28,7 +28,7 @@ VerityAI turns lecture recordings, PDFs, slides, and web articles into a searcha
 │ • Notes hub / tree navigator         │ /api/subjects   collections, reorder, export│
 │ • Editor + Nitro assistant           │ /api/notes      CRUD, search, summarize     │
 │ • Podcasts / Flashcards / Quizzes    │ /api/import     PDF·DOCX·PPTX·URL·YouTube   │
-│ • Onboarding, Settings & Legal       │ /api/transcribe Whisper (Transformers.js)   │
+│ • Onboarding, Settings               │ /api/transcribe Whisper (Transformers.js)   │
 │                                      │ /api/chat       hybrid RAG with citations   │
 │                                      │ /api/generate   podcast/flashcards/quiz     │
 │                                      │ /api/settings   encrypted keys, consents    │
