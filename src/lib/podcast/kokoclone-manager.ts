@@ -81,14 +81,29 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
     try {
       await execAsync("git submodule update --init --recursive kokoclone", { cwd: paths.root });
     } catch {
-      // Fallback to clone if not registered as submodule
-      try {
-        await execAsync("git clone https://github.com/C1ph3r404/kokoclone.git kokoclone", { cwd: paths.root });
-      } catch (err) {
-        return {
-          ok: false,
-          message: `Failed to download KokoClone repository: ${err instanceof Error ? err.message : String(err)}`,
-        };
+      // Fallback: if kokoclone folder exists, restore working tree or pull
+      if (fs.existsSync(paths.kokoDir)) {
+        try {
+          await execAsync("git restore --staged . && git restore .", { cwd: paths.kokoDir });
+        } catch {
+          try {
+            await execAsync("git pull origin main", { cwd: paths.kokoDir });
+          } catch (err) {
+            return {
+              ok: false,
+              message: `Failed to initialize KokoClone repository: ${err instanceof Error ? err.message : String(err)}`,
+            };
+          }
+        }
+      } else {
+        try {
+          await execAsync("git clone https://github.com/C1ph3r404/kokoclone.git kokoclone", { cwd: paths.root });
+        } catch (err) {
+          return {
+            ok: false,
+            message: `Failed to download KokoClone repository: ${err instanceof Error ? err.message : String(err)}`,
+          };
+        }
       }
     }
   }
