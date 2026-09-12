@@ -272,6 +272,15 @@ export async function startKokoCloneServer(endpoint: string = "http://127.0.0.1:
       detached: true,
       stdio: "ignore",
     });
+
+    if (child.pid) {
+      try {
+        fs.writeFileSync(path.join(status.kokoDir, ".server.pid"), String(child.pid), "utf8");
+      } catch {
+        // pid write is best-effort
+      }
+    }
+
     child.unref();
 
     // Poll endpoint for up to 10 seconds
@@ -298,4 +307,77 @@ export async function startKokoCloneServer(endpoint: string = "http://127.0.0.1:
       message: `Failed to launch KokoClone server: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
+}
+
+export async function stopKokoCloneServer(endpoint: string = "http://127.0.0.1:7860"): Promise<{ ok: boolean; message: string }> {
+  const paths = getKokoclonePaths();
+  const pidPath = path.join(paths.kokoDir, ".server.pid");
+  let killed = false;
+
+  // 1. Try stopping by tracked PID
+  if (fs.existsSync(pidPath)) {
+    try {
+      const pidStr = fs.readFileSync(pidPath, "utf8").trim();
+      const pid = parseInt(pidStr, 10);
+      if (!Number.isNaN(pid) && pid > 0) {
+        try {
+          if (process.platform === "win32") {
+            await execAsync(`taskkill /pid ${pid} /T /F`);
+          } else {
+            process.kill(pid, "SIGTERM");
+            await new Promise((r) => setTimeout(r, 500));
+            try {
+              process.kill(pid, "SIGKILL");
+            } catch {
+              // process already exited
+            }
+          }
+          killed = true;
+        } catch {
+          // PID might have already stopped
+        }
+      }
+      fs.unlinkSync(pidPath);
+    } catch {
+      // ignore unlink error
+    }
+  }
+
+  // 2. If server was still running, kill process holding port 7860
+  try {
+    const url = new URL(endpoint || "http://127.0.0.1:7860");
+    const port = url.port || "7860";
+    if (process.platform === "win32") {
+      try {
+        const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
+        const lines = stdout.split("\n").filter((l) => l.includes("LISTENING"));
+        for (const line of lines) {
+          const parts = line.trim().split(/\s+/);
+          const pid = parts[parts.length - 1];
+          if (pid && /^\d+$/.test(pid)) {
+            await execAsync(`taskkill /pid ${pid} /T /F`);
+            killed = true;
+          }
+        }
+      } catch {
+        // netstat/taskkill fallback best-effort
+      }
+    } else {
+      try {
+        await execAsync(`fuser -k ${port}/tcp`);
+        killed = true;
+      } catch {
+        // fuser fallback best-effort
+      }
+    }
+  } catch {
+    // endpoint parse error
+  }
+
+  const finalStatus = await checkKokoCloneStatus(endpoint);
+  if (!finalStatus.serverRunning) {
+    return { ok: true, message: killed ? "KokoClone server stopped successfully." : "KokoClone server is already stopped." };
+  }
+
+  return { ok: false, message: "KokoClone server process could not be terminated." };
 }

@@ -10,6 +10,7 @@ import {
   checkKokoCloneStatus,
   setupKokoClone,
   startKokoCloneServer,
+  stopKokoCloneServer,
 } from "@/lib/podcast/kokoclone-manager";
 import { getElevenLabsApiKey, getPodcastAudioConfig } from "@/lib/settings";
 
@@ -90,6 +91,16 @@ export async function POST(request: NextRequest) {
     if (action === "start-kokoclone") {
       const endpoint = String(body.endpoint || "http://127.0.0.1:7860");
       const result = await startKokoCloneServer(endpoint);
+      const status = await checkKokoCloneStatus(endpoint);
+      return ok({
+        ...result,
+        status,
+      });
+    }
+
+    if (action === "stop-kokoclone") {
+      const endpoint = String(body.endpoint || "http://127.0.0.1:7860");
+      const result = await stopKokoCloneServer(endpoint);
       const status = await checkKokoCloneStatus(endpoint);
       return ok({
         ...result,

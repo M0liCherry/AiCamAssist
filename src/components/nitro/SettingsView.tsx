@@ -1,6 +1,6 @@
 "use client";
 
-import { Accessibility, Check, ChevronRight, Cloud, Cpu, Database, Download, Eye, EyeOff, HardDrive, Headphones, Info, Mic, Moon, Palette, Play, Radio, RefreshCw, ShieldCheck, Sparkles, Sun, Trash2, UserCheck, Wand2 } from "lucide-react";
+import { Accessibility, Check, ChevronRight, Cloud, Cpu, Database, Download, Eye, EyeOff, HardDrive, Headphones, Info, Mic, Moon, Palette, Play, Radio, RefreshCw, ShieldCheck, Sparkles, Square, Sun, Trash2, UserCheck, Wand2 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api, downloadFile, errorMessage } from "./client";
 import { DEFAULT_KOKO_ENDPOINT } from "@/config/app";
@@ -108,6 +108,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
   const [kokoDetailedStatus, setKokoDetailedStatus] = useState<{ installed: boolean; venvReady: boolean; serverRunning: boolean; endpoint: string; message?: string } | null>(null);
   const [settingUpKoko, setSettingUpKoko] = useState(false);
   const [startingKoko, setStartingKoko] = useState(false);
+  const [stoppingKoko, setStoppingKoko] = useState(false);
 
   const fetchKokoDetailedStatus = useCallback(async () => {
     try {
@@ -160,6 +161,25 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
       notify(`Startup failed: ${errorMessage(err)}`, "error");
     } finally {
       setStartingKoko(false);
+    }
+  };
+
+  const stopKokoServer = async () => {
+    setStoppingKoko(true);
+    setKokoTestResult({ ok: true, text: "Stopping KokoClone server…" });
+    try {
+      const res = await api<{ ok: boolean; message: string; status?: any }>("/api/podcast/voices", {
+        method: "POST",
+        json: { action: "stop-kokoclone", endpoint: kokoEndpointInput.trim() },
+      });
+      if (res.status) setKokoDetailedStatus(res.status);
+      setKokoTestResult({ ok: res.ok, text: res.message });
+      notify(res.message, res.ok ? "success" : "error");
+    } catch (err) {
+      setKokoTestResult({ ok: false, text: `Server stop failed: ${errorMessage(err)}` });
+      notify(`Stop failed: ${errorMessage(err)}`, "error");
+    } finally {
+      setStoppingKoko(false);
     }
   };
 
@@ -590,6 +610,18 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
                 disabled={startingKoko}
               >
                 <Play size={14} /> {startingKoko ? "Starting server…" : "Start KokoClone Server"}
+              </button>
+            )}
+
+            {kokoDetailedStatus?.serverRunning && (
+              <button
+                type="button"
+                className="secondary-button compact"
+                onClick={stopKokoServer}
+                disabled={stoppingKoko}
+                style={{ color: "var(--red)" }}
+              >
+                <Square size={14} /> {stoppingKoko ? "Stopping server…" : "Stop KokoClone Server"}
               </button>
             )}
           </div>

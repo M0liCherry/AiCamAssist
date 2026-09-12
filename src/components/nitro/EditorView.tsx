@@ -372,7 +372,7 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
           </div>
         )}
         {refs.length > 0 && <div className="ref-chips" aria-label="Pinned notes">{refs.map((item) => <span className="mention-chip" key={item.id}>@{item.title}<button type="button" onClick={() => setRefs((current) => current.filter((r) => r.id !== item.id))} aria-label={`Remove ${item.title}`}><X size={12} aria-hidden="true" /></button></span>)}</div>}
-        <label htmlFor="nitro-question" className="sr-only">Ask Nitro a question</label>
+        <label htmlFor="nitro-question" className="sr-only">Ask Verity a question</label>
         <textarea id="nitro-question" value={draft} onChange={(event) => onDraftChange(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void ask(draft.trim(), refs.map((r) => r.id)); } if (event.key === "Escape") setMentionOpen(false); }} placeholder={aiReady ? "Ask about your notes… type @ to reference a note" : "Connect an AI backend in Settings to chat"} rows={2} disabled={sending} />
         <AiErrorAlert error={error} onRetry={retryLast} onConfigure={onConfigureAi} />
         <div className="composer-actions">

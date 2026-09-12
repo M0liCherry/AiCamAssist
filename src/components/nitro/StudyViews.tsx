@@ -1242,8 +1242,8 @@ export function FlashcardsView(props: StudyProps) {
   const [count, setCount] = useState(12);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
-  const cards = data?.asset?.payload.cards ?? [];
-  const progress = data?.progress ?? [];
+  const cards = useMemo(() => data?.asset?.payload.cards ?? [], [data?.asset?.payload.cards]);
+  const progress = useMemo(() => data?.progress ?? [], [data?.progress]);
 
   const metrics = useMemo(() => ({
     new: progress.filter((p) => p.status === "new").length,
@@ -1460,8 +1460,8 @@ export function QuizzesView(props: StudyProps) {
   const [submitted, setSubmitted] = useState(false);
   const [isScrolledPastHeader, setIsScrolledPastHeader] = useState(false);
   const headerSentinelRef = useRef<HTMLDivElement>(null);
-  const questions = data?.asset?.payload.questions ?? [];
-  const attempts: QuizAttempt[] = data?.attempts ?? [];
+  const questions = useMemo(() => data?.asset?.payload.questions ?? [], [data?.asset?.payload.questions]);
+  const attempts: QuizAttempt[] = useMemo(() => data?.attempts ?? [], [data?.attempts]);
 
   useEffect(() => {
     const el = headerSentinelRef.current;
