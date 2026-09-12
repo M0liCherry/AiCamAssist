@@ -13,8 +13,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   colorScheme: "dark light",
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0e0f14" },
-    { media: "(prefers-color-scheme: light)", color: "#f5f5f8" },
+    { media: "(prefers-color-scheme: dark)", color: "#141218" },
+    { media: "(prefers-color-scheme: light)", color: "#fef7ff" },
   ],
 };
 
@@ -22,6 +22,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&family=Google+Sans+Text:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400;1,500&family=Roboto+Mono:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
         {/* Apply the persisted theme before hydration to avoid a dark/light flash. */}
         <script
           dangerouslySetInnerHTML={{

@@ -175,7 +175,7 @@ export function NitroApp() {
             </button>
           ))}
           <p>App</p>
-          <button type="button" className={view === "settings" ? "active" : ""} onClick={() => setView("settings")} aria-current={view === "settings" ? "page" : undefined}><Settings size={19} aria-hidden="true" /><span>Settings &amp; legal</span><small>Settings &amp; legal</small></button>
+          <button type="button" className={view === "settings" ? "active" : ""} onClick={() => setView("settings")} aria-current={view === "settings" ? "page" : undefined}><Settings size={19} aria-hidden="true" /><span>Settings</span><small>Settings</small></button>
         </nav>
         <div className="sidebar-footer">
           <div className="scope-indicator" title={scopeInfo.title}><span className={`status-dot ${aiReady ? "ok" : "bad"}`} aria-hidden="true" /><span>{providerName}</span></div>
