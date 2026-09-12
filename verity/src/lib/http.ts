@@ -14,6 +14,17 @@ export class HttpError extends Error {
 export type ScopeType = "chapter" | "subject";
 export type Scope = { scopeType: ScopeType; scopeId: number };
 
+/**
+ * API envelope convention (see issue #7):
+ * - Success: `ok(data)` with operation-specific keys (e.g. `{note}`, `{subjects}`,
+ *   `{attempts}`). Shapes differ per action by design; clients read the keys they asked for.
+ * - Failure: always `{ error[, code, suggestedModel] }` via `fail()` / `HttpError` /
+ *   `ProviderError` — never a raw `Response.json` error and never a bare 500.
+ * - Status probes (Ollama status, KokoClone test, `kokoStatus`) return 200 with
+ *   `{ running: boolean, ... }` flags instead of error statuses: "offline" is data, not failure.
+ * - Byte streams (podcast audio, Ollama pull NDJSON, subject export) and the 416
+ *   plain-text range response use raw `Response` by design — they are not JSON.
+ */
 export function ok<T>(data: T, status = 200) {
   return NextResponse.json(data, { status });
 }
