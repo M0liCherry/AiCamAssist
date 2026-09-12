@@ -3,6 +3,7 @@
 import { Accessibility, Check, ChevronRight, Cloud, Cpu, Database, Download, Eye, EyeOff, HardDrive, Headphones, Info, Mic, Moon, Palette, Radio, RefreshCw, ShieldCheck, Sparkles, Sun, Trash2, UserCheck, Wand2 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api, downloadFile, errorMessage } from "./client";
+import { DEFAULT_KOKO_ENDPOINT } from "@/config/app";
 import { ProviderForm } from "./Onboarding";
 import {
   AiPersonalization,
@@ -14,6 +15,7 @@ import {
   LEARNING_STYLE_DESCRIPTIONS,
 } from "./personalization";
 import type { PublicSettings, SettingsResponse } from "./types";
+import { applyTheme } from "./theme";
 import { InlineAlert, Modal } from "./ui";
 
 export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify }: {
@@ -47,19 +49,23 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
   const [elevenTestResult, setElevenTestResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [designingVoice, setDesigningVoice] = useState<"host" | "guest" | null>(null);
   const [designNotice, setDesignNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
-  const [kokoEndpointInput, setKokoEndpointInput] = useState(settings.kokoCloneEndpoint || "http://127.0.0.1:7860");
+  const [kokoEndpointInput, setKokoEndpointInput] = useState(settings.kokoCloneEndpoint || DEFAULT_KOKO_ENDPOINT);
   const [testingKoko, setTestingKoko] = useState(false);
   const [kokoTestResult, setKokoTestResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [voices, setVoices] = useState<Array<{ id: string; name: string; category?: string; description?: string }>>([]);
   const [loadingVoices, setLoadingVoices] = useState(false);
+  const [voicesFailed, setVoicesFailed] = useState(false);
 
   const loadElevenVoices = useCallback(async () => {
     setLoadingVoices(true);
+    setVoicesFailed(false);
     try {
       const res = await api<{ voices: Array<{ id: string; name: string; category?: string; description?: string }> }>("/api/podcast/voices");
       if (res?.voices?.length) setVoices(res.voices);
+      else setVoicesFailed(true);
     } catch {
       // Keep fallbacks
+      setVoicesFailed(true);
     } finally {
       setLoadingVoices(false);
     }
@@ -154,7 +160,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
     try {
       const data = await api<{ settings: PublicSettings }>("/api/settings", { method: "PUT", json: patch });
       onSettings(data.settings);
-      document.documentElement.dataset.theme = data.settings.theme;
+      applyTheme(data.settings.theme);
       notify(message);
     } catch (error) {
       notify(errorMessage(error), "error");
@@ -398,14 +404,19 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
             <label className="field">
               <span>Speaker 1 (Host Voice)</span>
               <select
-                value={settings.elevenLabsHostVoice}
+                value={voices.length ? settings.elevenLabsHostVoice : ""}
                 onChange={(e) => void update({ elevenLabsHostVoice: e.target.value }, "Host voice updated.")}
+                disabled={voices.length === 0}
               >
-                {voices.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name} {v.description ? `— ${v.description}` : `(${v.category || "custom"})`}
-                  </option>
-                ))}
+                {voices.length === 0 ? (
+                  <option value="">{loadingVoices ? "Loading voices…" : "No voices available — test the connection above"}</option>
+                ) : (
+                  voices.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} {v.description ? `— ${v.description}` : `(${v.category || "custom"})`}
+                    </option>
+                  ))
+                )}
               </select>
               <div style={{ marginTop: 6 }}>
                 <button
@@ -424,14 +435,19 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
             <label className="field">
               <span>Speaker 2 (Guest Voice)</span>
               <select
-                value={settings.elevenLabsGuestVoice}
+                value={voices.length ? settings.elevenLabsGuestVoice : ""}
                 onChange={(e) => void update({ elevenLabsGuestVoice: e.target.value }, "Guest voice updated.")}
+                disabled={voices.length === 0}
               >
-                {voices.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name} {v.description ? `— ${v.description}` : `(${v.category || "custom"})`}
-                  </option>
-                ))}
+                {voices.length === 0 ? (
+                  <option value="">{loadingVoices ? "Loading voices…" : "No voices available — test the connection above"}</option>
+                ) : (
+                  voices.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} {v.description ? `— ${v.description}` : `(${v.category || "custom"})`}
+                    </option>
+                  ))
+                )}
               </select>
               <div style={{ marginTop: 6 }}>
                 <button
@@ -471,7 +487,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
                 type="url"
                 value={kokoEndpointInput}
                 onChange={(e) => setKokoEndpointInput(e.target.value)}
-                placeholder="http://127.0.0.1:7860"
+                placeholder={DEFAULT_KOKO_ENDPOINT}
               />
               <small>Default Gradio/FastAPI server port is 7860.</small>
             </label>

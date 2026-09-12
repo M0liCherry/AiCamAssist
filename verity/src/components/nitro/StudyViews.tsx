@@ -3,6 +3,7 @@
 import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, Circle, Cloud, Download, Eye, EyeOff, Gauge, Headphones, ListChecks, Music, Pause, Play, Radio, RefreshCw, RotateCcw, SkipBack, SkipForward, Sparkles, SquareStack, Trophy, Upload, Volume2, Wand2, WandSparkles, XCircle } from "lucide-react";
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, errorMessage, formatClock, formatDate } from "./client";
+import { DEFAULT_KOKO_ENDPOINT } from "@/config/app";
 import { buildPersonalizationPrompt, getStoredPersonalization, LEARNING_STYLE_DESCRIPTIONS, PERSONA_DESCRIPTIONS } from "./personalization";
 import { saveFlashcardSessionScore, saveQuizAttemptScore } from "./studyScores";
 import type { Asset, AssetResponse, CardProgress, FlashcardDeck, PodcastScript, QuizAttempt, QuizPayload, Scope, Subject } from "./types";
@@ -134,7 +135,7 @@ export function PodcastsView(props: StudyProps) {
   const [elevenGuestVoice, setElevenGuestVoice] = useState("pNInz6obpgDQGcFmaJgB");
   const [elevenVoices, setElevenVoices] = useState<Array<{ id: string; name: string; category?: string; description?: string }>>([]);
 
-  const [kokoEndpoint, setKokoEndpoint] = useState("http://127.0.0.1:7860");
+  const [kokoEndpoint, setKokoEndpoint] = useState(DEFAULT_KOKO_ENDPOINT);
   const [kokoOnline, setKokoOnline] = useState<boolean | null>(null);
   const [hostRefAudio, setHostRefAudio] = useState<string | null>(null);
   const [guestRefAudio, setGuestRefAudio] = useState<string | null>(null);

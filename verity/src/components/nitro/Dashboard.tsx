@@ -68,6 +68,18 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
     return aggregateSubjectScores(activeSubject);
   }, [activeSubject, scoresVersion]);
 
+  // Tree badges must refresh on score changes too (nitro:scores-updated).
+  const treeScores = useMemo(() => {
+    void scoresVersion;
+    const subs = new Map<number, ReturnType<typeof aggregateSubjectScores>>();
+    const chaps = new Map<number, ReturnType<typeof getChapterScores>>();
+    for (const s of subjects) {
+      subs.set(s.id, aggregateSubjectScores(s));
+      for (const c of s.chapters) chaps.set(c.id, getChapterScores(c.id, s));
+    }
+    return { subs, chaps };
+  }, [subjects, scoresVersion]);
+
   const loadNotes = useCallback(async () => {
     if (!scope) {
       setNotes([]);
@@ -206,7 +218,7 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
               {subjects.map((subject, subjectIndex) => {
                 const collapsed = collapsedSubjects.has(subject.id);
                 const subjectActive = scope?.scopeType === "subject" && scope.scopeId === subject.id;
-                const subjectScores = aggregateSubjectScores(subject);
+                const subjectScores = treeScores.subs.get(subject.id);
                 return (
                   <li className="tree-subject" key={subject.id}>
                     <div className={`tree-row ${subjectActive ? "active" : ""}`}>
@@ -214,7 +226,7 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
                       <button type="button" className="tree-label" onClick={() => onScope({ scopeType: "subject", scopeId: subject.id })} aria-current={subjectActive ? "true" : undefined}>
                         <BookOpen size={15} aria-hidden="true" />
                         <span>{subject.name}</span>
-                        {subjectScores.flashcards.percentage > 0 && <span className="tree-score-badge" title={`Subject mastery: ${subjectScores.flashcards.percentage}%`}>{subjectScores.flashcards.percentage}%</span>}
+                        {subjectScores && subjectScores.flashcards.percentage > 0 && <span className="tree-score-badge" title={`Subject mastery: ${subjectScores.flashcards.percentage}%`}>{subjectScores.flashcards.percentage}%</span>}
                         <small>{subject.noteCount}</small>
                       </button>
                       <ItemMenu label={`Actions for ${subject.name}`} items={[
@@ -231,14 +243,14 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
                       <ul className="tree-children">
                         {subject.chapters.map((chapter, chapterIndex) => {
                           const active = scope?.scopeType === "chapter" && scope.scopeId === chapter.id;
-                          const chScores = getChapterScores(chapter.id, subject);
+                          const chScores = treeScores.chaps.get(chapter.id);
                           return (
                             <li key={chapter.id}>
                               <div className={`tree-row tree-row--chapter ${active ? "active" : ""}`}>
                                 <button type="button" className="tree-label" onClick={() => onScope({ scopeType: "chapter", scopeId: chapter.id })} aria-current={active ? "true" : undefined}>
                                   <Layers size={14} aria-hidden="true" />
                                   <span>{chapter.name}</span>
-                                  {chScores.flashcards && chScores.flashcards.percentage > 0 && <span className="tree-score-badge tree-score-badge--chapter" title={`Chapter flashcards: ${chScores.flashcards.percentage}%`}>{chScores.flashcards.percentage}%</span>}
+                                  {chScores?.flashcards && chScores.flashcards.percentage > 0 && <span className="tree-score-badge tree-score-badge--chapter" title={`Chapter flashcards: ${chScores.flashcards.percentage}%`}>{chScores.flashcards.percentage}%</span>}
                                   <small>{chapter.noteCount}</small>
                                 </button>
                                 <ItemMenu label={`Actions for ${chapter.name}`} items={[
