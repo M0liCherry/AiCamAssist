@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, Circle, Cloud, Download, Eye, EyeOff, Gauge, Headphones, ListChecks, Music, Pause, Play, Radio, RefreshCw, RotateCcw, SkipBack, SkipForward, Sparkles, SquareStack, Trophy, Upload, Volume2, Wand2, WandSparkles, XCircle } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, Circle, Cloud, Download, Eye, EyeOff, Gauge, Headphones, Layers, ListChecks, Music, Pause, Play, Radio, RefreshCw, RotateCcw, SkipBack, SkipForward, Sparkles, Square, SquareStack, Trophy, Upload, Volume2, Wand2, WandSparkles, XCircle } from "lucide-react";
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, errorMessage, formatClock, formatDate } from "./client";
 import { DEFAULT_KOKO_ENDPOINT } from "@/config/app";
@@ -147,6 +147,18 @@ export function PodcastsView(props: StudyProps) {
   const [synthesisError, setSynthesisError] = useState<string | null>(null);
   const [realAudioDuration, setRealAudioDuration] = useState<number>(0);
 
+  // Continuous turn generation states
+  const [generatingTurnIndex, setGeneratingTurnIndex] = useState<number | null>(null);
+  const [isGeneratingContinuously, setIsGeneratingContinuously] = useState(false);
+  const isGeneratingContinuouslyRef = useRef(false);
+  const stopGenerationRef = useRef(false);
+  const [waitingForTurn, setWaitingForTurn] = useState<number | null>(null);
+
+  const completedTurnsCount = useMemo(() => {
+    if (!script?.turns?.length) return 0;
+    return script.turns.filter((t) => Boolean(t.audioUrl)).length;
+  }, [script?.turns]);
+
   // Load user settings on mount
   useEffect(() => {
     api<{ settings: any }>("/api/settings")
@@ -276,6 +288,43 @@ export function PodcastsView(props: StudyProps) {
     [script, supported, voices, hostVoice, guestVoice, rate, turnStarts, totalDuration],
   );
 
+  const playTurnAudio = useCallback(
+    (index: number) => {
+      if (!script || !script.turns[index]) return;
+      const targetTurn = script.turns[index];
+      setTurn(index);
+      setWordIndex(-1);
+
+      if (supported) window.speechSynthesis.cancel();
+
+      if (targetTurn.audioUrl && audioRef.current) {
+        audioRef.current.src = targetTurn.audioUrl;
+        audioRef.current.currentTime = 0;
+        audioRef.current
+          .play()
+          .then(() => {
+            setPlaying(true);
+            playingRef.current = true;
+          })
+          .catch(() => {});
+        return;
+      }
+
+      if (engine === "speechSynthesis") {
+        speak(index);
+      }
+    },
+    [script, supported, speak, engine],
+  );
+
+  useEffect(() => {
+    if (waitingForTurn !== null && script?.turns[waitingForTurn]?.audioUrl) {
+      const turnToPlay = waitingForTurn;
+      setWaitingForTurn(null);
+      playTurnAudio(turnToPlay);
+    }
+  }, [script, waitingForTurn, playTurnAudio]);
+
   // Time tracker for synthetic speech mode
   useEffect(() => {
     if (!playing || script?.audioUrl) return;
@@ -294,12 +343,15 @@ export function PodcastsView(props: StudyProps) {
   }, [playing, turn, turnStarts, turnDurations, script?.audioUrl]);
 
   const toggle = () => {
-    if (script?.audioUrl && audioRef.current) {
+    if (audioRef.current && (script?.turns[turn]?.audioUrl || script?.audioUrl)) {
       if (playing) {
         audioRef.current.pause();
         setPlaying(false);
         playingRef.current = false;
       } else {
+        if (!audioRef.current.src && script.turns[turn]?.audioUrl) {
+          audioRef.current.src = script.turns[turn].audioUrl;
+        }
         audioRef.current.play().catch(() => {});
         setPlaying(true);
         playingRef.current = true;
@@ -320,16 +372,14 @@ export function PodcastsView(props: StudyProps) {
     const next = Math.max(0, Math.min(script.turns.length - 1, index));
     setTurn(next);
     setWordIndex(-1);
-    const time = turnStarts[next] ?? 0;
-    setCurrentTime(time);
 
-    if (script?.audioUrl && audioRef.current) {
-      try {
-        audioRef.current.currentTime = time;
-        if (playing) audioRef.current.play().catch(() => {});
-      } catch {}
+    if (script.turns[next]?.audioUrl) {
+      playTurnAudio(next);
       return;
     }
+
+    const time = turnStarts[next] ?? 0;
+    setCurrentTime(time);
 
     if (playing) speak(next);
   };
@@ -387,8 +437,151 @@ export function PodcastsView(props: StudyProps) {
     if (event.key === "ArrowLeft") jump(turn - 1);
   };
 
-  // Generate real audio with ElevenLabs or KokoClone
+  // Continuous turn-by-turn generation for instant, uninterrupted playback
+  const startContinuousGeneration = async () => {
+    if (!data?.asset?.id || !script?.turns?.length) return;
+    stopGenerationRef.current = false;
+    isGeneratingContinuouslyRef.current = true;
+    setIsGeneratingContinuously(true);
+    setSynthesizing(true);
+    setSynthesisError(null);
+
+    try {
+      for (let i = 0; i < script.turns.length; i++) {
+        if (stopGenerationRef.current) {
+          props.notify("Continuous generation stopped.", "info");
+          break;
+        }
+
+        // If turn i already has audio, skip to next
+        if (script.turns[i]?.audioUrl) {
+          continue;
+        }
+
+        setGeneratingTurnIndex(i);
+
+        const res = await api<{ audioUrl: string; turns: Array<any> }>("/api/podcast/audio", {
+          method: "POST",
+          json: {
+            assetId: data.asset.id,
+            engine,
+            apiKey: inlineElevenKey.trim() || undefined,
+            hostVoice: elevenHostVoice,
+            guestVoice: elevenGuestVoice,
+            kokoCloneEndpoint: kokoEndpoint,
+            hostRefAudio: hostRefAudio,
+            guestRefAudio: guestRefAudio,
+            startTurn: i,
+            endTurn: i + 1,
+          },
+        });
+
+        setData((prev) => {
+          if (!prev || !prev.asset) return prev;
+          return {
+            ...prev,
+            asset: {
+              ...prev.asset,
+              payload: {
+                ...prev.asset.payload,
+                audioUrl: res.audioUrl,
+                turns: res.turns,
+                audioEngine: engine,
+              },
+            },
+          };
+        });
+
+        // The instant the first turn is generated, auto-play immediately so playback begins with zero wait!
+        if (i === 0 || (!playingRef.current && turn === i)) {
+          if (res.turns[i]?.audioUrl && audioRef.current) {
+            audioRef.current.src = res.turns[i].audioUrl;
+            audioRef.current.currentTime = 0;
+            audioRef.current
+              .play()
+              .then(() => {
+                setPlaying(true);
+                playingRef.current = true;
+              })
+              .catch(() => {});
+          }
+        }
+      }
+
+      if (!stopGenerationRef.current) {
+        props.notify("All turns generated and stitched continuously!", "success");
+      }
+    } catch (err) {
+      setSynthesisError(errorMessage(err));
+    } finally {
+      setIsGeneratingContinuously(false);
+      isGeneratingContinuouslyRef.current = false;
+      setGeneratingTurnIndex(null);
+      setSynthesizing(false);
+    }
+  };
+
+  const stopGeneratingContinuously = () => {
+    stopGenerationRef.current = true;
+    isGeneratingContinuouslyRef.current = false;
+    setIsGeneratingContinuously(false);
+    setGeneratingTurnIndex(null);
+    setSynthesizing(false);
+  };
+
+  const generateSingleTurn = async (index: number) => {
+    if (!data?.asset?.id || !script?.turns?.length) return;
+    setGeneratingTurnIndex(index);
+    setSynthesisError(null);
+
+    try {
+      const res = await api<{ audioUrl: string; turns: Array<any> }>("/api/podcast/audio", {
+        method: "POST",
+        json: {
+          assetId: data.asset.id,
+          engine,
+          apiKey: inlineElevenKey.trim() || undefined,
+          hostVoice: elevenHostVoice,
+          guestVoice: elevenGuestVoice,
+          kokoCloneEndpoint: kokoEndpoint,
+          hostRefAudio: hostRefAudio,
+          guestRefAudio: guestRefAudio,
+          startTurn: index,
+          endTurn: index + 1,
+        },
+      });
+
+      setData((prev) => {
+        if (!prev || !prev.asset) return prev;
+        return {
+          ...prev,
+          asset: {
+            ...prev.asset,
+            payload: {
+              ...prev.asset.payload,
+              audioUrl: res.audioUrl,
+              turns: res.turns,
+              audioEngine: engine,
+            },
+          },
+        };
+      });
+
+      props.notify(`Turn ${index + 1} generated!`, "success");
+    } catch (err) {
+      setSynthesisError(errorMessage(err));
+    } finally {
+      setGeneratingTurnIndex(null);
+    }
+  };
+
+  // Generate audio entrypoint
   const generateStudioAudio = async () => {
+    if (engine === "kokoclone") {
+      await startContinuousGeneration();
+      return;
+    }
+
     if (!data?.asset?.id) return;
     setSynthesizing(true);
     setSynthesisError(null);
@@ -553,11 +746,26 @@ export function PodcastsView(props: StudyProps) {
             <button
               type="button"
               className="secondary-button"
-              onClick={generateStudioAudio}
-              disabled={synthesizing || (engine === "elevenlabs" && !hasElevenKey && !inlineElevenKey.trim())}
+              onClick={isGeneratingContinuously ? stopGeneratingContinuously : generateStudioAudio}
+              disabled={(synthesizing && !isGeneratingContinuously) || (engine === "elevenlabs" && !hasElevenKey && !inlineElevenKey.trim())}
+              style={isGeneratingContinuously ? { borderColor: "var(--red, #f38ba8)", color: "var(--red, #f38ba8)" } : undefined}
             >
-              {synthesizing ? <Spinner label="Synthesizing dialogue…" /> : <Music size={16} />}
-              {script.audioUrl ? "Re-generate Studio Audio" : `Generate Audio (${engine === "elevenlabs" ? "ElevenLabs" : "KokoClone"})`}
+              {isGeneratingContinuously ? (
+                <>
+                  <Square size={16} /> Stop Stream ({generatingTurnIndex !== null ? `Turn ${generatingTurnIndex + 1}/${script.turns.length}` : "Stopping…"})
+                </>
+              ) : synthesizing ? (
+                <Spinner label="Synthesizing dialogue…" />
+              ) : (
+                <>
+                  <Sparkles size={16} />
+                  {completedTurnsCount > 0 && completedTurnsCount < script.turns.length
+                    ? `Continue Stream (${completedTurnsCount}/${script.turns.length} ready)`
+                    : completedTurnsCount === script.turns.length
+                    ? "Re-generate Studio Audio"
+                    : `Generate Audio (${engine === "elevenlabs" ? "ElevenLabs" : "Continuous KokoClone"})`}
+                </>
+              )}
             </button>
           )}
 
@@ -619,7 +827,7 @@ export function PodcastsView(props: StudyProps) {
             {/* Real Audio Player Element */}
             <audio
               ref={audioRef}
-              src={script?.audioUrl || undefined}
+              src={script.turns[turn]?.audioUrl || script.audioUrl || undefined}
               preload="metadata"
               onPlay={() => {
                 setPlaying(true);
@@ -636,20 +844,27 @@ export function PodcastsView(props: StudyProps) {
               }}
               onTimeUpdate={() => {
                 if (!audioRef.current || !script) return;
-                const t = audioRef.current.currentTime;
-                setCurrentTime(t);
-                let found = 0;
-                for (let i = 0; i < turnStarts.length; i++) {
-                  if (turnStarts[i] <= t) found = i;
-                  else break;
-                }
-                setTurn(found);
+                const turnBase = turnStarts[turn] ?? 0;
+                setCurrentTime(turnBase + (audioRef.current.currentTime || 0));
               }}
               onEnded={() => {
-                setPlaying(false);
-                playingRef.current = false;
-                setTurn(0);
-                setCurrentTime(0);
+                if (!script) return;
+                const next = turn + 1;
+                if (next < script.turns.length) {
+                  if (script.turns[next]?.audioUrl) {
+                    playTurnAudio(next);
+                  } else if (isGeneratingContinuouslyRef.current) {
+                    setWaitingForTurn(next);
+                  } else {
+                    setPlaying(false);
+                    playingRef.current = false;
+                  }
+                } else {
+                  setPlaying(false);
+                  playingRef.current = false;
+                  setTurn(0);
+                  setCurrentTime(0);
+                }
               }}
               style={{ display: "none" }}
               aria-hidden="true"
@@ -848,7 +1063,7 @@ export function PodcastsView(props: StudyProps) {
                     <span className="koko-status-pill">
                       <Radio size={12} /> KokoClone {kokoOnline ? "Online" : "Endpoint"} ({kokoEndpoint})
                     </span>
-                    <small>Zero-shot voice cloning from reference audio</small>
+                    <small>Zero-shot continuous voice cloning from reference audio</small>
                   </div>
 
                   <div className="kokoclone-uploads-row">
@@ -878,6 +1093,61 @@ export function PodcastsView(props: StudyProps) {
                       </div>
                     </label>
                   </div>
+
+                  {/* Live Continuous Generation Stream Bar */}
+                  {script?.turns?.length && (
+                    <div className="kokoclone-continuous-bar">
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+                        <span className="kokoclone-sections-title">
+                          <Sparkles size={13} /> Continuous Stream ({completedTurnsCount}/{script.turns.length} turns ready)
+                        </span>
+                        {isGeneratingContinuously ? (
+                          <button
+                            type="button"
+                            className="secondary-button compact"
+                            onClick={stopGeneratingContinuously}
+                            style={{ color: "var(--red, #f38ba8)", borderColor: "var(--red, #f38ba8)" }}
+                          >
+                            <Square size={12} /> Stop Stream
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="primary-button compact"
+                            onClick={startContinuousGeneration}
+                            disabled={synthesizing}
+                          >
+                            <Play size={12} /> {completedTurnsCount === 0 ? "Start Continuous Stream" : "Continue Stream"}
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="continuous-track">
+                        {script.turns.map((t, idx) => {
+                          const isGen = Boolean(t.audioUrl);
+                          const isCurrent = generatingTurnIndex === idx;
+                          const isSpeaking = playing && turn === idx;
+                          return (
+                            <div
+                              key={idx}
+                              className={`turn-chip ${isGen ? "turn-chip--ready" : ""} ${isCurrent ? "turn-chip--generating" : ""} ${isSpeaking ? "turn-chip--speaking" : ""}`}
+                              title={`Turn ${idx + 1} (${t.speaker}): ${isCurrent ? "Synthesizing now..." : isGen ? "Cloned audio ready (click to play)" : "Waiting (click to generate)"}`}
+                              onClick={() => (isGen ? playTurnAudio(idx) : void generateSingleTurn(idx))}
+                            >
+                              <span className="chip-speaker">{t.speaker === "host" ? "H" : "G"}{idx + 1}</span>
+                              {isCurrent ? (
+                                <Spinner label="" />
+                              ) : isGen ? (
+                                <Check size={10} />
+                              ) : (
+                                <Circle size={7} />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -889,9 +1159,36 @@ export function PodcastsView(props: StudyProps) {
                 const active = index === turn;
                 const words = item.text.split(/\s+/);
                 return (
-                  <button type="button" onClick={() => { setTurn(index); setWordIndex(-1); speak(index); }} className={`transcript-turn ${active ? "active" : ""}`} aria-current={active ? "true" : undefined} key={`${index}-${item.speaker}`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (item.audioUrl) {
+                        playTurnAudio(index);
+                      } else {
+                        setTurn(index);
+                        setWordIndex(-1);
+                        speak(index);
+                      }
+                    }}
+                    className={`transcript-turn ${active ? "active" : ""}`}
+                    aria-current={active ? "true" : undefined}
+                    key={`${index}-${item.speaker}`}
+                  >
                     <span className={`speaker-avatar speaker-avatar--${item.speaker === "host" ? "H" : "G"}`} aria-label={item.speaker === "host" ? "Host" : "Guest"}>{item.speaker === "host" ? "H" : "G"}</span>
-                    <span><strong>{item.speaker === "host" ? "Host" : "Guest"}</strong><span>{active && playing ? words.map((word, wi) => <span key={wi} className={wi === wordIndex ? "word-active" : wi < wordIndex ? "word-done" : ""}>{word} </span>) : item.text}</span></span>
+                    <span>
+                      <strong>{item.speaker === "host" ? "Host" : "Guest"}</strong>
+                      <span>{active && playing ? words.map((word, wi) => <span key={wi} className={wi === wordIndex ? "word-active" : wi < wordIndex ? "word-done" : ""}>{word} </span>) : item.text}</span>
+                    </span>
+                    {generatingTurnIndex === index && (
+                      <span className="turn-generating-badge">
+                        <Spinner label="Synthesizing…" />
+                      </span>
+                    )}
+                    {item.audioUrl && generatingTurnIndex !== index && (
+                      <span className="turn-audio-badge" title="Cloned audio ready">
+                        <Check size={10} /> Cloned
+                      </span>
+                    )}
                     {active && playing && <span className="speaking-bars" aria-label="Currently speaking"><i /><i /><i /></span>}
                   </button>
                 );

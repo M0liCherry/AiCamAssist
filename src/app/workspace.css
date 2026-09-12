@@ -2646,3 +2646,149 @@ button.cite-badge:hover {
   opacity: 0;
   cursor: pointer;
 }
+
+/* KokoClone Section-by-Section Generation UI */
+.kokoclone-sections-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.kokoclone-sections-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kokoclone-sections-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sections-pills-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.section-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.section-pill-btn:hover:not(:disabled) {
+  border-color: var(--blue);
+  background: var(--surface-1);
+}
+
+.section-pill-btn.ready {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.section-pill-btn.generating {
+  border-color: var(--blue);
+  color: var(--blue);
+  opacity: 0.85;
+}
+
+.section-pill-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.turn-audio-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--green);
+  margin-left: auto;
+}
+
+/* Continuous Stream UI */
+.kokoclone-continuous-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.continuous-track {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.turn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.turn-chip:hover {
+  border-color: var(--blue);
+  background: var(--surface-1);
+}
+
+.turn-chip--ready {
+  border-color: rgba(166, 227, 161, 0.4);
+  color: var(--green, #a6e3a1);
+}
+
+.turn-chip--generating {
+  border-color: var(--blue, #89b4fa);
+  color: var(--blue, #89b4fa);
+  background: rgba(137, 180, 250, 0.08);
+}
+
+.turn-chip--speaking {
+  box-shadow: 0 0 0 2px var(--blue);
+}
+
+.chip-speaker {
+  font-size: 10px;
+  opacity: 0.85;
+}
+
+.turn-generating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--blue);
+  margin-left: auto;
+}

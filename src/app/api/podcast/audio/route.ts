@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
       "Content-Length": String(fileSize),
       "Content-Type": mimeType,
       "Accept-Ranges": "bytes",
+      "Cache-Control": "no-cache, no-store, must-revalidate",
     });
 
     if (download) {
@@ -103,6 +104,7 @@ export async function POST(request: NextRequest) {
       title: string;
       summary: string;
       turns: Array<{ speaker: "host" | "guest"; text: string; audioUrl?: string }>;
+      audioUrl?: string;
     };
 
     if (!script || !Array.isArray(script.turns) || script.turns.length === 0) {
@@ -132,11 +134,17 @@ export async function POST(request: NextRequest) {
       throw new HttpError("ElevenLabs API key is required. Please provide it in the prompt or in Settings.", 400);
     }
 
-    const dir = podcastAudioDir(assetId);
-    const turnAudioBuffers: Buffer[] = [];
-    const updatedTurns = [];
+    const rawStart = typeof body.startTurn === "number" ? Math.max(0, Math.floor(body.startTurn)) : 0;
+    const rawEnd = typeof body.endTurn === "number" ? Math.min(script.turns.length, Math.floor(body.endTurn)) : script.turns.length;
+    const startTurn = Math.min(rawStart, script.turns.length);
+    const endTurn = Math.max(startTurn, rawEnd);
 
-    for (let i = 0; i < script.turns.length; i++) {
+    const dir = podcastAudioDir(assetId);
+    const turnAudioBuffers: Map<number, Buffer> = new Map();
+    const updatedTurns = [...script.turns];
+
+    // 1. Synthesize turns in the requested section
+    for (let i = startTurn; i < endTurn; i++) {
       const turn = script.turns[i];
       const isHost = turn.speaker === "host";
       let turnBuffer: Buffer;
@@ -151,19 +159,49 @@ export async function POST(request: NextRequest) {
 
       const turnFilename = `turn_${i}.mp3`;
       fs.writeFileSync(path.join(dir, turnFilename), turnBuffer);
-      turnAudioBuffers.push(turnBuffer);
+      turnAudioBuffers.set(i, turnBuffer);
 
-      updatedTurns.push({
+      updatedTurns[i] = {
         ...turn,
         audioUrl: `/api/podcast/audio?assetId=${assetId}&file=${turnFilename}`,
-      });
+      };
     }
 
-    // Concatenate all turn MP3 buffers into a complete episode MP3
-    const fullEpisodeBuffer = Buffer.concat(turnAudioBuffers);
-    fs.writeFileSync(path.join(dir, "full_episode.mp3"), fullEpisodeBuffer);
+    // 2. Read any already existing turn audio files from disk for other turns
+    for (let i = 0; i < script.turns.length; i++) {
+      if (turnAudioBuffers.has(i)) continue;
 
-    const fullEpisodeUrl = `/api/podcast/audio?assetId=${assetId}&file=full_episode.mp3`;
+      const turnFilename = `turn_${i}.mp3`;
+      const turnPath = path.join(dir, turnFilename);
+      if (fs.existsSync(turnPath)) {
+        try {
+          const buf = fs.readFileSync(turnPath);
+          if (buf.length > 0) {
+            turnAudioBuffers.set(i, buf);
+            updatedTurns[i] = {
+              ...script.turns[i],
+              audioUrl: `/api/podcast/audio?assetId=${assetId}&file=${turnFilename}`,
+            };
+          }
+        } catch {
+          // Ignore read error
+        }
+      }
+    }
+
+    // 3. Concatenate all contiguous or available turn MP3 buffers into an episode MP3
+    const sortedBuffers: Buffer[] = [];
+    for (let i = 0; i < script.turns.length; i++) {
+      const buf = turnAudioBuffers.get(i);
+      if (buf) sortedBuffers.push(buf);
+    }
+
+    let fullEpisodeUrl = script.audioUrl || null;
+    if (sortedBuffers.length > 0) {
+      const fullEpisodeBuffer = Buffer.concat(sortedBuffers);
+      fs.writeFileSync(path.join(dir, "full_episode.mp3"), fullEpisodeBuffer);
+      fullEpisodeUrl = `/api/podcast/audio?assetId=${assetId}&file=full_episode.mp3&v=${Date.now()}`;
+    }
 
     // Persist audio URLs onto the asset payload
     const updatedPayload = {
@@ -183,7 +221,11 @@ export async function POST(request: NextRequest) {
       audioUrl: fullEpisodeUrl,
       turns: updatedTurns,
       engine,
-      totalTurns: updatedTurns.length,
+      startTurn,
+      endTurn,
+      generatedSectionTurnCount: endTurn - startTurn,
+      totalTurns: script.turns.length,
+      completedTurnsCount: updatedTurns.filter((t) => t.audioUrl).length,
     });
   } catch (error) {
     return fail(error, "Failed to generate podcast audio.");
