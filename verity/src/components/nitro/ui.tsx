@@ -47,14 +47,15 @@ export function ConsentField({ id, checked, onChange, children, compact = false 
 
 export function renderInline(text: string, onCite?: (n: number) => void): ReactNode[] {
   const parts: ReactNode[] = [];
-  const regex = /(\*\*[^*]+\*\*|`[^`]+`|\[\d+(?:\]\[\d+|,\s*\d+)*\])/g;
+  const regex = /(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|`[^`]+`|\[\d+(?:\]\[\d+|,\s*\d+)*\])/g;
   let last = 0;
   let key = 0;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(text))) {
     if (match.index > last) parts.push(text.slice(last, match.index));
     const token = match[0];
-    if (token.startsWith("**")) parts.push(<strong key={key++}>{token.slice(2, -2)}</strong>);
+    if (token.startsWith("***")) parts.push(<strong key={key++}><em>{token.slice(3, -3)}</em></strong>);
+    else if (token.startsWith("**")) parts.push(<strong key={key++}>{token.slice(2, -2)}</strong>);
     else if (token.startsWith("`")) parts.push(<code key={key++}>{token.slice(1, -1)}</code>);
     else {
       const numbers = token.replace(/[[\]]/g, " ").split(/[\s,]+/).filter(Boolean).map(Number);

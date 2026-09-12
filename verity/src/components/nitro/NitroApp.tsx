@@ -3,6 +3,7 @@
 import { FileCheck2, FileText, Headphones, Layers3, LayoutDashboard, ListChecks, Menu, Moon, PanelLeftClose, PanelLeftOpen, RefreshCw, Settings, Sun, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, describeScope, errorMessage } from "./client";
+import { applyTheme } from "./theme";
 import { Dashboard } from "./Dashboard";
 import { EditorView } from "./EditorView";
 import { Onboarding } from "./Onboarding";
@@ -17,10 +18,6 @@ const NAV: { id: WorkspaceView; label: string; icon: typeof FileText }[] = [
   { id: "flashcards", label: "Flashcards", icon: Layers3 },
   { id: "quizzes", label: "Quizzes", icon: ListChecks },
 ];
-
-function applyTheme(theme: "dark" | "light") {
-  document.documentElement.dataset.theme = theme;
-}
 
 export function NitroApp() {
   const [boot, setBoot] = useState<SettingsResponse | null>(null);
@@ -106,6 +103,8 @@ export function NitroApp() {
     try {
       await updateSettings({ theme: next });
     } catch (error) {
+      // Revert the optimistic switch so the UI matches the saved setting.
+      applyTheme(settings.theme);
       notify(errorMessage(error), "error");
     }
   };

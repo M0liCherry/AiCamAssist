@@ -241,8 +241,84 @@ export async function synthesizeKokoClone(
 ): Promise<Buffer> {
   const cleanEndpoint = (endpoint || "http://127.0.0.1:7860").replace(/\/+$/, "");
 
+  if (!referenceAudioBase64) {
+    throw new Error(
+      `KokoClone requires a reference voice sample to clone. Please upload a 3–10 second reference audio clip (.wav or .mp3) for Speaker 1 and Speaker 2 in the Podcast view, or select System Voices in Settings.`,
+    );
+  }
+
+  // 1. Try Gradio 6 API (upload reference audio + /gradio_api/call/clone_voice)
   try {
-    // 1. Try standard KokoClone Gradio /api/predict/ format
+    const rawBase64 = referenceAudioBase64.includes(",")
+      ? referenceAudioBase64.split(",")[1]
+      : referenceAudioBase64;
+    const audioBuffer = Buffer.from(rawBase64, "base64");
+
+    const formData = new FormData();
+    const blob = new Blob([audioBuffer], { type: "audio/wav" });
+    formData.append("files", blob, "reference.wav");
+
+    const uploadRes = await fetch(`${cleanEndpoint}/gradio_api/upload`, {
+      method: "POST",
+      body: formData,
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (uploadRes.ok) {
+      const uploadJson = await uploadRes.json();
+      const uploadedPath = Array.isArray(uploadJson) ? uploadJson[0] : uploadJson;
+      if (uploadedPath) {
+        const fileData = { path: uploadedPath, meta: { _type: "gradio.FileData" } };
+
+        const callRes = await fetch(`${cleanEndpoint}/gradio_api/call/clone_voice`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data: [text, lang, fileData],
+          }),
+          signal: AbortSignal.timeout(20000),
+        });
+
+        if (callRes.ok) {
+          const { event_id } = await callRes.json();
+          if (event_id) {
+            const streamRes = await fetch(`${cleanEndpoint}/gradio_api/call/clone_voice/${event_id}`, {
+              signal: AbortSignal.timeout(120000),
+            });
+            if (streamRes.ok) {
+              const streamText = await streamRes.text();
+              const lines = streamText.split("\n");
+              for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                  try {
+                    const parsed = JSON.parse(line.slice(6));
+                    const out = Array.isArray(parsed) ? parsed[0] : parsed;
+                    const pathOrUrl = out?.url || out?.path || (typeof out === "string" ? out : null);
+                    if (pathOrUrl) {
+                      const fileUrl = pathOrUrl.startsWith("http")
+                        ? pathOrUrl
+                        : `${cleanEndpoint}/gradio_api/file=${pathOrUrl}`;
+                      const dlRes = await fetch(fileUrl);
+                      if (dlRes.ok) {
+                        return Buffer.from(await dlRes.arrayBuffer());
+                      }
+                    }
+                  } catch {
+                    // Continue searching subsequent SSE lines
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch {
+    // Gradio 6 protocol attempt failed, try legacy Gradio
+  }
+
+  try {
+    // 2. Try legacy Gradio /api/predict/ format
     const gradioRes = await fetch(`${cleanEndpoint}/api/predict/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -268,11 +344,11 @@ export async function synthesizeKokoClone(
       }
     }
   } catch {
-    // Gradio attempt failed, try generic REST
+    // Legacy Gradio attempt failed, try REST
   }
 
   try {
-    // 2. Try REST format /clone or /tts
+    // 3. Try direct REST format /clone
     const restRes = await fetch(`${cleanEndpoint}/clone`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -289,7 +365,7 @@ export async function synthesizeKokoClone(
     }
   } catch (err) {
     throw new Error(
-      `Could not connect to KokoClone at ${cleanEndpoint}. Please start the KokoClone server (e.g. "python app.py" on port 7860). Error: ${err instanceof Error ? err.message : String(err)}`,
+      `Could not connect to KokoClone at ${cleanEndpoint}. Please start the KokoClone server (e.g. "cd kokoclone && .venv/bin/python app.py" on port 7860). Error: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
 

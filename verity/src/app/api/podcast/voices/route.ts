@@ -6,6 +6,11 @@ import {
   designPersonalizedVoiceElevenLabs,
   listElevenLabsVoices,
 } from "@/lib/podcast/audio";
+import {
+  checkKokoCloneStatus,
+  setupKokoClone,
+  startKokoCloneServer,
+} from "@/lib/podcast/kokoclone-manager";
 import { getElevenLabsApiKey, getPodcastAudioConfig } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
@@ -64,14 +69,32 @@ export async function POST(request: NextRequest) {
       return ok({ valid: true, tier: data.subscription?.tier || "active", characterCount: data.subscription?.character_count });
     }
 
-    if (action === "test-kokoclone") {
-      const endpoint = (String(body.endpoint || "http://127.0.0.1:7860")).replace(/\/+$/, "");
-      try {
-        const res = await fetch(`${endpoint}/`, { signal: AbortSignal.timeout(4000) });
-        return ok({ running: res.ok || res.status < 500, endpoint, status: res.status });
-      } catch (err) {
-        return ok({ running: false, endpoint, error: err instanceof Error ? err.message : String(err) });
-      }
+    if (action === "test-kokoclone" || action === "kokoclone-status") {
+      const endpoint = String(body.endpoint || "http://127.0.0.1:7860");
+      const status = await checkKokoCloneStatus(endpoint);
+      return ok({
+        ...status,
+        running: status.serverRunning,
+      });
+    }
+
+    if (action === "setup-kokoclone") {
+      const result = await setupKokoClone();
+      const status = await checkKokoCloneStatus(String(body.endpoint || "http://127.0.0.1:7860"));
+      return ok({
+        ...result,
+        status,
+      });
+    }
+
+    if (action === "start-kokoclone") {
+      const endpoint = String(body.endpoint || "http://127.0.0.1:7860");
+      const result = await startKokoCloneServer(endpoint);
+      const status = await checkKokoCloneStatus(endpoint);
+      return ok({
+        ...result,
+        status,
+      });
     }
 
     if (action === "design-from-personalization") {
@@ -108,6 +131,7 @@ export async function POST(request: NextRequest) {
       if (!audioBase64) throw new HttpError("Reference audio data is required.", 400);
 
       const rawBase64 = audioBase64.includes(",") ? audioBase64.split(",")[1] : audioBase64;
+      if (!rawBase64) throw new HttpError("Reference audio data is required.", 400);
       const audioBuffer = Buffer.from(rawBase64, "base64");
       const fileName = String(body.fileName || "reference.wav");
 

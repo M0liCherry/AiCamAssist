@@ -93,7 +93,7 @@ export async function generatePodcast(cfg: ProviderConfig, digest: string, scope
 }
 
 export async function generateFlashcards(cfg: ProviderConfig, digest: string, scopeTitle: string, count: number, personalization?: string): Promise<Flashcard[]> {
-  const user = personalize(`Study notes for "${scopeTitle}":\n\n${digest}\n\nCreate ${count} high-quality spaced-repetition flashcards. Each card tests one specific fact, definition, mechanism, or comparison from the notes. Questions must be answerable from the notes; answers should be concise (1–3 sentences) but complete. Assign each card a short topic label (2–4 words) so cards cluster into 3–6 sub-topics.\nReturn JSON: {"cards": [{"question": string, "answer": string, "topic": string}]}`, personalization);
+  const user = personalize(`Study notes for "${scopeTitle}":\n\n${digest}\n\nCreate ${count} high-quality spaced-repetition flashcards. Each card tests one specific fact, definition, mechanism, or comparison from the notes. Questions must be answerable from the notes; answers should be concise (1–3 sentences) but complete. Highlight key terms with **bold** (double asterisks only, never triple). Assign each card a short topic label (2–4 words) so cards cluster into 3–6 sub-topics.\nReturn JSON: {"cards": [{"question": string, "answer": string, "topic": string}]}`, personalization);
   return jsonTask(cfg, `You create precise study flashcards. ${GROUNDING}`, user, (raw) => {
     const obj = raw as { cards?: unknown };
     const list = Array.isArray(obj.cards) ? (obj.cards as Partial<Flashcard>[]) : [];

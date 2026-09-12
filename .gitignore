@@ -20,6 +20,13 @@ verity/.nitro/
 .env
 .env*.local
 
+# Local AI clones / services
+kokoclone/.venv/
+kokoclone/model/
+kokoclone/voice/
+kokoclone/*.wav
+kokoclone/*.mp3
+
 # OS / editor
 .DS_Store
 Thumbs.db
