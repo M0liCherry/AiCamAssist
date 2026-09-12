@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, Cloud, Cpu, Download, Eye, EyeOff, HardDrive, Headphones, KeyRound, ListRestart, RefreshCw, ServerCog, ShieldCheck, Sparkles, Wifi, WifiOff } from "lucide-react";
+import { ArrowRight, Check, Cloud, Cpu, Download, Eye, EyeOff, HardDrive, KeyRound, ListRestart, RefreshCw, ServerCog, ShieldCheck, Sparkles, Wifi, WifiOff } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage, formatBytes } from "./client";
 import type { Provider, PublicSettings, SettingsResponse } from "./types";

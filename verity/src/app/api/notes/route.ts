@@ -104,7 +104,8 @@ export async function POST(request: NextRequest) {
       if (!note) throw new HttpError("Note not found.", 404);
       if (!note.content.trim()) throw new HttpError("This note is empty; add content before summarizing.");
       const cfg = requireProvider(await getProviderConfig());
-      const summary = await summarizeNote(cfg, note.title, note.content.slice(0, 60_000));
+      const personalization = typeof body.personalization === "string" ? cleanText(body.personalization, 1500) || undefined : undefined;
+      const summary = await summarizeNote(cfg, note.title, note.content.slice(0, 60_000), personalization);
       const [updated] = await db.update(notes).set({ summary, updatedAt: new Date() }).where(eq(notes.id, noteId)).returning();
       return ok({ note: updated });
     }
@@ -165,6 +166,7 @@ export async function PATCH(request: NextRequest) {
       subjectId = await subjectIdForChapter(db, patch.chapterId);
     }
     const [updated] = await db.update(notes).set(patch).where(eq(notes.id, id)).returning();
+    if (!updated) throw new HttpError("The note could not be found.", 404);
 
     if (contentChanged || subjectId !== null) {
       const cfg = await getProviderConfig();
@@ -183,7 +185,8 @@ export async function DELETE(request: NextRequest) {
   try {
     const id = requireInt(request.nextUrl.searchParams.get("id"), "Note id");
     const db = await getDb();
-    await db.delete(notes).where(and(eq(notes.id, id)));
+    const [deleted] = await db.delete(notes).where(and(eq(notes.id, id))).returning();
+    if (!deleted) throw new HttpError("The note could not be found.", 404);
     return ok({ ok: true });
   } catch (error) {
     return fail(error, "The note could not be deleted.");

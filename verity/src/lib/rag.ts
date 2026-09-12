@@ -70,9 +70,12 @@ export async function indexNote(
   note: { id: number; chapterId: number; content: string },
   subjectId: number,
 ): Promise<"embedded" | "lexical" | "none"> {
-  await db.delete(chunks).where(eq(chunks.noteId, note.id));
   const pieces = chunkText(note.content);
-  if (!pieces.length) return "none";
+  if (!pieces.length) {
+    await db.delete(chunks).where(eq(chunks.noteId, note.id));
+    return "none";
+  }
+  // Embeddings hit the network, so resolve them before opening a transaction.
   const embedded = cfg.provider !== "none" ? await embedTexts(cfg, pieces, "document") : null;
   const modelId = embedded ? embeddingModelId(cfg.provider, embedded.model) : null;
   const rows = pieces.map((content, position) => ({
@@ -84,9 +87,12 @@ export async function indexNote(
     embedding: embedded ? embedded.vectors[position] : null,
     embeddingModel: modelId,
   }));
-  for (let i = 0; i < rows.length; i += 200) {
-    await db.insert(chunks).values(rows.slice(i, i + 200));
-  }
+  await db.transaction(async (tx) => {
+    await tx.delete(chunks).where(eq(chunks.noteId, note.id));
+    for (let i = 0; i < rows.length; i += 200) {
+      await tx.insert(chunks).values(rows.slice(i, i + 200));
+    }
+  });
   return embedded ? "embedded" : "lexical";
 }
 

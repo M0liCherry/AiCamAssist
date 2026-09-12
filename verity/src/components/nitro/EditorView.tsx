@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, AtSign, Bot, Check, Clock3, Edit3, Eraser, FileText, FolderInput, History, PanelRightClose, PanelRightOpen, RefreshCw, Save, Send, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, AtSign, Check, Clock3, Edit3, Eraser, FileText, FolderInput, History, PanelRightClose, PanelRightOpen, RefreshCw, Save, Send, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage, formatDate } from "./client";
 import { buildPersonalizationPrompt, getStoredPersonalization } from "./personalization";
@@ -98,7 +98,7 @@ export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiRea
     setSummarizing(true);
     setSummaryError(null);
     try {
-      const data = await api<{ note: NoteFull }>("/api/notes", { method: "POST", json: { action: "summarize", noteId: note.id } });
+      const data = await api<{ note: NoteFull }>("/api/notes", { method: "POST", json: { action: "summarize", noteId: note.id, personalization: buildPersonalizationPrompt(getStoredPersonalization()) } });
       setNote({ ...note, summary: data.note.summary });
       notify("Summary generated.");
     } catch (error) {

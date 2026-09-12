@@ -1,6 +1,6 @@
 "use client";
 
-import { FileCheck2, FileText, Headphones, Layers3, LayoutDashboard, ListChecks, Menu, Moon, PanelLeftClose, PanelLeftOpen, RefreshCw, Settings, Sparkles, Sun, X } from "lucide-react";
+import { FileCheck2, FileText, Headphones, Layers3, LayoutDashboard, ListChecks, Menu, Moon, PanelLeftClose, PanelLeftOpen, RefreshCw, Settings, Sun, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, describeScope, errorMessage } from "./client";
 import { Dashboard } from "./Dashboard";

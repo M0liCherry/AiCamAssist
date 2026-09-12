@@ -4,7 +4,7 @@ import { getDb, type Database } from "@/db";
 import { flashcardProgress, generatedAssets, quizAttempts } from "@/db/schema";
 import { buildDigest, generateFlashcards, generatePodcast, generateQuiz, type PodcastLength } from "@/lib/ai/generate";
 import { contextBudgetChars } from "@/lib/ai/provider";
-import { fail, HttpError, ok, parseScope, readJson, requireInt } from "@/lib/http";
+import { cleanText, fail, HttpError, ok, parseScope, readJson, requireInt } from "@/lib/http";
 import { loadScope } from "@/lib/rag";
 import { getProviderConfig, requireProvider } from "@/lib/settings";
 
@@ -53,23 +53,24 @@ export async function POST(request: NextRequest) {
       throw new HttpError(scope.scopeType === "chapter" ? "This chapter has no notes yet. Import a document, audio, or link first." : "This subject has no notes yet. Add notes to one of its chapters first.");
     }
     const digest = buildDigest(scopeInfo.notes, contextBudgetChars(cfg));
+    const personalization = typeof body.personalization === "string" ? cleanText(body.personalization, 1500) || undefined : undefined;
     const options: Record<string, unknown> = { truncated: digest.truncated, provider: cfg.provider, model: cfg.model };
     let payload: unknown;
 
     if (kind === "podcast") {
       const length = (["short", "medium", "long"].includes(String(body.length)) ? String(body.length) : "short") as PodcastLength;
       options.length = length;
-      payload = await generatePodcast(cfg, digest.text, scopeInfo.title, length);
+      payload = await generatePodcast(cfg, digest.text, scopeInfo.title, length, personalization);
     } else if (kind === "flashcards") {
       const rawCount = Number(body.count);
       const count = Number.isInteger(rawCount) && rawCount >= 1 && rawCount <= 100 ? rawCount : 12;
       options.count = count;
-      payload = { cards: await generateFlashcards(cfg, digest.text, scopeInfo.title, count) };
+      payload = { cards: await generateFlashcards(cfg, digest.text, scopeInfo.title, count, personalization) };
     } else {
       const difficulty = ["Beginner", "Intermediate", "Advanced"].includes(String(body.difficulty)) ? String(body.difficulty) : "Intermediate";
       const count = [5, 10, 20].includes(Number(body.count)) ? Number(body.count) : 10;
       Object.assign(options, { difficulty, count });
-      payload = { questions: await generateQuiz(cfg, digest.text, scopeInfo.title, difficulty, count) };
+      payload = { questions: await generateQuiz(cfg, digest.text, scopeInfo.title, difficulty, count, personalization) };
     }
 
     const [asset] = await db
@@ -118,11 +119,18 @@ export async function PATCH(request: NextRequest) {
 
     if (body.attempt && typeof body.attempt === "object") {
       const attempt = body.attempt as { answers?: Record<string, number>; score?: number; total?: number; topicBreakdown?: Record<string, { correct: number; total: number }> };
+      const [asset] = await db.select({ id: generatedAssets.id }).from(generatedAssets).where(eq(generatedAssets.id, assetId));
+      if (!asset) throw new HttpError("Study set not found.", 404);
+      const score = Number(attempt.score ?? 0);
+      const total = Number(attempt.total ?? 0);
+      if (!Number.isFinite(score) || !Number.isFinite(total) || score < 0 || total < 0) {
+        throw new HttpError("Score and total must be valid numbers.");
+      }
       await db.insert(quizAttempts).values({
         assetId,
         answers: attempt.answers ?? {},
-        score: Number(attempt.score ?? 0),
-        total: Number(attempt.total ?? 0),
+        score,
+        total,
         topicBreakdown: attempt.topicBreakdown ?? {},
       });
       const attempts = await db.select().from(quizAttempts).where(eq(quizAttempts.assetId, assetId)).orderBy(desc(quizAttempts.id)).limit(10);

@@ -70,9 +70,14 @@ async function jsonTask<T>(cfg: ProviderConfig, system: string, user: string, va
 
 const GROUNDING = "Use only the provided study notes. Never invent facts, names, numbers, or sources that the notes do not support. Output JSON only.";
 
-export async function generatePodcast(cfg: ProviderConfig, digest: string, scopeTitle: string, length: PodcastLength): Promise<PodcastScript> {
+/** Appends the user's stored learning preferences (persona, style, name) when set. */
+function personalize(prompt: string, personalization?: string): string {
+  return personalization ? `${prompt}\n\nUser's Personal Learning Preferences:\n${personalization}\n` : prompt;
+}
+
+export async function generatePodcast(cfg: ProviderConfig, digest: string, scopeTitle: string, length: PodcastLength, personalization?: string): Promise<PodcastScript> {
   const turns = PODCAST_TURNS[length];
-  const user = `Study notes for "${scopeTitle}":\n\n${digest}\n\nWrite an educational podcast conversation with exactly ${turns} alternating turns between "host" (opens the show, guides the discussion, asks clarifying questions, and closes with a recap) and "guest" (an expert who explains concepts precisely with concrete examples from the notes). Each turn is 2–4 natural spoken sentences. Cover the most important ideas in a logical order and define key terms when they first appear.\nReturn JSON: {"title": string, "summary": string, "turns": [{"speaker": "host" | "guest", "text": string}]}`;
+  const user = personalize(`Study notes for "${scopeTitle}":\n\n${digest}\n\nWrite an educational podcast conversation with exactly ${turns} alternating turns between "host" (opens the show, guides the discussion, asks clarifying questions, and closes with a recap) and "guest" (an expert who explains concepts precisely with concrete examples from the notes). Each turn is 2–4 natural spoken sentences. Cover the most important ideas in a logical order and define key terms when they first appear.\nReturn JSON: {"title": string, "summary": string, "turns": [{"speaker": "host" | "guest", "text": string}]}`, personalization);
   return jsonTask(cfg, `You write engaging, accurate two-person educational podcast scripts. ${GROUNDING}`, user, (raw) => {
     const obj = raw as { title?: unknown; summary?: unknown; turns?: unknown };
     const list = Array.isArray(obj.turns) ? (obj.turns as Partial<PodcastTurn>[]) : [];
@@ -87,8 +92,8 @@ export async function generatePodcast(cfg: ProviderConfig, digest: string, scope
   });
 }
 
-export async function generateFlashcards(cfg: ProviderConfig, digest: string, scopeTitle: string, count: number): Promise<Flashcard[]> {
-  const user = `Study notes for "${scopeTitle}":\n\n${digest}\n\nCreate ${count} high-quality spaced-repetition flashcards. Each card tests one specific fact, definition, mechanism, or comparison from the notes. Questions must be answerable from the notes; answers should be concise (1–3 sentences) but complete. Assign each card a short topic label (2–4 words) so cards cluster into 3–6 sub-topics.\nReturn JSON: {"cards": [{"question": string, "answer": string, "topic": string}]}`;
+export async function generateFlashcards(cfg: ProviderConfig, digest: string, scopeTitle: string, count: number, personalization?: string): Promise<Flashcard[]> {
+  const user = personalize(`Study notes for "${scopeTitle}":\n\n${digest}\n\nCreate ${count} high-quality spaced-repetition flashcards. Each card tests one specific fact, definition, mechanism, or comparison from the notes. Questions must be answerable from the notes; answers should be concise (1–3 sentences) but complete. Assign each card a short topic label (2–4 words) so cards cluster into 3–6 sub-topics.\nReturn JSON: {"cards": [{"question": string, "answer": string, "topic": string}]}`, personalization);
   return jsonTask(cfg, `You create precise study flashcards. ${GROUNDING}`, user, (raw) => {
     const obj = raw as { cards?: unknown };
     const list = Array.isArray(obj.cards) ? (obj.cards as Partial<Flashcard>[]) : [];
@@ -101,14 +106,14 @@ export async function generateFlashcards(cfg: ProviderConfig, digest: string, sc
   });
 }
 
-export async function generateQuiz(cfg: ProviderConfig, digest: string, scopeTitle: string, difficulty: string, count: number): Promise<QuizQuestion[]> {
+export async function generateQuiz(cfg: ProviderConfig, digest: string, scopeTitle: string, difficulty: string, count: number, personalization?: string): Promise<QuizQuestion[]> {
   const guidance =
     difficulty === "Beginner"
       ? "Focus on definitions, core terminology, and direct recall."
       : difficulty === "Advanced"
         ? "Focus on analysis, comparisons, edge cases, trade-offs, and applying concepts to new scenarios. Distractors must be plausible."
         : "Mix recall with understanding: relationships between ideas, why something works, and simple application.";
-  const user = `Study notes for "${scopeTitle}":\n\n${digest}\n\nWrite ${count} multiple-choice questions at ${difficulty} level. ${guidance} Each question has exactly 4 options with exactly one correct answer; vary the position of the correct option. Provide a one- or two-sentence explanation grounded in the notes. Assign each question a short topic label (2–4 words) so the set spans 3–5 sub-topics.\nReturn JSON: {"questions": [{"question": string, "options": [string, string, string, string], "correctIndex": 0 | 1 | 2 | 3, "topic": string, "explanation": string}]}`;
+  const user = personalize(`Study notes for "${scopeTitle}":\n\n${digest}\n\nWrite ${count} multiple-choice questions at ${difficulty} level. ${guidance} Each question has exactly 4 options with exactly one correct answer; vary the position of the correct option. Provide a one- or two-sentence explanation grounded in the notes. Assign each question a short topic label (2–4 words) so the set spans 3–5 sub-topics.\nReturn JSON: {"questions": [{"question": string, "options": [string, string, string, string], "correctIndex": 0 | 1 | 2 | 3, "topic": string, "explanation": string}]}`, personalization);
   return jsonTask(cfg, `You write fair, unambiguous assessment questions. ${GROUNDING}`, user, (raw) => {
     const obj = raw as { questions?: unknown };
     const list = Array.isArray(obj.questions) ? (obj.questions as Partial<QuizQuestion>[]) : [];
@@ -125,12 +130,12 @@ export async function generateQuiz(cfg: ProviderConfig, digest: string, scopeTit
   });
 }
 
-export async function summarizeNote(cfg: ProviderConfig, title: string, content: string): Promise<string> {
+export async function summarizeNote(cfg: ProviderConfig, title: string, content: string, personalization?: string): Promise<string> {
   const text = await chatCompletion(
     cfg,
     [
       { role: "system", content: "You summarize study material faithfully. Use only the provided text; do not add outside facts. Write Markdown." },
-      { role: "user", content: `Summarize the note "${title}" for revision. Produce:\n## Key takeaways\n(5–8 bullet points)\n## Key terms\n(term — short definition, up to 8)\n## One-paragraph overview\n\nNote text:\n${content}` },
+      { role: "user", content: personalize(`Summarize the note "${title}" for revision. Produce:\n## Key takeaways\n(5–8 bullet points)\n## Key terms\n(term — short definition, up to 8)\n## One-paragraph overview\n\nNote text:\n${content}`, personalization) },
     ],
     { temperature: 0.3, maxTokens: isLocalProvider(cfg.provider) ? 1200 : 2500 },
   );

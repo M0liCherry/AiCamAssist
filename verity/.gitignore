@@ -6,5 +6,8 @@ data/
 desktop/node_modules/
 desktop/dist/
 *.log
+# Local env (real secrets) — the template .env.example stays tracked.
+.env
 .env*.local
+!.env.example
 *.tsbuildinfo

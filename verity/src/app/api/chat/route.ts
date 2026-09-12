@@ -67,8 +67,12 @@ export async function POST(request: NextRequest) {
     );
     const citations: Citation[] = retrieved.map((r) => ({ n: r.n, noteId: r.noteId, noteTitle: r.noteTitle, chunkId: r.chunkId, snippet: r.content.slice(0, 280) }));
 
-    const [userRow] = await db.insert(chatMessages).values({ scopeType: scope.scopeType, scopeId: scope.scopeId, role: "user", content: message, citations: [] }).returning();
-    const [assistantRow] = await db.insert(chatMessages).values({ scopeType: scope.scopeType, scopeId: scope.scopeId, role: "assistant", content: answer, citations }).returning();
+    // Saved atomically: a failed assistant insert must not leave an orphan user message.
+    const [userRow, assistantRow] = await db.transaction(async (tx) => {
+      const [user] = await tx.insert(chatMessages).values({ scopeType: scope.scopeType, scopeId: scope.scopeId, role: "user", content: message, citations: [] }).returning();
+      const [assistant] = await tx.insert(chatMessages).values({ scopeType: scope.scopeType, scopeId: scope.scopeId, role: "assistant", content: answer, citations }).returning();
+      return [user, assistant] as const;
+    });
     return ok({ messages: [userRow, assistantRow] });
   } catch (error) {
     return fail(error, "Verity could not answer right now.");
