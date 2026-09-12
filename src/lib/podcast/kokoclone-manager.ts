@@ -112,8 +112,8 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
   let updatedPaths = getKokoclonePaths();
   if (!updatedPaths.hasVenv) {
     try {
-      // Try uv first for ultra fast installation
-      await execAsync("uv venv --python 3.12 .venv", { cwd: updatedPaths.kokoDir });
+      // Try uv first for ultra fast installation (with seed packages like pip)
+      await execAsync("uv venv --seed .venv", { cwd: updatedPaths.kokoDir });
     } catch {
       try {
         await execAsync("python3 -m venv .venv || python -m venv .venv", { cwd: updatedPaths.kokoDir });
@@ -127,24 +127,103 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
   }
 
   updatedPaths = getKokoclonePaths();
+  if (!updatedPaths.pythonBin) {
+    return {
+      ok: false,
+      message: "Python binary was not found in the virtual environment (.venv).",
+    };
+  }
 
-  // 3. Install requirements into the virtual environment
-  const hasPyproject = fs.existsSync(path.join(updatedPaths.kokoDir, "pyproject.toml"));
-  const installTarget = hasPyproject ? "-e ." : "-r requirements.txt";
+  const pyBin = `"${updatedPaths.pythonBin}"`;
+  const venvUv = process.platform === "win32"
+    ? path.join(updatedPaths.kokoDir, ".venv", "Scripts", "uv.exe")
+    : path.join(updatedPaths.kokoDir, ".venv", "bin", "uv");
 
+  // Determine uv command (system uv, .venv uv, or bootstrap uv via pip)
+  let uvCommand = "uv";
+  let uvAvailable = false;
   try {
-    const pythonArg = updatedPaths.pythonBin ? ` --python "${updatedPaths.pythonBin}"` : "";
-    await execAsync(`uv pip install${pythonArg} ${installTarget}`, {
-      cwd: updatedPaths.kokoDir,
-      maxBuffer: 10 * 1024 * 1024,
-    });
+    await execAsync("uv --version");
+    uvAvailable = true;
   } catch {
+    if (fs.existsSync(venvUv)) {
+      uvCommand = `"${venvUv}"`;
+      uvAvailable = true;
+    } else {
+      // Try bootstrapping uv into .venv for full [tool.uv.sources] support
+      try {
+        await execAsync(`${pyBin} -m pip install uv`, { cwd: updatedPaths.kokoDir, maxBuffer: 10 * 1024 * 1024 });
+        if (fs.existsSync(venvUv)) {
+          uvCommand = `"${venvUv}"`;
+          uvAvailable = true;
+        }
+      } catch {
+        uvAvailable = false;
+      }
+    }
+  }
+
+  let installSuccess = false;
+
+  // Strategy A: Use uv (natively resolves [tool.uv.sources] git packages like kanade-tokenizer)
+  if (uvAvailable) {
     try {
-      const pipCmd = process.platform === "win32" ? path.join(".venv", "Scripts", "pip") : path.join(".venv", "bin", "pip");
-      await execAsync(`"${pipCmd}" install ${installTarget}`, {
+      await execAsync(`${uvCommand} pip install --python ${pyBin} -e .`, {
         cwd: updatedPaths.kokoDir,
-        maxBuffer: 10 * 1024 * 1024,
+        maxBuffer: 15 * 1024 * 1024,
       });
+      installSuccess = true;
+    } catch {
+      try {
+        await execAsync(
+          `${uvCommand} pip install --python ${pyBin} "torch>=2.1.0" "torchaudio>=2.1.0" "kokoro>=0.9.0" "gradio>=6.8.0" "git+https://github.com/frothywater/kanade-tokenizer" soundfile huggingface_hub ninja setuptools "misaki[en,ja,zh]>=0.9.4"`,
+          { cwd: updatedPaths.kokoDir, maxBuffer: 15 * 1024 * 1024 },
+        );
+        installSuccess = true;
+      } catch {
+        installSuccess = false;
+      }
+    }
+  }
+
+  // Strategy B: Fallback to standard pip (explicit git/zip for kanade-tokenizer, NEVER pip -e . without --no-deps)
+  if (!installSuccess) {
+    try {
+      // 1. Install kanade-tokenizer directly (not on PyPI)
+      try {
+        await execAsync(`${pyBin} -m pip install "git+https://github.com/frothywater/kanade-tokenizer"`, {
+          cwd: updatedPaths.kokoDir,
+          maxBuffer: 15 * 1024 * 1024,
+        });
+      } catch {
+        // Fallback to github zip archive if git binary is not found in PATH on Windows
+        await execAsync(`${pyBin} -m pip install "https://github.com/frothywater/kanade-tokenizer/archive/refs/heads/main.zip"`, {
+          cwd: updatedPaths.kokoDir,
+          maxBuffer: 15 * 1024 * 1024,
+        });
+      }
+
+      // 2. Install all core PyPI packages
+      await execAsync(
+        `${pyBin} -m pip install "torch>=2.1.0" "torchaudio>=2.1.0" "kokoro>=0.9.0" "gradio>=6.8.0" soundfile huggingface_hub ninja setuptools "misaki[en,ja,zh]>=0.9.4"`,
+        { cwd: updatedPaths.kokoDir, maxBuffer: 15 * 1024 * 1024 },
+      );
+
+      // 3. Install requirements.txt if present
+      if (fs.existsSync(path.join(updatedPaths.kokoDir, "requirements.txt"))) {
+        await execAsync(`${pyBin} -m pip install -r requirements.txt`, {
+          cwd: updatedPaths.kokoDir,
+          maxBuffer: 15 * 1024 * 1024,
+        });
+      }
+
+      // 4. Install kokoclone itself in editable mode without dependency resolution (so pip doesn't query PyPI for kanade-tokenizer)
+      await execAsync(`${pyBin} -m pip install -e . --no-deps`, {
+        cwd: updatedPaths.kokoDir,
+        maxBuffer: 15 * 1024 * 1024,
+      });
+
+      installSuccess = true;
     } catch (err) {
       return {
         ok: false,
