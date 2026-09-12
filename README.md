@@ -49,8 +49,8 @@ VerityAI turns lecture recordings, PDFs, slides, and web articles into a searcha
 
 ```bash
 npm install
-# DATABASE_URL in .env points at PostgreSQL
-npx drizzle-kit push
+# Optional: DATABASE_URL in .env points at PostgreSQL for server mode.
+# Either engine migrates itself on startup — no manual push needed.
 npm run dev
 ```
 
@@ -64,7 +64,7 @@ npm install                 # electron + electron-builder (dev-only)
 npm run dist                # → desktop/dist/VerityAI-Setup-1.0.0.exe and VerityAI-1.0.0.appx
 ```
 
-`scripts/build-renderer.mjs` builds Next.js with `NITRO_DESKTOP_BUILD=1` (standalone output) and copies static assets, `public/`, and the `drizzle/` migrations next to `server.js`. electron-builder packages that folder as `resources/app`.
+`desktop/scripts/build-renderer.mjs` builds Next.js with `NITRO_DESKTOP_BUILD=1` (standalone output) and copies static assets, `public/`, and the `drizzle/` migrations next to `server.js`. electron-builder packages that folder as `resources/app`.
 
 * **NSIS `.exe`** — per-user installer, custom install directory, uninstaller keeps user data.
 * **MSIX/AppX** — for Store or sideloading; set a real `publisher` (`CN=…` matching your code-signing certificate) in `desktop/package.json` before signing.

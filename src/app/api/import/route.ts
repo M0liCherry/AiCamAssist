@@ -45,9 +45,10 @@ async function storeSource(db: Database, cfg: ProviderConfig, chapterId: number,
     const [ready] = await db.update(notes).set({ status: "ready", indexState }).where(eq(notes.id, note.id)).returning();
     return ready;
   } catch (error) {
+    console.error("Indexing failed", error);
     const [ready] = await db
       .update(notes)
-      .set({ status: "ready", indexState: "lexical", errorMessage: error instanceof Error ? error.message : "Indexing failed" })
+      .set({ status: "ready", indexState: "lexical", errorMessage: "Search indexing hit an error; keyword search still works." })
       .where(eq(notes.id, note.id))
       .returning();
     return ready;

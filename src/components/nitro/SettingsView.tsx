@@ -461,6 +461,11 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
           )}
 
           {/* Voice Selection & Personalized Voice Creator */}
+          {voicesFailed && !loadingVoices && (
+            <div style={{ marginBottom: 10 }}>
+              <InlineAlert tone="error">Could not load ElevenLabs voices. Test the connection above to retry.</InlineAlert>
+            </div>
+          )}
           <div className="personalization-grid" style={{ marginTop: 16 }}>
             <label className="field">
               <span>Speaker 1 (Host Voice)</span>
@@ -646,7 +651,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
           <div className="settings-card-head"><span><ShieldCheck size={20} aria-hidden="true" /></span><div><h2 id="diag-title">Privacy &amp; diagnostics</h2><p>Verity AI has no analytics, tracking, or crash-upload endpoint. Diagnostics, if enabled, are written to a local file only.</p></div></div>
           <label className="toggle-row" htmlFor="diagnostics-setting">
             <span><strong>Local diagnostics log</strong><small>{environment.logPath}</small></span>
-            <input id="diagnostics-setting" type="checkbox" role="switch" aria-checked={settings.diagnosticsOptIn} checked={settings.diagnosticsOptIn} onChange={(event) => void update({ diagnosticsOptIn: event.target.checked }, event.target.checked ? "Local diagnostics enabled." : "Diagnostics disabled.")} />
+            <input id="diagnostics-setting" type="checkbox" checked={settings.diagnosticsOptIn} onChange={(event) => void update({ diagnosticsOptIn: event.target.checked }, event.target.checked ? "Local diagnostics enabled." : "Diagnostics disabled.")} />
           </label>
           <p className="help-text">Privacy Policy accepted {settings.privacyConsentAt ? new Date(settings.privacyConsentAt).toLocaleString() : "—"}.{settings.providerConsentAt ? ` API transmission consent given ${new Date(settings.providerConsentAt).toLocaleString()}.` : ""}</p>
         </section>

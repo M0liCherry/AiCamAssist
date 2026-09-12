@@ -447,7 +447,10 @@ export function PodcastsView(props: StudyProps) {
       setHasElevenKey(true);
       setKeySavedMessage("ElevenLabs key saved to your settings!");
       props.notify("ElevenLabs key saved.", "success");
-      const vRes = await api<{ voices: Array<any> }>(`/api/podcast/voices?apiKey=${encodeURIComponent(inlineElevenKey.trim())}`);
+      const vRes = await api<{ voices: Array<any> }>("/api/podcast/voices", {
+        method: "POST",
+        json: { action: "list-voices", apiKey: inlineElevenKey.trim() || undefined },
+      });
       if (vRes?.voices) setElevenVoices(vRes.voices);
     } catch (err) {
       props.notify(errorMessage(err), "error");

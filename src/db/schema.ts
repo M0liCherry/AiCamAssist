@@ -7,6 +7,7 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
 
@@ -153,7 +154,7 @@ export const flashcardProgress = pgTable(
     dueAt: timestamp("due_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index("progress_asset_idx").on(table.assetId)],
+  (table) => [index("progress_asset_idx").on(table.assetId), uniqueIndex("progress_asset_card_idx").on(table.assetId, table.cardIndex)],
 );
 
 /** Completed quiz attempts with per-topic mastery. */

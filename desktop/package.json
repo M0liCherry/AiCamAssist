@@ -9,7 +9,7 @@
     "name": "VerityAI Project",
     "email": "support@VerityAI.example"
   },
-  "license": "SEE LICENSE IN ../LICENSE.md",
+  "license": "SEE LICENSE IN ../LICENSE",
   "scripts": {
     "build:renderer": "node scripts/build-renderer.mjs",
     "start": "electron .",
@@ -43,10 +43,6 @@
         "filter": [
           "**/*"
         ]
-      },
-      {
-        "from": "../.next/standalone/node_modules",
-        "to": "app/node_modules"
       }
     ],
     "win": {
@@ -66,7 +62,7 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false,
-      "license": "../LICENSE.md",
+      "license": "../LICENSE",
       "shortcutName": "VerityAI"
     },
     "appx": {

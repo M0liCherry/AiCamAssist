@@ -14,13 +14,14 @@ export const dynamic = "force-dynamic";
  * once into the data directory and reused offline afterwards.
  */
 const globalStt = globalThis as typeof globalThis & {
-  __nitroStt?: { model: string; pipe: Promise<AutomaticSpeechRecognitionPipeline> };
+  __nitroStt?: Map<string, Promise<AutomaticSpeechRecognitionPipeline>>;
 };
 
 import fs from "node:fs";
 
 async function loadTranscriber(model: string) {
-  if (globalStt.__nitroStt?.model === model) return globalStt.__nitroStt.pipe;
+  const cached = globalStt.__nitroStt?.get(model);
+  if (cached) return cached;
   const pipe = (async () => {
     const { pipeline, env } = await import("@huggingface/transformers");
     const cacheDir = path.join(dataDirectory(), "models");
@@ -41,9 +42,11 @@ async function loadTranscriber(model: string) {
       );
     }
   })();
-  globalStt.__nitroStt = { model, pipe };
+  if (!globalStt.__nitroStt) globalStt.__nitroStt = new Map();
+  globalStt.__nitroStt.set(model, pipe);
   pipe.catch(() => {
-    globalStt.__nitroStt = undefined;
+    // Only evict if a newer load hasn't replaced this entry.
+    if (globalStt.__nitroStt?.get(model) === pipe) globalStt.__nitroStt.delete(model);
   });
   return pipe;
 }

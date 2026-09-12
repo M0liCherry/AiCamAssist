@@ -15,6 +15,13 @@
       "when": 1789139000000,
       "tag": "0001_podcast_audio",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789145000000,
+      "tag": "0002_progress_unique",
+      "breakpoints": true
     }
   ]
 }

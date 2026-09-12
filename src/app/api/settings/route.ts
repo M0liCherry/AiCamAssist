@@ -126,15 +126,17 @@ export async function DELETE(request: NextRequest) {
   try {
     if (request.nextUrl.searchParams.get("confirm") !== "ERASE") throw new HttpError("Confirmation is required to erase local data.");
     const db = await getDb();
-    await db.delete(quizAttempts);
-    await db.delete(flashcardProgress);
-    await db.delete(generatedAssets);
-    await db.delete(chatMessages);
-    await db.delete(chunks);
-    await db.delete(notes);
-    await db.delete(chapters);
-    await db.delete(subjects);
-    await db.delete(settings);
+    await db.transaction(async (tx) => {
+      await tx.delete(quizAttempts);
+      await tx.delete(flashcardProgress);
+      await tx.delete(generatedAssets);
+      await tx.delete(chatMessages);
+      await tx.delete(chunks);
+      await tx.delete(notes);
+      await tx.delete(chapters);
+      await tx.delete(subjects);
+      await tx.delete(settings);
+    });
     // Remove generated files too (keeps local.key and cached models so setup stays cheap).
     fs.rmSync(path.join(dataDirectory(), "media"), { recursive: true, force: true });
     fs.rmSync(diagnosticsLogPath(), { force: true });

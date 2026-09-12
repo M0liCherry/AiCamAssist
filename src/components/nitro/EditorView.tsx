@@ -354,7 +354,7 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
                   {message.citations.map((citation: Citation) => (
                     <div className={`citation ${openSource?.messageId === message.id && openSource.n === citation.n ? "highlight" : ""}`} key={citation.n} id={`cite-${message.id}-${citation.n}`}>
                       <span className="cite-badge" aria-hidden="true">{citation.n}</span>
-                      <div><strong>{citation.noteTitle}</strong><p>{citation.snippet}…</p><button type="button" className="text-button" onClick={() => { const item = scopeNotes.find((s) => s.id === citation.noteId); onOpenNote(citation.noteId, item?.chapterId ?? activeNote?.chapterId ?? scope.scopeId); }}>Open note</button></div>
+                      <div><strong>{citation.noteTitle}</strong><p>{citation.snippet}…</p><button type="button" className="text-button" onClick={() => { const item = scopeNotes.find((s) => s.id === citation.noteId); const chapterId = item?.chapterId ?? activeNote?.chapterId; if (chapterId === undefined) { notify("That note is not in the current scope.", "error"); return; } onOpenNote(citation.noteId, chapterId); }}>Open note</button></div>
                     </div>
                   ))}
                 </details>

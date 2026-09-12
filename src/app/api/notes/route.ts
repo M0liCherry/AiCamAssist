@@ -40,7 +40,9 @@ async function reindex(db: Database, noteId: number) {
     const indexState = await indexNote(db, cfg, note, subjectId);
     await db.update(notes).set({ indexState, status: "ready", errorMessage: null }).where(eq(notes.id, noteId));
   } catch (error) {
-    await db.update(notes).set({ indexState: "lexical", status: "ready", errorMessage: error instanceof Error ? error.message : "Indexing failed" }).where(eq(notes.id, noteId));
+    // Store a user-safe message; raw internals stay in the server log, not the DB/API.
+    console.error("Indexing failed", error);
+    await db.update(notes).set({ indexState: "lexical", status: "ready", errorMessage: "Search indexing hit an error; keyword search still works." }).where(eq(notes.id, noteId));
   }
 }
 

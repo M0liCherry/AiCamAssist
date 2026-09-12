@@ -658,7 +658,7 @@ export function Onboarding({ boot, onComplete }: { boot: SettingsResponse; onCom
               <p className="lead">Crash and error diagnostics are <strong>off by default</strong>. If you opt in, VerityAI appends error details to a log file on this computer so you can attach it to a support request. Nothing is uploaded automatically.</p>
               <label className="toggle-row" htmlFor="diagnostics-toggle">
                 <span><strong>Local diagnostics log</strong><small>{boot.environment.logPath}</small></span>
-                <input id="diagnostics-toggle" type="checkbox" role="switch" aria-checked={diagnostics} checked={diagnostics} onChange={(event) => setDiagnostics(event.target.checked)} />
+                <input id="diagnostics-toggle" type="checkbox" checked={diagnostics} onChange={(event) => setDiagnostics(event.target.checked)} />
               </label>
               <p className="help-text">You can change this any time in Settings → Privacy. Read the <a href="/legal/telemetry" target="_blank">Telemetry Policy<span className="sr-only"> (opens in a new tab)</span></a>.</p>
               <div className="onboarding-actions">

@@ -1,12 +1,16 @@
 {
-  "name": "nextjs-postgresql-template",
+  "name": "verityai",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:check": "drizzle-kit check",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

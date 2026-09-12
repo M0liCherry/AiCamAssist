@@ -57,6 +57,10 @@ export async function synthesizeElevenLabsTurn(
   text: string,
 ): Promise<Buffer> {
   if (!apiKey) throw new Error("ElevenLabs API key is not configured.");
+  if (!voiceId.trim()) throw new Error("A voice is required to synthesize audio.");
+  // ElevenLabs bills per character and caps requests: reject empty/forged oversized turns.
+  if (!text.trim()) throw new Error("There is no text to synthesize.");
+  if (text.length > 5000) throw new Error("A single turn is limited to 5000 characters.");
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
     method: "POST",
     headers: {
@@ -190,8 +194,11 @@ export async function cloneVoiceElevenLabs(
 ): Promise<{ voiceId: string; voiceName: string }> {
   if (!apiKey) throw new Error("ElevenLabs API key is required to clone a voice.");
 
+  // Sanitize for the multipart header: basename only, no control chars or quotes.
+  const baseName = fileName.split(/[\\/]/).pop()?.replace(/["\r\n]/g, "") || "reference.wav";
+  const safeFileName = baseName.endsWith(".mp3") || baseName.endsWith(".wav") ? baseName : `${baseName}.wav`;
   const boundary = `----VerityBoundary${Date.now().toString(16)}`;
-  const mimeType = fileName.endsWith(".mp3") ? "audio/mpeg" : "audio/wav";
+  const mimeType = safeFileName.endsWith(".mp3") ? "audio/mpeg" : "audio/wav";
 
   const parts: Buffer[] = [];
   const addField = (name: string, value: string) => {
@@ -202,7 +209,7 @@ export async function cloneVoiceElevenLabs(
   addField("description", "Cloned voice for VerityAI podcast");
 
   // File part
-  parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="files"; filename="${fileName}"\r\nContent-Type: ${mimeType}\r\n\r\n`));
+  parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="files"; filename="${safeFileName}"\r\nContent-Type: ${mimeType}\r\n\r\n`));
   parts.push(audioBuffer);
   parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
 

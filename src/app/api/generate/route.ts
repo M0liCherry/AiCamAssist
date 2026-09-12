@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { getDb, type Database } from "@/db";
 import { flashcardProgress, generatedAssets, quizAttempts } from "@/db/schema";
@@ -73,14 +73,17 @@ export async function POST(request: NextRequest) {
       payload = { questions: await generateQuiz(cfg, digest.text, scopeInfo.title, difficulty, count, personalization) };
     }
 
-    const [asset] = await db
-      .insert(generatedAssets)
-      .values({ scopeType: scope.scopeType, scopeId: scope.scopeId, kind, options, payload, sourceNoteCount: scopeInfo.notes.length })
-      .returning();
-    if (kind === "flashcards") {
-      const cards = (payload as { cards: unknown[] }).cards;
-      await db.insert(flashcardProgress).values(cards.map((_, cardIndex) => ({ assetId: asset.id, cardIndex, status: "new" })));
-    }
+    const asset = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(generatedAssets)
+        .values({ scopeType: scope.scopeType, scopeId: scope.scopeId, kind, options, payload, sourceNoteCount: scopeInfo.notes.length })
+        .returning();
+      if (kind === "flashcards") {
+        const cards = (payload as { cards: unknown[] }).cards;
+        await tx.insert(flashcardProgress).values(cards.map((_, cardIndex) => ({ assetId: created.id, cardIndex, status: "new" })));
+      }
+      return created;
+    });
     return ok(await withDetails(db, asset), 201);
   } catch (error) {
     return fail(error, "Generation failed.");
@@ -112,25 +115,28 @@ export async function PATCH(request: NextRequest) {
         status = intervalDays >= 7 ? "mastered" : "learning";
       }
       const dueAt = new Date(Date.now() + (intervalDays === 0 ? 10 * 60 * 1000 : intervalDays * 24 * 60 * 60 * 1000));
-      await db.update(flashcardProgress).set({ intervalDays, status, dueAt, reviews: current.reviews + 1, updatedAt: new Date() }).where(eq(flashcardProgress.id, current.id));
+      await db.update(flashcardProgress).set({ intervalDays, status, dueAt, reviews: sql`${flashcardProgress.reviews} + 1`, updatedAt: new Date() }).where(eq(flashcardProgress.id, current.id));
       const progress = await db.select().from(flashcardProgress).where(eq(flashcardProgress.assetId, assetId)).orderBy(asc(flashcardProgress.cardIndex));
       return ok({ progress });
     }
 
     if (body.attempt && typeof body.attempt === "object") {
-      const attempt = body.attempt as { answers?: Record<string, number>; score?: number; total?: number; topicBreakdown?: Record<string, { correct: number; total: number }> };
-      const [asset] = await db.select({ id: generatedAssets.id }).from(generatedAssets).where(eq(generatedAssets.id, assetId));
-      if (!asset) throw new HttpError("Study set not found.", 404);
-      const score = Number(attempt.score ?? 0);
-      const total = Number(attempt.total ?? 0);
-      if (!Number.isFinite(score) || !Number.isFinite(total) || score < 0 || total < 0) {
-        throw new HttpError("Score and total must be valid numbers.");
+      const attempt = body.attempt as { answers?: Record<string, number>; topicBreakdown?: Record<string, { correct: number; total: number }> };
+      const [asset] = await db.select().from(generatedAssets).where(eq(generatedAssets.id, assetId));
+      if (!asset || asset.kind !== "quiz") throw new HttpError("Quiz not found.", 404);
+      // Grade server-side from the stored questions: client scores are not trusted.
+      const questions = (asset.payload as { questions?: Array<{ correctIndex?: unknown; topic?: unknown }> }).questions ?? [];
+      const answers = attempt.answers && typeof attempt.answers === "object" ? attempt.answers : {};
+      let score = 0;
+      for (const [index, question] of questions.entries()) {
+        const given = Number(answers[index]);
+        if (Number.isInteger(given) && given === question.correctIndex) score += 1;
       }
       await db.insert(quizAttempts).values({
         assetId,
-        answers: attempt.answers ?? {},
+        answers,
         score,
-        total,
+        total: questions.length,
         topicBreakdown: attempt.topicBreakdown ?? {},
       });
       const attempts = await db.select().from(quizAttempts).where(eq(quizAttempts.assetId, assetId)).orderBy(desc(quizAttempts.id)).limit(10);

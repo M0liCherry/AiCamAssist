@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { fail, HttpError, ok, readJson } from "@/lib/http";
+import { assertSafeEndpoint, fail, HttpError, ok, readJson } from "@/lib/http";
 import {
   cloneVoiceElevenLabs,
   DEFAULT_ELEVENLABS_VOICES,
@@ -18,18 +18,21 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const queryKey = searchParams.get("apiKey");
     const checkKoko = searchParams.get("checkKokoClone") === "1";
 
+    // Candidate keys travel via POST body (list-voices), never the query string.
     const savedKey = await getElevenLabsApiKey();
-    const effectiveKey = (queryKey ? queryKey.trim() : "") || savedKey;
+    const effectiveKey = savedKey;
 
     const voices = await listElevenLabsVoices(effectiveKey);
 
     let kokoStatus = { running: false, message: "Not checked" };
     if (checkKoko) {
       const config = await getPodcastAudioConfig();
-      const endpoint = (searchParams.get("kokoCloneEndpoint") || config.kokoCloneEndpoint || "http://127.0.0.1:7860").replace(/\/+$/, "");
+      const endpoint = assertSafeEndpoint(
+        searchParams.get("kokoCloneEndpoint") || config.kokoCloneEndpoint || "http://127.0.0.1:7860",
+        "KokoClone endpoint",
+      );
       try {
         const res = await fetch(`${endpoint}/`, { signal: AbortSignal.timeout(3000) });
         kokoStatus = { running: res.ok || res.status < 500, message: `Connected to KokoClone at ${endpoint}` };
@@ -56,6 +59,12 @@ export async function POST(request: NextRequest) {
     const savedKey = await getElevenLabsApiKey();
     const apiKey = (body.apiKey ? String(body.apiKey).trim() : "") || savedKey;
 
+    if (action === "list-voices") {
+      // Lists voices for a candidate key via POST body so the key never lands in URLs/logs.
+      const voices = await listElevenLabsVoices(apiKey || undefined);
+      return ok({ voices, hasKey: Boolean(apiKey) });
+    }
+
     if (action === "test-elevenlabs") {
       if (!apiKey) throw new HttpError("ElevenLabs API key is required.", 400);
       const res = await fetch("https://api.elevenlabs.io/v1/user", {
@@ -63,14 +72,15 @@ export async function POST(request: NextRequest) {
       });
       if (!res.ok) {
         const errText = await res.text();
-        throw new HttpError(`ElevenLabs key verification failed (${res.status}): ${errText.slice(0, 150)}`, 401);
+        console.error("ElevenLabs key verification failed", res.status, errText.slice(0, 150));
+        throw new HttpError(`ElevenLabs key verification failed (${res.status}). Check the key and try again.`, 401);
       }
       const data = await res.json();
       return ok({ valid: true, tier: data.subscription?.tier || "active", characterCount: data.subscription?.character_count });
     }
 
     if (action === "test-kokoclone" || action === "kokoclone-status") {
-      const endpoint = String(body.endpoint || "http://127.0.0.1:7860");
+      const endpoint = assertSafeEndpoint(String(body.endpoint || "http://127.0.0.1:7860"), "KokoClone endpoint");
       const status = await checkKokoCloneStatus(endpoint);
       return ok({
         ...status,
@@ -80,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     if (action === "setup-kokoclone") {
       const result = await setupKokoClone();
-      const status = await checkKokoCloneStatus(String(body.endpoint || "http://127.0.0.1:7860"));
+      const status = await checkKokoCloneStatus(assertSafeEndpoint(String(body.endpoint || "http://127.0.0.1:7860"), "KokoClone endpoint"));
       return ok({
         ...result,
         status,

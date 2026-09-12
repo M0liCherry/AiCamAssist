@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { getDb } from "@/db";
 import { generatedAssets } from "@/db/schema";
-import { fail, HttpError, ok, readJson } from "@/lib/http";
+import { assertSafeEndpoint, fail, HttpError, ok, readJson } from "@/lib/http";
 import {
   podcastAudioDir,
   synthesizeElevenLabsTurn,
@@ -123,7 +123,10 @@ export async function POST(request: NextRequest) {
     const apiKey = (body.apiKey ? String(body.apiKey).trim() : "") || config.elevenLabsApiKey;
     const hostVoice = body.hostVoice ? String(body.hostVoice) : config.elevenLabsHostVoice;
     const guestVoice = body.guestVoice ? String(body.guestVoice) : config.elevenLabsGuestVoice;
-    const kokoEndpoint = body.kokoCloneEndpoint ? String(body.kokoCloneEndpoint) : config.kokoCloneEndpoint;
+    const kokoEndpoint = assertSafeEndpoint(
+      body.kokoCloneEndpoint ? String(body.kokoCloneEndpoint) : config.kokoCloneEndpoint,
+      "KokoClone endpoint",
+    );
 
     const hostRefAudio = body.hostRefAudio ? String(body.hostRefAudio) : undefined;
     const guestRefAudio = body.guestRefAudio ? String(body.guestRefAudio) : undefined;

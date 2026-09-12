@@ -141,6 +141,25 @@ export async function parseUploadedFile(file: File): Promise<ParsedSource> {
   return { title: titleFromFilename(file.name), text: text.slice(0, MAX_TEXT_CHARS), sourceType: "document", sourceLabel: file.name };
 }
 
+/** Reads a response body with a hard byte cap (content-length can be absent or lie on chunked bodies). */
+async function readCapped(response: Response, cap = MAX_REMOTE_BYTES): Promise<Buffer> {
+  if (!response.body) return Buffer.from(await response.arrayBuffer());
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > cap) {
+      await reader.cancel().catch(() => undefined);
+      throw new HttpError("The page is larger than 15 MB and was not imported.", 413);
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks);
+}
+
 async function fetchRemote(url: string, timeoutMs = 20_000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -269,7 +288,7 @@ async function importYoutube(videoId: string, original: string): Promise<ParsedS
   // 2. If Innertube had no captions, fallback to scraping watch page
   if (!captionTracks.length) {
     try {
-      const page = await (await fetchRemote(`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}&hl=en`)).text();
+      const page = (await readCapped(await fetchRemote(`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}&hl=en`))).toString("utf8");
       const rawTitle = page.match(/<meta name="title" content="([^"]*)"/)?.[1] ?? page.match(/<title>([^<]*)<\/title>/)?.[1]?.replace(/ - YouTube$/, "");
       if (rawTitle && title.startsWith("YouTube video ")) {
         title = decodeEntities(rawTitle);
@@ -303,7 +322,7 @@ async function importYoutube(videoId: string, original: string): Promise<ParsedS
   if (!subResp.ok) {
     throw new HttpError("Could not retrieve the video caption track.", 502);
   }
-  const xml = await subResp.text();
+  const xml = (await readCapped(subResp)).toString("utf8");
 
   const lines: string[] = [];
 
@@ -352,11 +371,11 @@ export async function importFromUrl(rawUrl: string): Promise<ParsedSource> {
   const response = await fetchRemote(url.toString());
   const contentType = response.headers.get("content-type") ?? "";
   if (contentType.includes("application/pdf")) {
-    const text = normalizeText(await extractPdf(Buffer.from(await response.arrayBuffer())));
+    const text = normalizeText(await extractPdf(await readCapped(response)));
     if (!text) throw new HttpError("The linked PDF contained no readable text.", 422);
     return { title: titleFromFilename(url.pathname.split("/").pop() || url.hostname), text: text.slice(0, MAX_TEXT_CHARS), sourceType: "website", sourceLabel: url.toString() };
   }
-  const html = await response.text();
+  const html = (await readCapped(response)).toString("utf8");
   const text = normalizeText(contentType.includes("text/plain") ? html : htmlToText(html));
   if (text.length < 40) throw new HttpError("The page returned no readable article text. It may require sign-in or render content with scripts.", 422);
   return { title: extractTitle(html) || url.hostname, text: text.slice(0, MAX_TEXT_CHARS), sourceType: "website", sourceLabel: url.toString() };

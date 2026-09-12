@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { listModels, ollamaStatus, PROVIDER_PRESETS, pullOllamaModel, testProvider, type Provider, type ProviderConfig } from "@/lib/ai/provider";
-import { cleanText, fail, HttpError, ok, readJson } from "@/lib/http";
+import { assertSafeEndpoint, cleanText, fail, HttpError, ok, readJson } from "@/lib/http";
 import { getProviderConfig, getSettingsRow, toProviderConfig } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +23,7 @@ async function draftConfig(draft: Record<string, unknown> | undefined): Promise<
 
 function localEndpoint(value: unknown) {
   const endpoint = cleanText(value, 400) || PROVIDER_PRESETS.ollama.endpoint;
-  if (!/^https?:\/\//i.test(endpoint)) throw new HttpError("The endpoint must start with http:// or https://.");
-  return endpoint.replace(/\/+$/, "");
+  return assertSafeEndpoint(endpoint);
 }
 
 export async function POST(request: NextRequest) {

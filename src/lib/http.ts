@@ -55,6 +55,29 @@ export function cleanText(value: unknown, max: number) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
+const BLOCKED_ENDPOINT_HOSTS = new Set(["169.254.169.254", "100.100.100.100", "metadata.google", "metadata.google.internal", "metadata.azure.com"]);
+
+/**
+ * Rejects endpoint URLs that could turn the server into an SSRF proxy:
+ * non-HTTP schemes, embedded credentials, and cloud metadata endpoints.
+ * Local/LAN model servers remain allowed (documented llama.cpp use case).
+ */
+export function assertSafeEndpoint(raw: string, label = "endpoint"): string {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new HttpError(`The ${label} is not a valid URL.`);
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") throw new HttpError(`The ${label} must start with http:// or https://.`);
+  if (url.username || url.password) throw new HttpError(`The ${label} must not contain credentials.`);
+  const host = url.hostname.toLowerCase();
+  if (BLOCKED_ENDPOINT_HOSTS.has(host) || host.startsWith("169.254.")) {
+    throw new HttpError(`The ${label} points to a cloud metadata service and is not allowed.`);
+  }
+  return raw.replace(/\/+$/, "");
+}
+
 export function parseScope(type: unknown, id: unknown): Scope {
   if (type !== "chapter" && type !== "subject") throw new HttpError("A valid scope (chapter or subject) is required.");
   return { scopeType: type, scopeId: requireInt(id, "Scope id") };

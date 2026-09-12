@@ -26,7 +26,7 @@ export function Modal({ open, title, description, onClose, children, wide = fals
             <h2 id={titleId}>{title}</h2>
             {description && <p id={`${titleId}-desc`}>{description}</p>}
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label={`Close ${title}`} autoFocus>
+          <button type="button" className="icon-button" onClick={onClose} aria-label={`Close ${title}`}>
             <X size={19} aria-hidden="true" />
           </button>
         </div>

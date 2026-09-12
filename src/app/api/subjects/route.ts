@@ -187,7 +187,9 @@ async function loadTree(db: Database) {
   });
 }
 
-async function deleteScopeArtifacts(db: Database, scopeType: "chapter" | "subject", ids: number[]) {
+type TxOrDb = Parameters<Parameters<Database["transaction"]>[0]>[0] | Database;
+
+async function deleteScopeArtifacts(db: TxOrDb, scopeType: "chapter" | "subject", ids: number[]) {
   if (!ids.length) return;
   await db.delete(generatedAssets).where(and(eq(generatedAssets.scopeType, scopeType), inArray(generatedAssets.scopeId, ids)));
   await db.delete(chatMessages).where(and(eq(chatMessages.scopeType, scopeType), inArray(chatMessages.scopeId, ids)));
@@ -297,7 +299,9 @@ export async function PATCH(request: NextRequest) {
         const index = order.indexOf(id);
         const target = index + direction;
         if (index >= 0 && target >= 0 && target < order.length) [order[index], order[target]] = [order[target], order[index]];
-        for (const [position, subjectId] of order.entries()) await db.update(subjects).set({ position }).where(eq(subjects.id, subjectId));
+        await db.transaction(async (tx) => {
+          for (const [position, subjectId] of order.entries()) await tx.update(subjects).set({ position }).where(eq(subjects.id, subjectId));
+        });
       }
       return ok({ ok: true });
     }
@@ -317,21 +321,25 @@ export async function PATCH(request: NextRequest) {
         patch.subjectId = subjectId;
         patch.position = Number(total);
       }
-      await db.update(chapters).set(patch).where(eq(chapters.id, id));
-      if (patch.subjectId !== undefined) {
-        // Keep denormalised chunk scope columns in sync so subject-wide retrieval stays correct.
-        const noteIds = (await db.select({ id: notes.id }).from(notes).where(eq(notes.chapterId, id))).map((n) => n.id);
-        if (noteIds.length) {
-          await db.update(chunks).set({ subjectId }).where(inArray(chunks.noteId, noteIds));
+      await db.transaction(async (tx) => {
+        await tx.update(chapters).set(patch).where(eq(chapters.id, id));
+        if (patch.subjectId !== undefined) {
+          // Keep denormalised chunk scope columns in sync so subject-wide retrieval stays correct.
+          const noteIds = (await tx.select({ id: notes.id }).from(notes).where(eq(notes.chapterId, id))).map((n) => n.id);
+          if (noteIds.length) {
+            await tx.update(chunks).set({ subjectId }).where(inArray(chunks.noteId, noteIds));
+          }
         }
-      }
+      });
       if (direction) {
         const siblings = await db.select({ id: chapters.id }).from(chapters).where(eq(chapters.subjectId, subjectId)).orderBy(asc(chapters.position), asc(chapters.id));
         const order = siblings.map((c) => c.id);
         const index = order.indexOf(id);
         const target = index + direction;
         if (index >= 0 && target >= 0 && target < order.length) [order[index], order[target]] = [order[target], order[index]];
-        for (const [position, chapterId] of order.entries()) await db.update(chapters).set({ position }).where(eq(chapters.id, chapterId));
+        await db.transaction(async (tx) => {
+          for (const [position, chapterId] of order.entries()) await tx.update(chapters).set({ position }).where(eq(chapters.id, chapterId));
+        });
       }
       return ok({ ok: true });
     }
@@ -348,15 +356,19 @@ export async function DELETE(request: NextRequest) {
     const kind = params.get("kind");
     const db = await getDb();
     if (kind === "chapter") {
-      await deleteScopeArtifacts(db, "chapter", [id]);
-      await db.delete(chapters).where(eq(chapters.id, id));
+      await db.transaction(async (tx) => {
+        await deleteScopeArtifacts(tx, "chapter", [id]);
+        await tx.delete(chapters).where(eq(chapters.id, id));
+      });
       return ok({ ok: true });
     }
     if (kind === "subject") {
       const chapterIds = (await db.select({ id: chapters.id }).from(chapters).where(eq(chapters.subjectId, id))).map((c) => c.id);
-      await deleteScopeArtifacts(db, "chapter", chapterIds);
-      await deleteScopeArtifacts(db, "subject", [id]);
-      await db.delete(subjects).where(eq(subjects.id, id));
+      await db.transaction(async (tx) => {
+        await deleteScopeArtifacts(tx, "chapter", chapterIds);
+        await deleteScopeArtifacts(tx, "subject", [id]);
+        await tx.delete(subjects).where(eq(subjects.id, id));
+      });
       return ok({ ok: true });
     }
     throw new HttpError("Unknown collection type.");
