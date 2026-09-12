@@ -6,7 +6,7 @@ import { api, errorMessage, formatClock, formatDate } from "./client";
 import { buildPersonalizationPrompt, getStoredPersonalization, LEARNING_STYLE_DESCRIPTIONS, PERSONA_DESCRIPTIONS } from "./personalization";
 import { saveFlashcardSessionScore, saveQuizAttemptScore } from "./studyScores";
 import type { Asset, AssetResponse, CardProgress, FlashcardDeck, PodcastScript, QuizAttempt, QuizPayload, Scope, Subject } from "./types";
-import { AiErrorAlert, InlineAlert, Modal, ScopeBar, Spinner, StatusPill } from "./ui";
+import { AiErrorAlert, InlineAlert, Modal, renderInline, ScopeBar, Spinner, StatusPill } from "./ui";
 
 type StudyProps = {
   subjects: Subject[];
@@ -1097,8 +1097,8 @@ export function FlashcardsView(props: StudyProps) {
           <div className="card-counter" aria-live="polite"><span>Card {index + 1} of {cards.length} · {card.topic}{state?.status ? ` · ${state.status}` : ""}</span><div><i style={{ width: `${((index + 1) / cards.length) * 100}%` }} /></div></div>
           <div className="flashcard-stage" onDoubleClick={handleCardDoubleClick} title="Double-click to default rating to Try again">
             <button type="button" className={`study-card ${revealed ? "revealed" : ""}`} onClick={() => setRevealed((value) => !value)} onDoubleClick={handleCardDoubleClick} onKeyDown={onCardKey} aria-pressed={revealed} aria-label={`${revealed ? "Answer" : "Question"}: ${revealed ? card.answer : card.question}. Press Space or Enter to flip, double-click to mark Try again, arrow keys to change card, 1 2 3 to grade.`}>
-              <span className="card-face card-front"><small>Question</small><strong>{card.question}</strong><span><Circle size={13} aria-hidden="true" /> Click or press Space to reveal the answer · Double-click to mark Try again</span></span>
-              <span className="card-face card-back"><small>Answer</small><strong>{card.answer}</strong><span><CheckCircle2 size={14} aria-hidden="true" /> Grade your recall below · Double-click to mark Try again</span></span>
+              <span className="card-face card-front"><small>Question</small><strong>{renderInline(card.question)}</strong><span><Circle size={13} aria-hidden="true" /> Click or press Space to reveal the answer · Double-click to mark Try again</span></span>
+              <span className="card-face card-back"><small>Answer</small><strong>{renderInline(card.answer)}</strong><span><CheckCircle2 size={14} aria-hidden="true" /> Grade your recall below · Double-click to mark Try again</span></span>
             </button>
           </div>
           <div className="deck-navigation">
