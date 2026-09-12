@@ -21,6 +21,14 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Apply the persisted theme before hydration to avoid a dark/light flash. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("verity_theme");if(t!=="light"&&t!=="dark")t="dark";document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme="dark"}})()`,
+          }}
+        />
+      </head>
       <body>{children}</body>
     </html>
   );

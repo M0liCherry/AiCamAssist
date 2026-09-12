@@ -33,4 +33,7 @@ export const PUBLISHER: Publisher = {
 
 export const STT_MODELS = ["Xenova/whisper-tiny", "Xenova/whisper-base", "Xenova/whisper-small"];
 
+/** Default local KokoClone endpoint when the user has not configured one. */
+export const DEFAULT_KOKO_ENDPOINT = "http://127.0.0.1:7860";
+
 export const POLICY_EFFECTIVE_DATE = "March 24, 2026";
