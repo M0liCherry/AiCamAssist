@@ -10,6 +10,7 @@ import {
   synthesizeElevenLabsTurn,
   synthesizeKokoClone,
 } from "@/lib/podcast/audio";
+import { getKokoclonePaths } from "@/lib/podcast/kokoclone-manager";
 import { getPodcastAudioConfig } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
@@ -130,6 +131,23 @@ export async function POST(request: NextRequest) {
     const hostRefAudio = body.hostRefAudio ? String(body.hostRefAudio) : undefined;
     const guestRefAudio = body.guestRefAudio ? String(body.guestRefAudio) : undefined;
 
+    // Resolve reference audio for KokoClone (fall back to bundled sample voices if not uploaded)
+    const kokoPaths = getKokoclonePaths();
+    const defaultHostVoicePath = path.join(kokoPaths.kokoDir, "Voices", "sera.mp3");
+    const defaultGuestVoicePath = path.join(kokoPaths.kokoDir, "Voices", "Yumeko.mp3");
+
+    let effectiveHostRefAudio = hostRefAudio;
+    if (!effectiveHostRefAudio && fs.existsSync(defaultHostVoicePath)) {
+      effectiveHostRefAudio = `data:audio/mp3;base64,${fs.readFileSync(defaultHostVoicePath).toString("base64")}`;
+    }
+
+    let effectiveGuestRefAudio = guestRefAudio;
+    if (!effectiveGuestRefAudio && fs.existsSync(defaultGuestVoicePath)) {
+      effectiveGuestRefAudio = `data:audio/mp3;base64,${fs.readFileSync(defaultGuestVoicePath).toString("base64")}`;
+    } else if (!effectiveGuestRefAudio && effectiveHostRefAudio) {
+      effectiveGuestRefAudio = effectiveHostRefAudio;
+    }
+
     if (engine === "elevenlabs" && !apiKey) {
       throw new HttpError("ElevenLabs API key is required. Please provide it in the prompt or in Settings.", 400);
     }
@@ -153,7 +171,7 @@ export async function POST(request: NextRequest) {
         const voiceId = isHost ? hostVoice : guestVoice;
         turnBuffer = await synthesizeElevenLabsTurn(apiKey, voiceId, turn.text);
       } else {
-        const refAudio = isHost ? hostRefAudio : (guestRefAudio || hostRefAudio);
+        const refAudio = isHost ? effectiveHostRefAudio : (effectiveGuestRefAudio || effectiveHostRefAudio);
         turnBuffer = await synthesizeKokoClone(kokoEndpoint, turn.text, refAudio);
       }
 
@@ -228,6 +246,7 @@ export async function POST(request: NextRequest) {
       completedTurnsCount: updatedTurns.filter((t) => t.audioUrl).length,
     });
   } catch (error) {
-    return fail(error, "Failed to generate podcast audio.");
+    const message = error instanceof Error ? error.message : "Failed to generate podcast audio.";
+    return fail(error, message);
   }
 }

@@ -1067,31 +1067,63 @@ export function PodcastsView(props: StudyProps) {
                   </div>
 
                   <div className="kokoclone-uploads-row">
-                    <label className="ref-audio-box">
-                      <span>Speaker 1 Reference Audio:</span>
-                      <div className="upload-pill-wrap">
+                    <div className="ref-audio-box">
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span>Speaker 1 Reference Audio:</span>
+                        {Boolean(hostRefName) && (
+                          <button
+                            type="button"
+                            className="text-action-button"
+                            onClick={() => {
+                              setHostRefAudio(null);
+                              setHostRefName("");
+                            }}
+                            title="Reset to default voice sample"
+                            style={{ fontSize: 11, padding: "2px 4px" }}
+                          >
+                            Reset default
+                          </button>
+                        )}
+                      </div>
+                      <label className="upload-pill-wrap">
                         <Upload size={14} />
-                        <span>{hostRefName ? hostRefName : "Select reference .wav / .mp3"}</span>
+                        <span>{hostRefName ? hostRefName : "sera.mp3 (Default sample)"}</span>
                         <input
                           type="file"
                           accept="audio/wav,audio/mp3,audio/mpeg"
                           onChange={(e) => handleReferenceAudioFile("host", e)}
                         />
-                      </div>
-                    </label>
+                      </label>
+                    </div>
 
-                    <label className="ref-audio-box">
-                      <span>Speaker 2 Reference Audio:</span>
-                      <div className="upload-pill-wrap">
+                    <div className="ref-audio-box">
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span>Speaker 2 Reference Audio:</span>
+                        {Boolean(guestRefName) && (
+                          <button
+                            type="button"
+                            className="text-action-button"
+                            onClick={() => {
+                              setGuestRefAudio(null);
+                              setGuestRefName("");
+                            }}
+                            title="Reset to default voice sample"
+                            style={{ fontSize: 11, padding: "2px 4px" }}
+                          >
+                            Reset default
+                          </button>
+                        )}
+                      </div>
+                      <label className="upload-pill-wrap">
                         <Upload size={14} />
-                        <span>{guestRefName ? guestRefName : "Select reference .wav / .mp3"}</span>
+                        <span>{guestRefName ? guestRefName : "Yumeko.mp3 (Default sample)"}</span>
                         <input
                           type="file"
                           accept="audio/wav,audio/mp3,audio/mpeg"
                           onChange={(e) => handleReferenceAudioFile("guest", e)}
                         />
-                      </div>
-                    </label>
+                      </label>
+                    </div>
                   </div>
 
                   {/* Live Continuous Generation Stream Bar */}

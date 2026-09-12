@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { dataDirectory } from "@/db";
+import { HttpError } from "@/lib/http";
 
 export type PodcastVoiceInfo = {
   id: string;
@@ -242,8 +243,9 @@ export async function synthesizeKokoClone(
   const cleanEndpoint = (endpoint || "http://127.0.0.1:7860").replace(/\/+$/, "");
 
   if (!referenceAudioBase64) {
-    throw new Error(
-      `KokoClone requires a reference voice sample to clone. Please upload a 3–10 second reference audio clip (.wav or .mp3) for Speaker 1 and Speaker 2 in the Podcast view, or select System Voices in Settings.`,
+    throw new HttpError(
+      "KokoClone requires a reference voice sample to clone. Please select a bundled voice or upload a 3–10s audio clip (.wav or .mp3) for Speaker 1 and Speaker 2 in the Podcast view.",
+      400,
     );
   }
 

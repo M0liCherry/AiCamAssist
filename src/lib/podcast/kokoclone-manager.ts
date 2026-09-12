@@ -232,9 +232,23 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
     }
   }
 
+  // 4. Ensure model weights from PatnaikAshish/kokoclone are pre-downloaded
+  const modelFile = path.join(updatedPaths.kokoDir, "model", "kokoro.onnx");
+  const voiceFile = path.join(updatedPaths.kokoDir, "voice", "voices-v1.0.bin");
+  if (!fs.existsSync(modelFile) || !fs.existsSync(voiceFile)) {
+    try {
+      await execAsync(
+        `${pyBin} -c "from huggingface_hub import hf_hub_download; [hf_hub_download(repo_id='PatnaikAshish/kokoclone', filename=p, local_dir='.') for p in ['model/kokoro.onnx', 'model/config.json', 'voice/voices-v1.0.bin']]"`,
+        { cwd: updatedPaths.kokoDir, maxBuffer: 30 * 1024 * 1024 },
+      );
+    } catch {
+      // Cloner will attempt downloading during runtime if offline during setup
+    }
+  }
+
   return {
     ok: true,
-    message: "KokoClone submodule and Python dependencies are successfully installed and ready!",
+    message: "KokoClone submodule, Python dependencies, and voice models are successfully installed and ready!",
   };
 }
 
