@@ -127,7 +127,7 @@ export function ProgressBar({ value, label }: { value: number | null; label: str
 export function Spinner({ label }: { label: string }) {
   return (
     <span className="loading-mark" role="status">
-      <span aria-hidden="true" />
+      <span className="spinner-circle" aria-hidden="true" />
       {label}
     </span>
   );
