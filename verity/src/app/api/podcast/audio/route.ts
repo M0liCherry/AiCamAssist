@@ -10,7 +10,7 @@ import {
   synthesizeElevenLabsTurn,
   synthesizeKokoClone,
 } from "@/lib/podcast/audio";
-import { getElevenLabsApiKey, getPodcastAudioConfig } from "@/lib/settings";
+import { getPodcastAudioConfig } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 

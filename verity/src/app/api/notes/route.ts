@@ -165,6 +165,7 @@ export async function PATCH(request: NextRequest) {
       subjectId = await subjectIdForChapter(db, patch.chapterId);
     }
     const [updated] = await db.update(notes).set(patch).where(eq(notes.id, id)).returning();
+    if (!updated) throw new HttpError("The note could not be found.", 404);
 
     if (contentChanged || subjectId !== null) {
       const cfg = await getProviderConfig();
@@ -183,7 +184,8 @@ export async function DELETE(request: NextRequest) {
   try {
     const id = requireInt(request.nextUrl.searchParams.get("id"), "Note id");
     const db = await getDb();
-    await db.delete(notes).where(and(eq(notes.id, id)));
+    const [deleted] = await db.delete(notes).where(and(eq(notes.id, id))).returning();
+    if (!deleted) throw new HttpError("The note could not be found.", 404);
     return ok({ ok: true });
   } catch (error) {
     return fail(error, "The note could not be deleted.");

@@ -111,6 +111,7 @@ export async function PUT(request: NextRequest) {
     if (body.theme === "dark" || body.theme === "light") patch.theme = body.theme;
 
     const [updated] = await db.update(settings).set(patch).where(eq(settings.id, current.id)).returning();
+    if (!updated) throw new HttpError("Settings could not be found.", 404);
     setDiagnostics(updated.diagnosticsOptIn);
     return ok({ settings: publicSettings(updated) });
   } catch (error) {
