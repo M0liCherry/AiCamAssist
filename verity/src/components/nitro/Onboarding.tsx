@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, Cloud, Cpu, Download, Eye, EyeOff, HardDrive, KeyRound, ListRestart, RefreshCw, ServerCog, ShieldCheck, Sparkles, Wifi, WifiOff } from "lucide-react";
+import { ArrowRight, Check, Cloud, Cpu, Download, Eye, EyeOff, HardDrive, KeyRound, ListRestart, Play, Radio, RefreshCw, ServerCog, ShieldCheck, Sparkles, Wifi, WifiOff } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage, formatBytes } from "./client";
 import type { Provider, PublicSettings, SettingsResponse } from "./types";
@@ -344,6 +344,67 @@ export function Onboarding({ boot, onComplete }: { boot: SettingsResponse; onCom
   const [podcastEngine, setPodcastEngine] = useState<"speechSynthesis" | "elevenlabs" | "kokoclone">("speechSynthesis");
   const [testingEleven, setTestingEleven] = useState(false);
   const [elevenTestResult, setElevenTestResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [kokoStatus, setKokoStatus] = useState<{ installed: boolean; venvReady: boolean; serverRunning: boolean; endpoint: string; message?: string } | null>(null);
+  const [loadingKoko, setLoadingKoko] = useState(false);
+  const [settingUpKoko, setSettingUpKoko] = useState(false);
+  const [startingKoko, setStartingKoko] = useState(false);
+  const [kokoActionMsg, setKokoActionMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const fetchKokoStatus = useCallback(async () => {
+    setLoadingKoko(true);
+    try {
+      const res = await api<{ installed: boolean; venvReady: boolean; serverRunning: boolean; endpoint: string; message?: string }>("/api/podcast/voices", {
+        method: "POST",
+        json: { action: "kokoclone-status" },
+      });
+      setKokoStatus(res);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingKoko(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (podcastEngine === "kokoclone" && !kokoStatus && !loadingKoko) {
+      void fetchKokoStatus();
+    }
+  }, [podcastEngine, kokoStatus, loadingKoko, fetchKokoStatus]);
+
+  const handleSetupKoko = async () => {
+    setSettingUpKoko(true);
+    setKokoActionMsg({ ok: true, text: "Setting up KokoClone submodule & virtual environment… (this may take a few minutes)" });
+    try {
+      const res = await api<{ ok: boolean; message: string; status?: any }>("/api/podcast/voices", {
+        method: "POST",
+        json: { action: "setup-kokoclone" },
+      });
+      if (res.status) setKokoStatus(res.status);
+      setKokoActionMsg({ ok: res.ok, text: res.message });
+    } catch (err) {
+      setKokoActionMsg({ ok: false, text: `Setup failed: ${errorMessage(err)}` });
+    } finally {
+      setSettingUpKoko(false);
+    }
+  };
+
+  const handleStartKoko = async () => {
+    setStartingKoko(true);
+    setKokoActionMsg({ ok: true, text: "Starting local KokoClone server on port 7860…" });
+    try {
+      const res = await api<{ ok: boolean; message: string; status?: any }>("/api/podcast/voices", {
+        method: "POST",
+        json: { action: "start-kokoclone" },
+      });
+      if (res.status) setKokoStatus(res.status);
+      setKokoActionMsg({ ok: res.ok, text: res.message });
+    } catch (err) {
+      setKokoActionMsg({ ok: false, text: `Startup failed: ${errorMessage(err)}` });
+    } finally {
+      setStartingKoko(false);
+    }
+  };
+
   const [finishing, setFinishing] = useState(false);
   const [error, setError] = useState("");
   const steps = ["Welcome", "AI backend", "Podcast Voices", "Diagnostics", "Ready"];
@@ -515,9 +576,72 @@ export function Onboarding({ boot, onComplete }: { boot: SettingsResponse; onCom
               )}
 
               {podcastEngine === "kokoclone" && (
-                <InlineAlert tone="info">
-                  KokoClone lets you upload reference audio samples to clone any voice locally. You can specify the local server endpoint (default http://127.0.0.1:7860) anytime in Settings.
-                </InlineAlert>
+                <div className="field-group" style={{ marginBottom: 16 }}>
+                  <div style={{ background: "var(--card-bg, rgba(255,255,255,0.03))", border: "1px solid var(--line)", borderRadius: 10, padding: 14 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                        <Radio size={14} /> KokoClone Local Engine
+                      </span>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <span className={`status-pill ${kokoStatus?.installed ? "status-pill--green" : "status-pill--gray"}`}>
+                          {kokoStatus?.installed ? "Code Ready" : "Missing Code"}
+                        </span>
+                        <span className={`status-pill ${kokoStatus?.venvReady ? "status-pill--green" : "status-pill--gray"}`}>
+                          {kokoStatus?.venvReady ? ".venv Ready" : "No .venv"}
+                        </span>
+                        <span className={`status-pill ${kokoStatus?.serverRunning ? "status-pill--green" : "status-pill--gray"}`}>
+                          {kokoStatus?.serverRunning ? "Online (7860)" : "Stopped"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p style={{ fontSize: 13, margin: "0 0 12px 0", color: "var(--text-muted)" }}>
+                      KokoClone lets you upload reference audio samples to clone any voice locally. It runs offline via Kokoro-ONNX and Kanade on port 7860.
+                    </p>
+
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                      {(!kokoStatus?.installed || !kokoStatus?.venvReady) && (
+                        <button
+                          type="button"
+                          className="secondary-button compact"
+                          onClick={handleSetupKoko}
+                          disabled={settingUpKoko}
+                        >
+                          {settingUpKoko ? <Spinner label="Downloading & Setting up…" /> : <><Download size={14} />Download & Set Up KokoClone</>}
+                        </button>
+                      )}
+
+                      {kokoStatus?.installed && kokoStatus?.venvReady && !kokoStatus?.serverRunning && (
+                        <button
+                          type="button"
+                          className="secondary-button compact"
+                          onClick={handleStartKoko}
+                          disabled={startingKoko}
+                        >
+                          {startingKoko ? <Spinner label="Launching server…" /> : <><Play size={14} />Start KokoClone Server</>}
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        className="text-button compact"
+                        onClick={fetchKokoStatus}
+                        disabled={loadingKoko}
+                        title="Refresh KokoClone status"
+                      >
+                        <RefreshCw size={13} className={loadingKoko ? "spin" : ""} /> Refresh
+                      </button>
+                    </div>
+
+                    {kokoActionMsg && (
+                      <div style={{ marginTop: 10 }}>
+                        <InlineAlert tone={kokoActionMsg.ok ? "success" : "error"}>
+                          {kokoActionMsg.text}
+                        </InlineAlert>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
 
               <div className="onboarding-actions">

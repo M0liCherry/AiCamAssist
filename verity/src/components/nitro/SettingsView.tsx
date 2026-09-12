@@ -1,6 +1,6 @@
 "use client";
 
-import { Accessibility, Check, ChevronRight, Cloud, Cpu, Database, Download, Eye, EyeOff, HardDrive, Headphones, Info, Mic, Moon, Palette, Radio, RefreshCw, ShieldCheck, Sparkles, Sun, Trash2, UserCheck, Wand2 } from "lucide-react";
+import { Accessibility, Check, ChevronRight, Cloud, Cpu, Database, Download, Eye, EyeOff, HardDrive, Headphones, Info, Mic, Moon, Palette, Play, Radio, RefreshCw, ShieldCheck, Sparkles, Sun, Trash2, UserCheck, Wand2 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api, downloadFile, errorMessage } from "./client";
 import { DEFAULT_KOKO_ENDPOINT } from "@/config/app";
@@ -105,14 +105,75 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
     setElevenTestResult(null);
   };
 
+  const [kokoDetailedStatus, setKokoDetailedStatus] = useState<{ installed: boolean; venvReady: boolean; serverRunning: boolean; endpoint: string; message?: string } | null>(null);
+  const [settingUpKoko, setSettingUpKoko] = useState(false);
+  const [startingKoko, setStartingKoko] = useState(false);
+
+  const fetchKokoDetailedStatus = useCallback(async () => {
+    try {
+      const res = await api<{ installed: boolean; venvReady: boolean; serverRunning: boolean; endpoint: string; message?: string }>("/api/podcast/voices", {
+        method: "POST",
+        json: { action: "kokoclone-status", endpoint: kokoEndpointInput.trim() },
+      });
+      setKokoDetailedStatus(res);
+    } catch {
+      // ignore
+    }
+  }, [kokoEndpointInput]);
+
+  useEffect(() => {
+    void fetchKokoDetailedStatus();
+  }, [fetchKokoDetailedStatus]);
+
+  const setupKokoClone = async () => {
+    setSettingUpKoko(true);
+    setKokoTestResult({ ok: true, text: "Setting up KokoClone submodule & virtual environment… This may take a few minutes on first run." });
+    try {
+      const res = await api<{ ok: boolean; message: string; status?: any }>("/api/podcast/voices", {
+        method: "POST",
+        json: { action: "setup-kokoclone", endpoint: kokoEndpointInput.trim() },
+      });
+      if (res.status) setKokoDetailedStatus(res.status);
+      setKokoTestResult({ ok: res.ok, text: res.message });
+      notify(res.message, res.ok ? "success" : "error");
+    } catch (err) {
+      setKokoTestResult({ ok: false, text: `Setup failed: ${errorMessage(err)}` });
+      notify(`Setup failed: ${errorMessage(err)}`, "error");
+    } finally {
+      setSettingUpKoko(false);
+    }
+  };
+
+  const startKokoServer = async () => {
+    setStartingKoko(true);
+    setKokoTestResult({ ok: true, text: "Launching local KokoClone server on port 7860…" });
+    try {
+      const res = await api<{ ok: boolean; message: string; status?: any }>("/api/podcast/voices", {
+        method: "POST",
+        json: { action: "start-kokoclone", endpoint: kokoEndpointInput.trim() },
+      });
+      if (res.status) setKokoDetailedStatus(res.status);
+      setKokoTestResult({ ok: res.ok, text: res.message });
+      notify(res.message, res.ok ? "success" : "error");
+    } catch (err) {
+      setKokoTestResult({ ok: false, text: `Server startup failed: ${errorMessage(err)}` });
+      notify(`Startup failed: ${errorMessage(err)}`, "error");
+    } finally {
+      setStartingKoko(false);
+    }
+  };
+
   const testKokoConnection = async () => {
     setTestingKoko(true);
     setKokoTestResult(null);
     try {
-      const res = await api<{ running: boolean; error?: string }>("/api/podcast/voices", {
+      const res = await api<{ running: boolean; installed?: boolean; venvReady?: boolean; serverRunning?: boolean; error?: string }>("/api/podcast/voices", {
         method: "POST",
         json: { action: "test-kokoclone", endpoint: kokoEndpointInput.trim() },
       });
+      if (res.installed !== undefined) {
+        setKokoDetailedStatus(res as any);
+      }
       if (res.running) {
         setKokoTestResult({ ok: true, text: `KokoClone server is online and responding at ${kokoEndpointInput}!` });
       } else {
@@ -473,11 +534,54 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
 
         {/* KokoClone Configuration */}
         <div className="settings-subsection" style={{ borderTop: "1px solid var(--line)", paddingTop: 16, marginTop: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
             <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
-              <Radio size={16} /> KokoClone Voice Cloning (Local)
+              <Radio size={16} /> KokoClone Voice Cloning (Local Submodule)
             </h3>
-            <span className="status-pill status-pill--blue">Kokoro-ONNX + Kanade</span>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <span className={`status-pill ${kokoDetailedStatus?.installed ? "status-pill--green" : "status-pill--gray"}`}>
+                {kokoDetailedStatus?.installed ? "Submodule Ready" : "Submodule Missing"}
+              </span>
+              <span className={`status-pill ${kokoDetailedStatus?.venvReady ? "status-pill--green" : "status-pill--gray"}`}>
+                {kokoDetailedStatus?.venvReady ? ".venv Ready" : "Missing .venv"}
+              </span>
+              <span className={`status-pill ${kokoDetailedStatus?.serverRunning ? "status-pill--green" : "status-pill--gray"}`}>
+                {kokoDetailedStatus?.serverRunning ? "Online (7860)" : "Server Stopped"}
+              </span>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={fetchKokoDetailedStatus}
+                title="Refresh KokoClone status"
+                style={{ padding: 4 }}
+              >
+                <RefreshCw size={14} />
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+            {(!kokoDetailedStatus?.installed || !kokoDetailedStatus?.venvReady) && (
+              <button
+                type="button"
+                className="primary-button compact"
+                onClick={setupKokoClone}
+                disabled={settingUpKoko}
+              >
+                <Download size={14} /> {settingUpKoko ? "Setting up KokoClone…" : "Download & Set Up KokoClone"}
+              </button>
+            )}
+
+            {kokoDetailedStatus?.installed && kokoDetailedStatus?.venvReady && !kokoDetailedStatus?.serverRunning && (
+              <button
+                type="button"
+                className="primary-button compact"
+                onClick={startKokoServer}
+                disabled={startingKoko}
+              >
+                <Play size={14} /> {startingKoko ? "Starting server…" : "Start KokoClone Server"}
+              </button>
+            )}
           </div>
 
           <div className="personalization-grid">
@@ -489,7 +593,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
                 onChange={(e) => setKokoEndpointInput(e.target.value)}
                 placeholder={DEFAULT_KOKO_ENDPOINT}
               />
-              <small>Default Gradio/FastAPI server port is 7860.</small>
+              <small>Default Gradio server port is 7860.</small>
             </label>
 
             <div className="field" style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
@@ -520,7 +624,9 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
           )}
 
           <p className="help-text" style={{ marginTop: 10 }}>
-            To run KokoClone locally: clone <code>https://github.com/Ashish-Patnaik/kokoclone</code> and run <code>python app.py</code>. When active, you can provide any 3–10 second reference audio clip (.wav or .mp3) directly in the Podcast player to clone the voice.
+            KokoClone is linked as a Git submodule in <code>kokoclone/</code>. To start it manually in a terminal, run:
+            <br />
+            <code>cd kokoclone && .venv/bin/python app.py</code>
           </p>
         </div>
       </section>
