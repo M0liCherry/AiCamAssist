@@ -448,7 +448,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
               <small>Stored securely encrypted on your local PC in local.key.</small>
             </label>
 
-            <div className="field" style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+            <div className="field settings-action-field">
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {elevenKeyInput.trim().length > 0 && (
                   <button type="button" className="primary-button compact" onClick={saveElevenKey}>
@@ -638,7 +638,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
               <small>Default Gradio server port is 7860.</small>
             </label>
 
-            <div className="field" style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+            <div className="field settings-action-field">
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {kokoEndpointInput !== settings.kokoCloneEndpoint && (
                   <button type="button" className="primary-button compact" onClick={saveKokoEndpoint}>

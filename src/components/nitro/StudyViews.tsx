@@ -72,10 +72,10 @@ function useAsset<T>(kind: "podcast" | "flashcards" | "quiz", scope: Scope | nul
   return { data, setData, loading, generating, error, generate, retry };
 }
 
-function StudyShell({ props, icon, eyebrow, title, copy, children, ariaId }: { props: StudyProps; icon: ReactNode; eyebrow: string; title: string; copy: string; children: ReactNode; ariaId: string }) {
+function StudyShell({ props, icon, eyebrow, title, copy, children, ariaId, pageClass = "" }: { props: StudyProps; icon: ReactNode; eyebrow: string; title: string; copy: string; children: ReactNode; ariaId: string; pageClass?: string }) {
   const { subjects, scope, onScope, aiReady, providerName, onConfigureAi, onGoHub } = props;
   return (
-    <main className="study-view page-enter" aria-labelledby={ariaId}>
+    <main className={`study-view page-enter ${pageClass}`} aria-labelledby={ariaId}>
       <header className="study-header">
         <span className="study-icon" aria-hidden="true">{icon}</span>
         <p className="eyebrow">{eyebrow}</p>
@@ -704,7 +704,7 @@ export function PodcastsView(props: StudyProps) {
   const estMinutes = script ? Math.max(1, Math.round(script.turns.reduce((n, t) => n + t.text.split(/\s+/).length, 0) / 150)) : 0;
 
   return (
-    <StudyShell props={props} icon={<Headphones size={25} />} eyebrow="Audio overview" title="Turn your notes into a conversation" copy="A host and an expert guest discuss the selected chapter or the whole subject." ariaId="podcast-title">
+    <StudyShell props={props} pageClass="podcast-view" icon={<Headphones size={25} />} eyebrow="Audio overview" title="Turn your notes into a conversation" copy="A host and an expert guest discuss the selected chapter or the whole subject." ariaId="podcast-title">
       {/* Audio Engine Selection Bar */}
       <div className="audio-engine-bar" role="radiogroup" aria-label="Podcast speech audio engine">
         <span className="engine-label"><Volume2 size={15} /> Audio engine:</span>
@@ -869,9 +869,12 @@ export function PodcastsView(props: StudyProps) {
               style={{ display: "none" }}
               aria-hidden="true"
             />
-            <div className="player-cover" role="img" aria-label="Abstract purple audio cover art">
+            <div className={`player-cover ${playing ? "player-cover--playing" : ""}`} role="img" aria-label="Live podcast audio waveform">
               <span>N</span>
-              <div className="cover-wave"><i /><i /><i /><i /><i /></div>
+              <div className="cover-wave" aria-hidden="true">
+                <i /><i /><i /><i /><i /><i />
+                <i /><i /><i /><i /><i /><i />
+              </div>
               {script.audioUrl && (
                 <span className="studio-audio-badge" title="High fidelity audio generated with neural voices">
                   <Sparkles size={12} /> Studio Audio
@@ -909,7 +912,6 @@ export function PodcastsView(props: StudyProps) {
               <button type="button" className="icon-button" onClick={() => jump(turn - 1)} aria-label="Previous turn" disabled={turn === 0}><SkipBack size={18} aria-hidden="true" /></button>
               <button type="button" className="play-button" onClick={toggle} aria-label={playing ? "Pause" : "Play"}>{playing ? <Pause size={20} aria-hidden="true" /> : <Play size={20} aria-hidden="true" />}</button>
               <button type="button" className="icon-button" onClick={() => jump(turn + 1)} aria-label="Next turn" disabled={turn >= script.turns.length - 1}><SkipForward size={18} aria-hidden="true" /></button>
-              <span aria-live="polite">Turn {turn + 1} / {script.turns.length}</span>
               <div className="speed-buttons" role="group" aria-label="Playback speed">
                 {[0.85, 1, 1.15].map((selectedRate) => (
                   <button
@@ -1242,8 +1244,8 @@ export function FlashcardsView(props: StudyProps) {
   const [count, setCount] = useState(12);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
-  const cards = useMemo(() => data?.asset?.payload.cards ?? [], [data?.asset?.payload.cards]);
-  const progress = useMemo(() => data?.progress ?? [], [data?.progress]);
+  const cards = data?.asset?.payload.cards ?? [];
+  const progress = data?.progress ?? [];
 
   const metrics = useMemo(() => ({
     new: progress.filter((p) => p.status === "new").length,
@@ -1460,8 +1462,8 @@ export function QuizzesView(props: StudyProps) {
   const [submitted, setSubmitted] = useState(false);
   const [isScrolledPastHeader, setIsScrolledPastHeader] = useState(false);
   const headerSentinelRef = useRef<HTMLDivElement>(null);
-  const questions = useMemo(() => data?.asset?.payload.questions ?? [], [data?.asset?.payload.questions]);
-  const attempts: QuizAttempt[] = useMemo(() => data?.attempts ?? [], [data?.attempts]);
+  const questions = data?.asset?.payload.questions ?? [];
+  const attempts: QuizAttempt[] = data?.attempts ?? [];
 
   useEffect(() => {
     const el = headerSentinelRef.current;
