@@ -1,24 +1,16 @@
-# Dependencies
 node_modules/
-frontend/node_modules/
-verity/node_modules/
-verity/desktop/node_modules/
-
-# Build outputs
-backend/target/
-frontend/dist/
-verity/.next/
-verity/out/
-verity/desktop/dist/
-
-# Local runtime data (PGlite DB, keys, model cache, logs)
-verity/data/
-verity/.nitro/
+.next/
+out/
+.nitro/
+data/
+desktop/node_modules/
+desktop/dist/
 *.log
-
-# Local env — verity/.env.example is the tracked template
+# Local env (real secrets) — the template .env.example stays tracked.
 .env
 .env*.local
+!.env.example
+*.tsbuildinfo
 
 # Local AI clones / services
 kokoclone/.venv/
