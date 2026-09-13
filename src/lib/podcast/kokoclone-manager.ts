@@ -155,7 +155,8 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
       await execAsync("uv venv --seed .venv", { cwd: updatedPaths.kokoDir });
     } catch {
       try {
-        await execAsync("python3 -m venv .venv || python -m venv .venv", { cwd: updatedPaths.kokoDir });
+        // python3 (macOS/Linux) → python (Windows/PATH) → py launcher (Windows).
+        await execAsync("python3 -m venv .venv || python -m venv .venv || py -m venv .venv", { cwd: updatedPaths.kokoDir });
       } catch (err) {
         return {
           ok: false,

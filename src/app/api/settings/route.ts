@@ -21,6 +21,12 @@ function environment() {
     platform: process.platform,
     node: process.version,
     logPath: diagnosticsLogPath(),
+    // True on hosted/serverless platforms (Vercel, or VERITY_HOSTED=true):
+    // 127.0.0.1 is the host, not the user's PC, so local runtimes (Ollama,
+    // llama.cpp, KokoClone/Python) are unreachable and their setup is hidden.
+    // The Windows/self-hosted target leaves this unset: embedded PGlite,
+    // Ollama, KokoClone, and local Whisper all work fully offline.
+    hosted: Boolean(process.env.VERCEL || process.env.VERITY_HOSTED === "true"),
   };
 }
 

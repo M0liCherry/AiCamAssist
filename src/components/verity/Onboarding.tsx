@@ -17,7 +17,13 @@ const PROVIDER_ORDER: Exclude<Provider, "none">[] = ["gemini", "anthropic", "oll
 
 export function ProviderForm({ boot, mode, onSaved, onSkip }: { boot: SettingsResponse; mode: "onboarding" | "settings"; onSaved: (settings: PublicSettings) => void; onSkip?: () => void }) {
   const { settings, presets } = boot;
-  const initialProvider: Exclude<Provider, "none"> = settings.provider === "none" ? "gemini" : settings.provider;
+  // On hosted deployments (e.g. Vercel) 127.0.0.1 is the host, not the user's
+  // PC, so local runtimes can never connect — steer toward cloud providers.
+  const hosted = boot.environment.hosted === true;
+  const initialProvider: Exclude<Provider, "none"> =
+    settings.provider === "none" || (hosted && (settings.provider === "ollama" || settings.provider === "llamacpp"))
+      ? "gemini"
+      : settings.provider;
   const [provider, setProvider] = useState<Exclude<Provider, "none">>(initialProvider);
   const [model, setModel] = useState(settings.provider === initialProvider && settings.model ? settings.model : presets[initialProvider].model);
   const [embeddingModel, setEmbeddingModel] = useState(settings.provider === initialProvider && settings.embeddingModel ? settings.embeddingModel : presets[initialProvider].embeddingModel);
@@ -195,18 +201,20 @@ export function ProviderForm({ boot, mode, onSaved, onSkip }: { boot: SettingsRe
         {PROVIDER_ORDER.map((key) => {
           const item = presets[key];
           const selected = provider === key;
+          const tunnelOnly = hosted && item.local;
           return (
-            <button type="button" role="radio" aria-checked={selected} className={`provider-card ${selected ? "selected" : ""}`} key={key} onClick={() => choose(key)}>
+            <button type="button" role="radio" aria-checked={selected} className={`provider-card ${selected ? "selected" : ""}`} key={key} title={tunnelOnly ? "Needs a public tunnel URL to the PC running the model (e.g. ngrok http 11434)" : undefined} onClick={() => choose(key)}>
               <span className="provider-icon" aria-hidden="true">{item.local ? (key === "ollama" ? <Cpu size={20} /> : <ServerCog size={20} />) : <Cloud size={20} />}</span>
               <span className="provider-copy">
                 <strong>{item.label}</strong>
-                <small>{item.local ? "Runs on this PC · offline" : "API key · data sent to provider"}</small>
+                <small>{item.local ? (hosted ? "Your PC · via public tunnel" : "Runs on this PC · offline") : "API key · data sent to provider"}</small>
               </span>
               {selected && <Check size={16} className="provider-check" aria-hidden="true" />}
             </button>
           );
         })}
       </div>
+      {hosted && <InlineAlert tone="info">Hosted deployment detected: a local runtime can't be reached at 127.0.0.1 (that's the server, not your PC). To use Ollama here, expose it with a tunnel (e.g. run <code>ngrok http 11434</code> on your PC) and paste the public URL into Local endpoint below. Or self-host VerityAI on your PC for direct localhost access.</InlineAlert>}
       <p className="help-text">{preset.description}</p>
 
       <div className="provider-fields">
@@ -226,7 +234,7 @@ export function ProviderForm({ boot, mode, onSaved, onSkip }: { boot: SettingsRe
           <label className="field">
             <span>Local endpoint</span>
             <input type="url" value={endpoint} onChange={(event) => setEndpoint(event.target.value)} placeholder={preset.endpoint} />
-            <small>{provider === "ollama" ? "Ollama listens on http://127.0.0.1:11434 by default." : "Start llama-server or LM Studio's local server and paste its base URL."}</small>
+            <small>{provider === "ollama" ? (hosted ? "On hosted deployments 127.0.0.1 is the server — paste your tunnel URL instead, e.g. https://xxxx.ngrok-free.app." : "Ollama listens on http://127.0.0.1:11434 by default.") : "Start llama-server or LM Studio's local server and paste its base URL."}</small>
           </label>
         )}
 
@@ -599,13 +607,18 @@ export function Onboarding({ boot, onComplete }: { boot: SettingsResponse; onCom
                       KokoClone lets you upload reference audio samples to clone any voice locally. It runs offline via Kokoro-ONNX and Kanade on port 7860.
                     </p>
 
+                    {boot.environment.hosted === true && (
+                      <InlineAlert tone="info">KokoClone needs Python on the same machine as the app, so it can't run on hosted deployments (e.g. Vercel) — there is no Python runtime and no persistent disk there. Use System or ElevenLabs voices here, or self-host VerityAI on your own PC for local voice cloning.</InlineAlert>
+                    )}
+
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                       {(!kokoStatus?.installed || !kokoStatus?.venvReady) && (
                         <button
                           type="button"
                           className="secondary-button compact"
                           onClick={handleSetupKoko}
-                          disabled={settingUpKoko}
+                          disabled={settingUpKoko || boot.environment.hosted === true}
+                          title={boot.environment.hosted === true ? "Unavailable on hosted deployments" : undefined}
                         >
                           {settingUpKoko ? <Spinner label="Downloading & Setting up…" /> : <><Download size={14} />Download & Set Up KokoClone</>}
                         </button>
@@ -616,7 +629,8 @@ export function Onboarding({ boot, onComplete }: { boot: SettingsResponse; onCom
                           type="button"
                           className="secondary-button compact"
                           onClick={handleStartKoko}
-                          disabled={startingKoko}
+                          disabled={startingKoko || boot.environment.hosted === true}
+                          title={boot.environment.hosted === true ? "Unavailable on hosted deployments" : undefined}
                         >
                           {startingKoko ? <Spinner label="Launching server…" /> : <><Play size={14} />Start KokoClone Server</>}
                         </button>

@@ -37,7 +37,7 @@ export type PublicSettings = {
   themeSeed: string;
 };
 
-export type Environment = { dataDir: string; database: string; version: string; platform: string; node: string; logPath: string };
+export type Environment = { dataDir: string; database: string; version: string; platform: string; node: string; logPath: string; hosted: boolean };
 export type Publisher = { name: string; legalEntity: string; address: string; supportEmail: string; privacyEmail: string; website: string };
 
 export type SettingsResponse = {

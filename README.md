@@ -1,5 +1,10 @@
 # Verity AI — Local-First AI Study Workspace
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform: Windows](https://img.shields.io/badge/Platform-Windows%20x64-0078D6.svg)](#download)
+[![Stack: Next.js](https://img.shields.io/badge/Stack-Next.js%2016-black.svg)](#architecture)
+[![Database: PGlite / PostgreSQL](https://img.shields.io/badge/DB-PGlite%20%7C%20PostgreSQL-336791.svg)](#architecture)
+
 Verity AI turns lecture recordings, PDFs, slides, and web articles into a searchable
 knowledge base with a source-grounded assistant, two-voice podcasts,
 spaced-repetition flashcards, and topic-tracked quizzes — all stored locally on
@@ -11,6 +16,15 @@ your own machine.
   OpenAI-compatible local server (llama.cpp, LM Studio).
 - **Grounded answers:** every AI feature cites the exact passages it used, so you
   can verify instead of trusting.
+
+## Download
+
+| Platform | Get it |
+| --- | --- |
+| **Windows 10/11 (x64)** | [**Verity AI Setup 1.0.0.exe**](https://github.com/M0liCherry/AiCamAssist/releases/latest) — double-click to install, runs from the taskbar tray, fully offline |
+
+No installer? Run from source below. No Windows? Deploy the hosted target to
+Vercel ([instructions](#deploying-to-vercel-target-b)).
 
 ## Features
 
@@ -26,38 +40,71 @@ your own machine.
 | **Theme studio** | Material You dynamic color — pick a seed color and the whole UI re-themes, light or dark |
 | **Trust center** | Privacy Policy, Terms, Telemetry, License, Accessibility, and Open-source licenses built in |
 
-## Quickstart
+## Quickstart — two targets, one codebase
 
-**Prerequisites:** Node.js 20+ and npm.
+The same code runs in two modes. Pick the target that fits; there is no fork.
+
+**Target A — Windows / self-hosted (fully offline + local models).**
+Uses the embedded PGlite database in `./.verity`, talks to Ollama /
+llama.cpp on `127.0.0.1`, runs KokoClone voice cloning with local Python,
+and transcribes with local Whisper. Nothing leaves the PC.
 
 ```bash
 npm install
-npm run dev
+npm run dev          # develop
+npm run build && npm start   # production server on http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and complete the first-launch
-setup: accept the Privacy Policy, then choose an AI backend (cloud API key or a
-local model). The library starts empty — create a subject, add a chapter, and
-import your first notes.
+Open [http://localhost:3000](http://localhost:3000). Then install
+[Ollama](https://ollama.com/download) (open the app, pull e.g.
+`qwen2.5:7b-instruct` + `nomic-embed-text`) and, for voice cloning, Python
+3.10+ and the KokoClone setup in Settings. Optional config: copy
+`.env.local.example` to `.env.local`.
 
-### Production
+**Windows desktop app (installer, no terminal).** The same Target A build
+packaged with Electron — double-click to install, runs from the taskbar tray,
+stays resident on window close, optional start-with-Windows, all data under
+`%APPDATA%\Verity AI`:
 
 ```bash
-npm run build
-npm start
+npm run dist:win     # produces dist/Verity AI Setup 1.0.0.exe
 ```
 
-### Deploying to Vercel
+For development, run `npm run dev` in one terminal and
+`npm run electron:dev` in another. Notes: KokoClone setup inside the
+installed app needs Git + Python on the machine (it clones its engine on
+first use); Whisper transcription works out of the box (prebuilt ONNX
+runtime ships inside).
+
+**Target B — Hosted (Vercel, cloud API backends only).**
+Same app, but `127.0.0.1` is the server, not your PC — so the app
+automatically hides Ollama / llama.cpp / KokoClone setup and uses Gemini or
+Claude plus System / ElevenLabs voices. Copy `.env.vercel.example` values
+into the host's environment (see below).
+
+### Other scripts
+
+| Command | Purpose |
+| --- | --- |
+| `npm run lint` | ESLint over the repo |
+| `npm run typecheck` | Strict TypeScript check (`tsc --noEmit`) |
+| `npm run electron:dev` | Desktop shell against `npm run dev` |
+| `npm run dist:win` | Build the Windows installer into `dist/` |
+
+### Deploying to Vercel (Target B)
 
 Vercel's filesystem is ephemeral, so the embedded PGlite database cannot
 persist there — point the app at a hosted PostgreSQL database (Vercel
-Postgres, Neon, or Supabase):
+Postgres, Neon, or Supabase). The app detects the hosted target via `VERCEL`
+or `VERITY_HOSTED=true` and automatically hides Ollama / llama.cpp /
+KokoClone setup in favor of cloud backends:
 
 1. Keep the defaults on the import screen: Next.js preset, root directory
    `./`, default build/output/install commands.
 2. In **Environment Variables**, set `DATABASE_URL` to your hosted connection
-   string (include `?sslmode=require` if your provider needs it). Optionally
-   set `VERITY_KEY_SECRET` and the `NEXT_PUBLIC_*` publisher variables. Do
+   string (include `?sslmode=require` if your provider needs it) and
+   `VERITY_HOSTED=true`. Optionally set `VERITY_KEY_SECRET` and the
+   `NEXT_PUBLIC_*` publisher variables (see `.env.vercel.example`). Do
    **not** set `VERITY_DATA_DIR`.
 3. Create the tables once from your machine (requires the repo + dependencies):
    ```bash

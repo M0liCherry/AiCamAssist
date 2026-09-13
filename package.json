@@ -1,12 +1,19 @@
 {
   "name": "verity-ai",
+  "version": "1.0.0",
+  "description": "Verity AI — local-first AI study workspace",
+  "author": "M0liCherry",
   "private": true,
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "electron:dev": "electron electron/main.cjs",
+    "electron:build": "node scripts/prepare-electron.cjs",
+    "dist:win": "npm run electron:build && electron-builder --win --publish never"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",
@@ -28,8 +35,11 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "drizzle-kit": "0.31.10",
+    "electron": "^44.3.0",
+    "electron-builder": "^26.15.3",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",
+    "png-to-ico": "^3.0.2",
     "postcss": "8.5.8",
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3"

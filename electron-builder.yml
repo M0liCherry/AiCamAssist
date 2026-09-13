@@ -1,0 +1,37 @@
+appId: com.verityai.app
+productName: Verity AI
+copyright: Copyright © 2026 M0liCherry
+directories:
+  output: dist
+files:
+  - package.json
+  - electron/main.cjs
+  - build/icon.ico
+  - .next/standalone/server.js
+  - .next/standalone/package.json
+  - .next/standalone/node_modules/**/*
+  - .next/standalone/.next/**/*
+  - .next/standalone/public/**/*
+  - drizzle/**/*
+  - "!**/*.map"
+  # Traced but never needed at runtime (kokoclone self-heals via git clone,
+  # .verity is user data, src is empty in the trace).
+  - "!.next/standalone/kokoclone/**/*"
+  - "!.next/standalone/.verity/**/*"
+  - "!.next/standalone/src/**/*"
+  - "!.next/standalone/scripts/**/*"
+  - "!.next/standalone/electron/**/*"
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+nsis:
+  oneClick: true
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Verity AI
+  deleteAppDataOnUninstall: false
+asarUnpack:
+  - "**/*.node"

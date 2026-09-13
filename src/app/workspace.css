@@ -1385,6 +1385,16 @@
   background: var(--md-sys-color-surface-container-high);
 }
 
+.provider-card:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.provider-card:disabled:hover {
+  border-color: var(--line);
+  background: var(--md-sys-color-surface-container-low);
+}
+
 .provider-card.active,
 .provider-card.selected {
   border-color: var(--md-sys-color-primary);

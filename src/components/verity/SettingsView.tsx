@@ -598,12 +598,16 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
           </div>
 
           <div className="button-row" style={{ marginTop: 4 }}>
+            {environment.hosted === true && (
+              <InlineAlert tone="info">KokoClone needs Python on the same machine as the app, so it can't run on hosted deployments (e.g. Vercel) — there is no Python runtime and no persistent disk there. Use System or ElevenLabs voices here, or self-host VerityAI on your own PC for local voice cloning.</InlineAlert>
+            )}
             {(!kokoDetailedStatus?.installed || !kokoDetailedStatus?.venvReady) ? (
               <button
                 type="button"
                 className="primary-button compact"
                 onClick={setupKokoClone}
-                disabled={settingUpKoko}
+                disabled={settingUpKoko || environment.hosted === true}
+                title={environment.hosted === true ? "Unavailable on hosted deployments" : undefined}
               >
                 <Download size={14} /> {settingUpKoko ? "Setting up KokoClone…" : "Download & Set Up KokoClone"}
               </button>
@@ -612,8 +616,8 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
                 type="button"
                 className="secondary-button compact"
                 onClick={setupKokoClone}
-                disabled={settingUpKoko}
-                title="Reinstall or update KokoClone Python dependencies"
+                disabled={settingUpKoko || environment.hosted === true}
+                title={environment.hosted === true ? "Unavailable on hosted deployments" : "Reinstall or update KokoClone Python dependencies"}
               >
                 <Download size={14} /> {settingUpKoko ? "Installing packages…" : "Reinstall / Update Dependencies"}
               </button>
@@ -624,7 +628,8 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
                 type="button"
                 className="primary-button compact"
                 onClick={startKokoServer}
-                disabled={startingKoko}
+                disabled={startingKoko || environment.hosted === true}
+                title={environment.hosted === true ? "Unavailable on hosted deployments" : undefined}
               >
                 <Play size={14} /> {startingKoko ? "Starting server…" : "Start KokoClone Server"}
               </button>
