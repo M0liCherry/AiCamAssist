@@ -30,11 +30,13 @@ win:
       arch: [x64]
   icon: build/icon.ico
 nsis:
-  oneClick: true
+  oneClick: false
   perMachine: false
+  allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Verity AI
   deleteAppDataOnUninstall: false
+  uninstallDisplayName: Verity AI
 asarUnpack:
   - "**/*.node"

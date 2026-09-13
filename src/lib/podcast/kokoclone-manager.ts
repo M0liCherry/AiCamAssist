@@ -230,6 +230,21 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
     const text = err instanceof Error ? err.message : String(err);
     lastInstallError = text.slice(-600);
   };
+  // A pip exit code of 0 does NOT mean the packages landed (`uv pip install
+  // -e .` succeeds even when the cloned project declares no dependencies, so
+  // a phantom success left users looping on Reinstall forever). Every
+  // strategy is verified by a real import before it counts.
+  const importsOk = async (): Promise<boolean> => {
+    try {
+      await execAsync(`${pyBin} -c "import kokoro_onnx, gradio, kanade_tokenizer, misaki, soundfile"`, {
+        cwd: updatedPaths.kokoDir,
+        maxBuffer: 5 * 1024 * 1024,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   // Strategy A: Use uv (natively resolves [tool.uv.sources] git packages like kanade-tokenizer)
   if (uvAvailable) {
@@ -238,14 +253,18 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
         cwd: updatedPaths.kokoDir,
         maxBuffer: 15 * 1024 * 1024,
       });
-      installSuccess = true;
-    } catch {
+      installSuccess = await importsOk();
+    } catch (err) {
+      recordFailure(err);
+      installSuccess = false;
+    }
+    if (!installSuccess) {
       try {
         await execAsync(`${uvCommand} pip install --python ${pyBin} ${gpuList}`, {
           cwd: updatedPaths.kokoDir,
           maxBuffer: 15 * 1024 * 1024,
         });
-        installSuccess = true;
+        installSuccess = await importsOk();
       } catch (err) {
         recordFailure(err);
         try {
@@ -254,7 +273,7 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
             cwd: updatedPaths.kokoDir,
             maxBuffer: 15 * 1024 * 1024,
           });
-          installSuccess = true;
+          installSuccess = await importsOk();
         } catch (cpuErr) {
           recordFailure(cpuErr);
           installSuccess = false;
@@ -309,7 +328,7 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
         maxBuffer: 15 * 1024 * 1024,
       });
 
-      installSuccess = true;
+      installSuccess = await importsOk();
     } catch (err) {
       return {
         ok: false,

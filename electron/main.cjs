@@ -1,11 +1,12 @@
 // Verity AI — Windows desktop shell (Electron main process).
 // Runs the Next.js standalone server in-process (no separate Node needed:
-// PGlite is WASM and onnxruntime-node is N-API, both load inside Electron),
-// stores all data under %APPDATA%/Verity AI, and lives in the system tray.
+// PGlite is WASM and onnxruntime-node is N-API, both load inside Electron)
+// and stores all data under %APPDATA%/Verity AI. Closing the window quits
+// the app (and its local server) outright — no tray residence.
 //
 // Dev:  npm run dev  (terminal 1) +  npm run electron:dev  (terminal 2)
 // Prod: built by `npm run dist:win` into a double-clickable installer.
-const { app, BrowserWindow, Tray, Menu, shell, dialog, nativeImage, clipboard } = require("electron");
+const { app, BrowserWindow, shell, dialog, clipboard } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const net = require("net");
@@ -16,7 +17,6 @@ const URL = `http://127.0.0.1:${PORT}`;
 const isDev = !app.isPackaged;
 
 let mainWindow = null;
-let tray = null;
 let logPath = null;
 const logLines = [];
 
@@ -217,50 +217,9 @@ function createWindow() {
     },
   });
   mainWindow.once("ready-to-show", () => mainWindow.show());
-  mainWindow.on("close", (event) => {
-    // Keep running in the tray like a home-server app; quit from the tray.
-    event.preventDefault();
-    mainWindow.hide();
-  });
+  // Closing the window quits the app entirely (no tray residence).
   mainWindow.on("closed", () => {
     mainWindow = null;
-  });
-}
-
-function createTray() {
-  const img = nativeImage.createFromPath(iconPath() || "");
-  if (!img.isEmpty()) {
-    tray = new Tray(img.resize({ width: 16, height: 16 }));
-  } else {
-    tray = new Tray(nativeImage.createEmpty());
-  }
-  tray.setToolTip("Verity AI");
-  const loginItem = app.getLoginItemSettings();
-  const menu = Menu.buildFromTemplate([
-    { label: "Open Verity AI", click: () => (mainWindow ? mainWindow.show() : createWindow()) },
-    { label: "Open in browser", click: () => void shell.openExternal(URL) },
-    { type: "separator" },
-    {
-      label: "Start with Windows",
-      type: "checkbox",
-      checked: Boolean(loginItem.openAtLogin),
-      click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked, name: "Verity AI" }),
-    },
-    { type: "separator" },
-    {
-      label: "Quit",
-      click: () => {
-        tray.destroy();
-        app.exit(0);
-      },
-    },
-  ]);
-  tray.setContextMenu(menu);
-  tray.on("click", () => {
-    if (mainWindow) {
-      if (mainWindow.isVisible()) mainWindow.hide();
-      else mainWindow.show();
-    }
   });
 }
 
@@ -296,7 +255,6 @@ async function boot() {
     }
   }
   createWindow();
-  createTray();
   mainWindow.loadURL(URL).catch(() => undefined);
 }
 
@@ -327,8 +285,9 @@ if (!gotLock) {
     }
   });
   app.whenReady().then(() => void boot());
+  // Closing the window ends the app (including its local server).
   app.on("window-all-closed", () => {
-    // Stay resident in the tray (Windows home-server behavior).
+    app.quit();
   });
   app.on("activate", () => {
     if (mainWindow) mainWindow.show();

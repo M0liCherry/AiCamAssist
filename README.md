@@ -62,9 +62,9 @@ Open [http://localhost:3000](http://localhost:3000). Then install
 `.env.local.example` to `.env.local`.
 
 **Windows desktop app (installer, no terminal).** The same Target A build
-packaged with Electron — double-click to install, runs from the taskbar tray,
-stays resident on window close, optional start-with-Windows, all data under
-`%APPDATA%\Verity AI`:
+packaged with Electron — assisted setup asks for install location and
+shortcuts, then the app just runs; closing its window quits everything, and
+all data lives under `%APPDATA%\Verity AI`:
 
 ```bash
 npm run dist:win     # produces dist/Verity AI Setup 1.0.0.exe
