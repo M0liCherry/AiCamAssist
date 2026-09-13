@@ -77,10 +77,12 @@ first use); Whisper transcription works out of the box (prebuilt ONNX
 runtime ships inside).
 
 **Target B — Hosted (Vercel, cloud API backends only).**
-Same app, but `127.0.0.1` is the server, not your PC — so the app
-automatically hides Ollama / llama.cpp / KokoClone setup and uses Gemini or
-Claude plus System / ElevenLabs voices. Copy `.env.vercel.example` values
-into the host's environment (see below).
+Same app, but `127.0.0.1` is the server, not your PC. The app detects the
+hosted target via `VERCEL` or `VERITY_HOSTED=true`: KokoClone setup is hidden,
+and Ollama / llama.cpp cards guide you to expose your PC's runtime with a
+tunnel (e.g. run `ngrok http 11434` on your PC and paste the public URL into
+Local endpoint). Cloud backends (Gemini/Claude) work with just an API key —
+see below.
 
 ### Other scripts
 
@@ -111,14 +113,16 @@ KokoClone setup in favor of cloud backends:
    DATABASE_URL="<your-connection-string>" npx drizzle-kit migrate
    ```
 4. Deploy. If the app shows "could not start", open
-   `https://<your-app>.vercel.app/api/settings` in the browser — the returned
-   error names the cause (unreachable database vs. missing tables) — and check
-   the function logs in the Vercel dashboard.
+   `https://<your-app>.vercel.app/api/health` in the browser — it reports
+   exactly what's wrong (no database configured vs. connected but tables
+   missing vs. connection failure) — and check the function logs in the
+   Vercel dashboard.
 
 Note the Hobby-plan limits: serverless timeouts can interrupt long AI
-generations, Whisper transcription, and podcast rendering; local backends
-(Ollama, KokoClone) are unreachable from Vercel, so use cloud API keys, and
-treat uploads/generated audio as temporary.
+generations, Whisper transcription, and podcast rendering; KokoClone voice
+cloning can't run on hosted (no Python runtime) — use System or ElevenLabs
+voices there; local Ollama works only through a public tunnel, otherwise use
+cloud API keys; treat uploads/generated audio as temporary.
 
 ### Other scripts
 
@@ -146,8 +150,8 @@ Copy `.env.example` to `.env.local` and adjust as needed.
 | --- | --- | --- | --- |
 | Google Gemini | API key (AI Studio) | `gemini-embedding-001` | Yes — only when an AI action runs, after explicit consent |
 | Anthropic Claude | API key | None → on-device BM25 retrieval | Yes — same explicit consent |
-| Ollama | Local runtime; download models (e.g. `qwen2.5:7b-instruct`) from inside the app | `nomic-embed-text` (optional) | No |
-| llama.cpp / LM Studio | OpenAI-compatible local server | `/v1/embeddings` if enabled | No |
+| Ollama | Local runtime; download models (e.g. `qwen2.5:7b-instruct`) from inside the app. On hosted targets, expose it with `ngrok http 11434` and paste the public URL as the endpoint | `nomic-embed-text` (optional) | No (direct) / via your own tunnel |
+| llama.cpp / LM Studio | OpenAI-compatible local server (same tunnel trick works when hosted) | `/v1/embeddings` if enabled | No |
 
 Speech-to-text is always local (Whisper via Transformers.js + ONNX Runtime).
 API keys are encrypted at rest with AES-256-GCM.
