@@ -1,82 +1,113 @@
 /*
- * Verity UI config
+ * Verity UI config - Catppuccin Theme
  * Edit this file to retheme the web app.
- * Components should consume these variables instead of owning visual values.
+ * Components consume these variables instead of owning visual values.
  */
 
 :root {
-  /* Terminal palette */
-  --bg: #11151f;
-  --bg-raised: #171d29;
-  --sidebar: #0c1018;
-  --panel: #141a24;
-  --panel-2: #1c2431;
-  --panel-3: #283243;
-  --line: #303b4b;
-  --line-strong: #48576c;
-  --text: #e8edf7;
-  --text-2: #c1cada;
-  --muted: #929eb1;
-  --faint: #697487;
-  --violet: #d98aaf;
-  --violet-strong: #aeb8ff;
-  --violet-soft: rgb(217 138 175 / 14%);
-  --violet-pale: #f0a9c6;
-  --blue: #8ac7f5;
-  --green: #86d7b0;
-  --amber: #f5c475;
-  --red: #ff8b78;
-  --accent-deep: #4d5aa8;
-  --accent-primary: #ef8a67;
-  --accent-primary-strong: #d76654;
-  --accent-glow: rgb(239 138 103 / 25%);
-  --page-glow: rgb(174 184 255 / 12%);
-  --shadow: 0 22px 60px rgb(4 6 12 / 62%);
+  /* Catppuccin Mocha (Dark) */
+  --bg: #1e1e2e;
+  --bg-raised: #25273a;
+  --sidebar: #181825;
+  --panel: #24273a;
+  --panel-2: #313244;
+  --panel-3: #45475a;
+  --surface-0: #313244;
+  --surface-1: #45475a;
+  --surface-2: #585b70;
+  --line: #363a4f;
+  --line-strong: #585b70;
+  --text: #cdd6f4;
+  --text-2: #bac2de;
+  --muted: #a6adc8;
+  --faint: #7f849c;
+
+  /* Catppuccin Non-Purple Accent Palette: Blue / Sapphire / Teal / Sky */
+  --violet: #89b4fa;
+  --violet-strong: #74c7ec;
+  --violet-soft: rgba(137, 180, 250, 0.12);
+  --violet-pale: #89dceb;
+  --blue: #89b4fa;
+  --green: #a6e3a1;
+  --amber: #f9e2af;
+  --red: #f38ba8;
+  --teal: #94e2d5;
+  --peach: #fab387;
+  --maroon: #eba0ac;
+  --flamingo: #f2cdcd;
+  --rosewater: #f5e0dc;
+
+  --accent-primary: #89b4fa;
+  --accent-primary-strong: #74c7ec;
+  --accent-secondary: #fab387;
+  --accent-deep: #243b6b;
+  --accent-btn-text: #11111b;
+
+  /* Zero Bloom & Clean Flat Elevation */
+  --accent-glow: transparent;
+  --page-glow: transparent;
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.24);
 
   /* Layout and shape */
   --sidebar-width: 232px;
-  --radius-xl: 22px;
-  --radius-lg: 16px;
-  --radius-md: 11px;
-  --radius-sm: 7px;
+  --radius-xl: 20px;
+  --radius-lg: 14px;
+  --radius-md: 10px;
+  --radius-sm: 6px;
   --control-height: 36px;
   --content-width: 1180px;
   --page-gutter: 24px;
 
   /* Typography */
-  --font-ui: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
-  --font-reading: ui-serif, Georgia, serif;
-  --font-code: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-reading: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-code: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   --font-size-base: 15px;
   color-scheme: dark;
 }
 
 :root[data-theme="light"] {
-  --bg: #f0f1f7;
-  --bg-raised: #e4e7f0;
-  --sidebar: #d9ddeb;
-  --panel: #fafaff;
-  --panel-2: #e7e9f2;
-  --panel-3: #d0d5e2;
-  --line: #c2c8d8;
-  --line-strong: #a8b1c5;
-  --text: #30364b;
-  --text-2: #4c566e;
-  --muted: #667188;
-  --faint: #8791a5;
-  --violet: #b55f87;
-  --violet-strong: #6975c7;
-  --violet-soft: rgb(181 95 135 / 12%);
-  --violet-pale: #a34e78;
-  --blue: #347cae;
-  --green: #368d6c;
-  --amber: #a86f1c;
-  --red: #bd4d45;
-  --accent-deep: #5a64a8;
-  --accent-primary: #d86c50;
-  --accent-primary-strong: #b95143;
-  --accent-glow: rgb(181 95 135 / 20%);
-  --page-glow: rgb(105 117 199 / 10%);
-  --shadow: 0 20px 55px rgb(45 51 75 / 14%);
+  /* Catppuccin Latte (Light) */
+  --bg: #eff1f5;
+  --bg-raised: #e6e9ef;
+  --sidebar: #dce0e8;
+  --panel: #ffffff;
+  --panel-2: #e6e9ef;
+  --panel-3: #dce0e8;
+  --surface-0: #ccd0da;
+  --surface-1: #bcc0cc;
+  --surface-2: #acb0be;
+  --line: #ccd0da;
+  --line-strong: #bcc0cc;
+  --text: #4c4f69;
+  --text-2: #5c5f77;
+  --muted: #6c6f85;
+  --faint: #8c8fa1;
+
+  /* Catppuccin Non-Purple Accent Palette: Blue / Sapphire / Teal / Sky */
+  --violet: #1e66f5;
+  --violet-strong: #209fb5;
+  --violet-soft: rgba(30, 102, 245, 0.08);
+  --violet-pale: #04a5e5;
+  --blue: #1e66f5;
+  --green: #40a02b;
+  --amber: #df8e1d;
+  --red: #d20f39;
+  --teal: #179299;
+  --peach: #fe640b;
+  --maroon: #e64553;
+  --flamingo: #dd7878;
+  --rosewater: #dc8a78;
+
+  --accent-primary: #1e66f5;
+  --accent-primary-strong: #209fb5;
+  --accent-secondary: #fe640b;
+  --accent-deep: #183f8c;
+  --accent-btn-text: #ffffff;
+
+  /* Zero Bloom & Clean Elevation */
+  --accent-glow: transparent;
+  --page-glow: transparent;
+  --shadow: 0 4px 14px rgba(76, 79, 105, 0.08);
   color-scheme: light;
 }
