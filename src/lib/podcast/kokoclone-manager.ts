@@ -16,6 +16,22 @@ export interface KokoCloneStatus {
 }
 
 export function getKokoclonePaths() {
+  // Absolute override (Windows desktop app: %APPDATA%/Verity AI). Otherwise
+  // resolve relative to the working directory as before.
+  const configured = process.env.VERITY_KOKO_ROOT;
+  if (configured) {
+    const kokoDir = path.join(configured, "kokoclone");
+    const venvUnix = path.join(kokoDir, ".venv", "bin", "python");
+    const venvWin = path.join(kokoDir, ".venv", "Scripts", "python.exe");
+    const pythonBin = fs.existsSync(venvUnix) ? venvUnix : fs.existsSync(venvWin) ? venvWin : null;
+    return {
+      root: configured,
+      kokoDir,
+      hasCode: fs.existsSync(path.join(kokoDir, "app.py")),
+      hasVenv: Boolean(pythonBin),
+      pythonBin,
+    };
+  }
   const cwd = process.cwd();
   const root = fs.existsSync(path.join(cwd, "kokoclone"))
     ? cwd

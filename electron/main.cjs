@@ -45,22 +45,18 @@ function findServer() {
 
 /** Start the bundled Next.js standalone server inside this process. */
 function startServer() {
-  // Writable home for the embedded DB, KokoClone checkout/venv, and models.
-  // chdir first so every cwd-relative path (./.verity, ./kokoclone) lands here.
-  // NOTE: chdir does NOT create the folder — userData never exists on first
-  // launch, so mkdir (recursive) is mandatory, not best-effort.
+  // All writable state lives under %APPDATA%/Verity AI. NOTE: do NOT chdir
+  // there — the Next.js standalone server calls chdir(__dirname) on boot,
+  // which fails inside the asar archive. Every data path is absolute instead:
+  // the app honors VERITY_DATA_DIR / VERITY_KOKO_ROOT absolutely.
   const home = app.getPath("userData");
   fs.mkdirSync(home, { recursive: true });
-  try {
-    process.chdir(home);
-  } catch (err) {
-    throw new Error(
-      `Cannot use app data folder: ${home}\n${err instanceof Error ? err.message : String(err)}`,
-    );
-  }
+  fs.mkdirSync(path.join(home, ".verity"), { recursive: true });
   process.env.PORT = String(PORT);
   process.env.HOSTNAME = "127.0.0.1";
-  // Migrations ship inside Resources; resolve absolutely (cwd just changed).
+  process.env.VERITY_DATA_DIR = path.join(home, ".verity");
+  process.env.VERITY_KOKO_ROOT = home;
+  // Migrations ship inside Resources; resolve absolutely.
   const migrations = isDev
     ? path.join(__dirname, "..", "drizzle")
     : path.join(process.resourcesPath, "app", "drizzle");
