@@ -132,12 +132,23 @@ function startServer() {
   process.env.HOSTNAME = "127.0.0.1";
   process.env.VERITY_DATA_DIR = path.join(home, ".verity");
   process.env.VERITY_KOKO_ROOT = home;
-  // Migrations ship inside Resources; resolve absolutely.
+  // Migrations ship inside Resources; resolve absolutely. Probe the explicit
+  // asar path too: never rely on implicit app/ -> app.asar fallback (a stray
+  // real directory shadows the archive and silently resolves wrong).
   const migrations = isDev
     ? path.join(__dirname, "..", "drizzle")
-    : path.join(process.resourcesPath, "app", "drizzle");
-  if (fs.existsSync(migrations)) process.env.VERITY_MIGRATIONS_DIR = migrations;
-  log(`migrations=${migrations} (${fs.existsSync(migrations) ? "present" : "MISSING"})`);
+    : [
+        path.join(process.resourcesPath, "app", "drizzle"),
+        path.join(process.resourcesPath, "app.asar", "drizzle"),
+      ].find((candidate) => {
+        try {
+          return fs.existsSync(candidate);
+        } catch {
+          return false;
+        }
+      });
+  if (migrations) process.env.VERITY_MIGRATIONS_DIR = migrations;
+  log(`migrations=${migrations || "MISSING!"} (${migrations ? "present" : "not found in resources"})`);
   log(`cwd=${process.cwd()}`);
 
   const serverJs = isDev ? null : findServer();

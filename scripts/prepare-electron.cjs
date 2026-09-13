@@ -24,7 +24,9 @@ fs.cpSync(path.join(root, ".next", "static"), path.join(standalone, ".next", "st
 // neutralize it. Fail loudly if Next changes this line in a future upgrade.
 const serverJs = path.join(standalone, "server.js");
 const source = fs.readFileSync(serverJs, "utf8");
-const CHDIR = "chdir(__dirname)";
+// Replace the FULL call expression: replacing only "chdir(__dirname)" leaves
+// a dangling "process." prefix and ships a SyntaxError (seen in v1.0.0).
+const CHDIR = "process.chdir(__dirname)";
 if (!source.includes(CHDIR)) {
   throw new Error(
     `prepare-electron: expected "${CHDIR}" in .next/standalone/server.js (Next.js upgrade changed the boot code?) — review electron packaging before shipping.`,
@@ -37,5 +39,9 @@ fs.writeFileSync(
     "/* verity-desktop: chdir disabled — app runs inside read-only app.asar, all data paths are absolute via env */",
   ),
 );
+
+// Syntax-gate the patched bundle: a bad replacement shipped a SyntaxError in
+// v1.0.0. This fails the build instead of the user's first launch.
+execSync(`node --check "${serverJs}"`, { cwd: root, stdio: "inherit" });
 
 console.log("\nElectron bundle ready at .next/standalone");
