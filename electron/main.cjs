@@ -47,10 +47,16 @@ function findServer() {
 function startServer() {
   // Writable home for the embedded DB, KokoClone checkout/venv, and models.
   // chdir first so every cwd-relative path (./.verity, ./kokoclone) lands here.
+  // NOTE: chdir does NOT create the folder — userData never exists on first
+  // launch, so mkdir (recursive) is mandatory, not best-effort.
+  const home = app.getPath("userData");
+  fs.mkdirSync(home, { recursive: true });
   try {
-    process.chdir(app.getPath("userData"));
-  } catch {
-    // Non-fatal: falls back to the install dir (may need admin rights).
+    process.chdir(home);
+  } catch (err) {
+    throw new Error(
+      `Cannot use app data folder: ${home}\n${err instanceof Error ? err.message : String(err)}`,
+    );
   }
   process.env.PORT = String(PORT);
   process.env.HOSTNAME = "127.0.0.1";
@@ -74,7 +80,13 @@ function startServer() {
         : `Server bundle missing.${hint}\nReinstall Verity AI.`,
     );
   }
-  require(serverJs);
+  try {
+    require(serverJs);
+  } catch (err) {
+    throw new Error(
+      `Server bundle failed to load: ${serverJs}\n${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 }
 
 /** Wait until 127.0.0.1:PORT accepts connections. */
