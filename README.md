@@ -47,6 +47,32 @@ npm run build
 npm start
 ```
 
+### Deploying to Vercel
+
+Vercel's filesystem is ephemeral, so the embedded PGlite database cannot
+persist there — point the app at a hosted PostgreSQL database (Vercel
+Postgres, Neon, or Supabase):
+
+1. Keep the defaults on the import screen: Next.js preset, root directory
+   `./`, default build/output/install commands.
+2. In **Environment Variables**, set `DATABASE_URL` to your hosted connection
+   string (include `?sslmode=require` if your provider needs it). Optionally
+   set `VERITY_KEY_SECRET` and the `NEXT_PUBLIC_*` publisher variables. Do
+   **not** set `VERITY_DATA_DIR`.
+3. Create the tables once from your machine (requires the repo + dependencies):
+   ```bash
+   DATABASE_URL="<your-connection-string>" npx drizzle-kit migrate
+   ```
+4. Deploy. If the app shows "could not start", open
+   `https://<your-app>.vercel.app/api/settings` in the browser — the returned
+   error names the cause (unreachable database vs. missing tables) — and check
+   the function logs in the Vercel dashboard.
+
+Note the Hobby-plan limits: serverless timeouts can interrupt long AI
+generations, Whisper transcription, and podcast rendering; local backends
+(Ollama, KokoClone) are unreachable from Vercel, so use cloud API keys, and
+treat uploads/generated audio as temporary.
+
 ### Other scripts
 
 | Command | Purpose |
