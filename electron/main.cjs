@@ -27,6 +27,22 @@ function iconPath() {
   return undefined;
 }
 
+/** Locate the bundled Next.js standalone server, with diagnostics. */
+function findServer() {
+  const candidates = [
+    path.join(process.resourcesPath, "app", ".next", "standalone", "server.js"),
+    path.join(process.resourcesPath, "app.asar", ".next", "standalone", "server.js"),
+  ];
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) return candidate;
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
+
 /** Start the bundled Next.js standalone server inside this process. */
 function startServer() {
   // Writable home for the embedded DB, KokoClone checkout/venv, and models.
@@ -44,14 +60,18 @@ function startServer() {
     : path.join(process.resourcesPath, "app", "drizzle");
   if (fs.existsSync(migrations)) process.env.VERITY_MIGRATIONS_DIR = migrations;
 
-  const serverJs = isDev
-    ? null
-    : path.join(process.resourcesPath, "app", ".next", "standalone", "server.js");
-  if (!serverJs || !fs.existsSync(serverJs)) {
+  const serverJs = isDev ? null : findServer();
+  if (!serverJs) {
+    let hint = "";
+    try {
+      hint = `\nresourcesPath: ${process.resourcesPath}\nresources: ${(fs.readdirSync(process.resourcesPath) || []).join(", ")}`;
+    } catch {
+      hint = `\nresourcesPath unreadable: ${process.resourcesPath}`;
+    }
     throw new Error(
       isDev
         ? "Dev server not bundled (expected — run `npm run dev` first)."
-        : `Server bundle missing: ${serverJs}\nReinstall Verity AI.`,
+        : `Server bundle missing.${hint}\nReinstall Verity AI.`,
     );
   }
   require(serverJs);
