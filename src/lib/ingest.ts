@@ -206,12 +206,12 @@ function extractJsonArray(source: string, key: string): string | null {
 
 const INNERTUBE_CLIENT_VERSION = "20.10.38";
 const INNERTUBE_USER_AGENT = `com.google.android.youtube/${INNERTUBE_CLIENT_VERSION} (Linux; U; Android 14)`;
-const DESKTOP_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const BROWSER_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 async function fetchYoutubeTitle(videoId: string, fallback: string): Promise<string> {
   try {
     const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`, {
-      headers: { "user-agent": DESKTOP_USER_AGENT },
+      headers: { "user-agent": BROWSER_USER_AGENT },
     });
     if (oembedRes.ok) {
       const data = (await oembedRes.json()) as { title?: string };
@@ -298,7 +298,7 @@ async function importYoutube(videoId: string, original: string): Promise<ParsedS
   }
 
   const subResp = await fetch(track.baseUrl, {
-    headers: { "user-agent": DESKTOP_USER_AGENT, accept: "*/*" },
+    headers: { "user-agent": BROWSER_USER_AGENT, accept: "*/*" },
   });
   if (!subResp.ok) {
     throw new HttpError("Could not retrieve the video caption track.", 502);

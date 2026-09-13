@@ -19,7 +19,7 @@ const NAV: { id: WorkspaceView; label: string; icon: typeof FileText }[] = [
   { id: "quizzes", label: "Quizzes", icon: ListChecks },
 ];
 
-export function NitroApp() {
+export function VerityApp() {
   const [boot, setBoot] = useState<SettingsResponse | null>(null);
   const [bootError, setBootError] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -65,8 +65,8 @@ export function NitroApp() {
         .then((data) => notify(`AI backend updated: ${data.settings.provider !== "none" ? `${data.presets[data.settings.provider].shortLabel} · ${data.settings.model}` : "none"}`, "info"))
         .catch(() => undefined);
     };
-    window.addEventListener("nitro:settings-changed", onChanged);
-    return () => window.removeEventListener("nitro:settings-changed", onChanged);
+    window.addEventListener("verity:settings-changed", onChanged);
+    return () => window.removeEventListener("verity:settings-changed", onChanged);
   }, [loadSettings, notify]);
 
   useEffect(() => {
@@ -122,7 +122,7 @@ export function NitroApp() {
           <img src="/logo.png" alt="Verity AI" className="hero-logo-img" />
           <h1>Verity AI could not start</h1>
           <p>{bootError}</p>
-          <p className="help-text">The local database service may still be starting. Check the desktop log in your data folder if this persists.</p>
+          <p className="help-text">The local database service may still be starting. Check the log in your data folder if this persists.</p>
           <button type="button" className="primary-button" onClick={() => window.location.reload()}><RefreshCw size={15} aria-hidden="true" />Retry</button>
         </div>
       </main>
@@ -157,7 +157,7 @@ export function NitroApp() {
   };
 
   return (
-    <div className={`nitro-app ${collapsed ? "sidebar-collapsed" : ""}`}>
+    <div className={`verity-app ${collapsed ? "sidebar-collapsed" : ""}`}>
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <aside className="app-sidebar" aria-label="Primary navigation">
         <div className="brand-row">

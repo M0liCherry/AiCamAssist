@@ -1,10 +1,10 @@
 "use client";
 
-import { AudioLines, FilePlus2, FileUp, Link2, ShieldCheck } from "lucide-react";
+import { AudioLines, FilePlus2, FileUp, Link2, ShieldCheck, Video } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 import { api, errorMessage, transcribeAudio } from "./client";
 import type { Chapter, NoteSummary, Subject } from "./types";
-import { ConsentField, InlineAlert, Modal, ProgressBar } from "./ui";
+import { ConsentField, extractYoutubeId, InlineAlert, Modal, ProgressBar } from "./ui";
 
 export type ImportType = "blank" | "audio" | "document" | "website";
 
@@ -142,7 +142,14 @@ export function ImportModal({ type, subjects, defaultChapterId, onClose, onCreat
           <label className="field">
             <span>Public URL</span>
             <input type="url" required value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://… or a YouTube link" />
-            <small>Articles and YouTube videos are transcribed and synthesized into structured study notes on this PC.</small>
+            {extractYoutubeId(url) ? (
+              <small style={{ color: "#ef4444", display: "inline-flex", alignItems: "center", gap: 5, marginTop: 4, fontWeight: 500 }}>
+                <Video size={13} aria-hidden="true" />
+                YouTube video detected · captions will be transcribed and the player embedded on top of your notes.
+              </small>
+            ) : (
+              <small>Articles and YouTube videos are transcribed and synthesized into structured study notes on this PC.</small>
+            )}
           </label>
         )}
 

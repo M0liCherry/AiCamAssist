@@ -11,73 +11,54 @@ im nate btw
 
 ---
 
-# VerityAI — local-first AI study workspace for Windows
+# VerityAI — local-first AI study workspace
 
-VerityAI turns lecture recordings, PDFs, slides, and web articles into a searchable knowledge base with a source-grounded assistant, two-voice podcasts, spaced-repetition flashcards, and topic-tracked quizzes — all stored on the user's PC.
+VerityAI turns lecture recordings, PDFs, slides, and web articles into a searchable knowledge base with a source-grounded assistant, two-voice podcasts, spaced-repetition flashcards, and topic-tracked quizzes — all stored locally.
 
 ## Architecture
 
 ```
-┌──────────────────────────── Electron shell (desktop/) ────────────────────────────┐
-│ main.js  → spawns the Next.js standalone server on 127.0.0.1:<free port>          │
-│          → NITRO_DATA_DIR=%AppData%\VerityAI, hardened BrowserWindow, native menus │
-└───────────────────────────────────────────────────────────────────────────────────┘
-                     │ HTTP (loopback only)
-┌────────────────────▼──────────── Next.js App Router (src/) ───────────────────────┐
-│ Renderer (React)                     │ Local API routes                           │
-│ • Notes hub / tree navigator         │ /api/subjects   collections, reorder, export│
-│ • Editor + Nitro assistant           │ /api/notes      CRUD, search, summarize     │
-│ • Podcasts / Flashcards / Quizzes    │ /api/import     PDF·DOCX·PPTX·URL·YouTube   │
-│ • Onboarding, Settings               │ /api/transcribe Whisper (Transformers.js)   │
-│                                      │ /api/chat       hybrid RAG with citations   │
-│                                      │ /api/generate   podcast/flashcards/quiz     │
-│                                      │ /api/settings   encrypted keys, consents    │
-│                                      │ /api/ai         test, Ollama status/pull    │
-├──────────────────────────────────────┴────────────────────────────────────────────┤
-│ src/lib/ai/provider.ts  one interface → Gemini · Claude · Ollama · llama.cpp      │
-│ src/lib/rag.ts          chunking · embeddings (JSON vectors) · BM25+cosine fusion │
-│ src/db                  Drizzle schema; PGlite (desktop) or PostgreSQL (server)   │
-└───────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────── Next.js App Router (src/) ────────────────────────┐
+│ UI (React)                           │ Local API routes                   │
+│ • Notes hub / tree navigator         │ /api/subjects   collections, export│
+│ • Editor + Verity assistant          │ /api/notes      CRUD, search, sum  │
+│ • Podcasts / Flashcards / Quizzes    │ /api/import     PDF·DOCX·PPTX·URL  │
+│ • Onboarding, Settings               │ /api/transcribe Whisper (local)    │
+│                                      │ /api/chat       hybrid RAG         │
+│                                      │ /api/generate   podcast/cards/quiz │
+│                                      │ /api/settings   encrypted keys     │
+│                                      │ /api/ai         status, tests      │
+├──────────────────────────────────────┴────────────────────────────────────┤
+│ src/lib/ai/provider.ts  one interface → Gemini · Claude · Ollama · llama   │
+│ src/lib/rag.ts          chunking · embeddings · BM25+cosine fusion        │
+│ src/db                  Drizzle schema; PGlite (embedded) or PostgreSQL   │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
 
 * **Universal inference** — the backend chosen at first launch powers RAG search, summaries, podcast scripts, flashcards, and quizzes (`src/lib/ai/provider.ts`).
-* **Persistence** — notes, chunks + embeddings, chats, generated assets, review schedules, and quiz attempts live in one PostgreSQL-dialect schema (`src/db/schema.ts`). On desktop the engine is PGlite in `%AppData%\VerityAI\database`; nothing is re-parsed when a collection is reopened.
+* **Persistence** — notes, chunks + embeddings, chats, generated assets, review schedules, and quiz attempts live in one PostgreSQL-dialect schema (`src/db/schema.ts`). The default engine is embedded PGlite in `./.verity/database`; nothing is re-parsed when a collection is reopened.
 * **Scope model** — every AI feature runs against a *chapter* or an *entire subject* (all chapters aggregated).
 * **Zero pre-loaded data** — the library starts empty with guided zero states.
 
-## Running in development (web mode)
+## Running the application
 
 ```bash
 npm install
-# DATABASE_URL in .env points at PostgreSQL
-npx drizzle-kit push
 npm run dev
 ```
 
 Visit [http://localhost:3000](http://localhost:3000).
 
-## Building the Windows desktop app
+To use an external PostgreSQL database instead of embedded PGlite, configure `DATABASE_URL` in your environment.
 
-```bash
-cd desktop
-npm install                 # electron + electron-builder (dev-only)
-npm run dist                # → desktop/dist/VerityAI-Setup-1.0.0.exe and VerityAI-1.0.0.appx
-```
-
-`scripts/build-renderer.mjs` builds Next.js with `NITRO_DESKTOP_BUILD=1` (standalone output) and copies static assets, `public/`, and the `drizzle/` migrations next to `server.js`. electron-builder packages that folder as `resources/app`.
-
-* **NSIS `.exe`** — per-user installer, custom install directory, uninstaller keeps user data.
-* **MSIX/AppX** — for Store or sideloading; set a real `publisher` (`CN=…` matching your code-signing certificate) in `desktop/package.json` before signing.
-* Code signing: supply `CSC_LINK`/`CSC_KEY_PASSWORD` (or Azure Trusted Signing) to electron-builder; unsigned builds trigger SmartScreen warnings.
-
-## Local data layout (`%AppData%\VerityAI`)
+## Local data layout (`./.verity`)
 
 | Path | Contents |
 | --- | --- |
 | `database/` | PGlite database (all notes, embeddings, chats, decks, quizzes, settings) |
 | `local.key` | 32-byte key used to encrypt API keys at rest (AES-256-GCM) |
 | `models/` | Whisper ONNX weights cached after first transcription |
-| `logs/desktop.log` | Shell log (always) · `logs/diagnostics.log` (only if the user opts in) |
+| `logs/diagnostics.log` | Diagnostic log (only if the user opts in) |
 
 Migrations for PGlite are generated with `npx drizzle-kit generate` into `drizzle/` and applied automatically on startup.
 

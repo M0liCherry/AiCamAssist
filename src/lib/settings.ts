@@ -5,7 +5,7 @@ import { dataDirectory, getDb } from "@/db";
 import { settings, type Settings } from "@/db/schema";
 import { migrateModelId, PROVIDER_PRESETS, ProviderError, type Provider, type ProviderConfig } from "@/lib/ai/provider";
 
-/** Root folder for local data: %AppData%\VerityAI on desktop, ./.nitro otherwise. */
+/** Root folder for local data: ./.verity by default. */
 export { dataDirectory };
 
 export function diagnosticsLogPath() {
@@ -17,8 +17,9 @@ let cachedKey: Buffer | null = null;
 /** AES-256-GCM key kept outside the database so a copied DB file alone cannot reveal API keys. */
 function keyMaterial(): Buffer {
   if (cachedKey) return cachedKey;
-  if (process.env.NITRO_KEY_SECRET) {
-    cachedKey = crypto.createHash("sha256").update(process.env.NITRO_KEY_SECRET).digest();
+  const secret = process.env.VERITY_KEY_SECRET;
+  if (secret) {
+    cachedKey = crypto.createHash("sha256").update(secret).digest();
     return cachedKey;
   }
   const file = path.join(dataDirectory(), "local.key");

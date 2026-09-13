@@ -150,7 +150,8 @@ export async function generateStudyNotesFromTranscript(
   sourceType: "youtube" | "audio",
 ): Promise<string> {
   const sample = transcript.slice(0, 16000);
-  const prompt = `Source: ${sourceLabel} (${sourceType === "youtube" ? "YouTube video" : "Spoken audio recording"})\nTitle: "${title}"\n\nTranscript:\n${sample}\n\nConvert this transcript into clear, comprehensive study notes in Markdown:\n# ${title}\n\n## Overview\n(2-3 paragraphs explaining the core concepts and background)\n\n## Key Takeaways & Core Concepts\n(bullet points with bolded key terms)\n\n## Detailed Study Notes\n(organized by main topics discussed)\n\n## Verbatim Transcript\n<details><summary>Click to expand full transcript</summary>\n\n${transcript.slice(0, 8000)}\n\n</details>`;
+  const linkLine = sourceType === "youtube" ? `*Source: [${sourceLabel}](${sourceLabel})*` : `*Source: ${sourceLabel}*`;
+  const prompt = `Source: ${sourceLabel} (${sourceType === "youtube" ? "YouTube video" : "Spoken audio recording"})\nTitle: "${title}"\n\nTranscript:\n${sample}\n\nConvert this transcript into clear, comprehensive study notes in Markdown:\n# ${title}\n\n${linkLine}\n\n## Overview\n(2-3 paragraphs explaining the core concepts and background)\n\n## Key Takeaways & Core Concepts\n(bullet points with bolded key terms)\n\n## Detailed Study Notes\n(organized by main topics discussed)\n\n## Verbatim Transcript\n<details><summary>Click to expand full transcript</summary>\n\n${transcript.slice(0, 8000)}\n\n</details>`;
 
   try {
     const text = await chatCompletion(
@@ -167,7 +168,7 @@ export async function generateStudyNotesFromTranscript(
     // Fallback below
   }
 
-  return `# ${title}\n\n*Source: ${sourceLabel}*\n\n## Overview\nTranscribed from ${sourceType === "youtube" ? "YouTube video" : "audio recording"} for study and revision.\n\n## Detailed Notes & Transcript\n\n${transcript}`;
+  return `# ${title}\n\n${linkLine}\n\n## Overview\nTranscribed from ${sourceType === "youtube" ? "YouTube video" : "audio recording"} for study and revision.\n\n## Detailed Notes & Transcript\n\n${transcript}`;
 }
 
 export async function answerQuestion(

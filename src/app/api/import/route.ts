@@ -20,10 +20,22 @@ async function storeSource(db: Database, cfg: ProviderConfig, chapterId: number,
       try {
         noteContent = await generateStudyNotesFromTranscript(cfg, noteTitle, source.text, source.sourceLabel, source.sourceType);
       } catch {
-        noteContent = `# ${noteTitle}\n\n*Source: ${source.sourceLabel}*\n\n## Overview\nTranscribed from ${source.sourceType === "youtube" ? "YouTube video" : "audio recording"}.\n\n## Transcript & Notes\n\n${source.text}`;
+        noteContent = `# ${noteTitle}\n\n*Source: [${source.sourceLabel}](${source.sourceLabel})*\n\n## Overview\nTranscribed from ${source.sourceType === "youtube" ? "YouTube video" : "audio recording"}.\n\n## Transcript & Notes\n\n${source.text}`;
       }
     } else {
-      noteContent = `# ${noteTitle}\n\n*Source: ${source.sourceLabel}*\n\n## Overview\nTranscribed from ${source.sourceType === "youtube" ? "YouTube video" : "audio recording"}.\n\n## Transcript & Notes\n\n${source.text}`;
+      noteContent = `# ${noteTitle}\n\n*Source: [${source.sourceLabel}](${source.sourceLabel})*\n\n## Overview\nTranscribed from ${source.sourceType === "youtube" ? "YouTube video" : "audio recording"}.\n\n## Transcript & Notes\n\n${source.text}`;
+    }
+  }
+
+  if (source.sourceType === "youtube" && source.sourceLabel) {
+    const linkLine = `*Source: [${source.sourceLabel}](${source.sourceLabel})*`;
+    if (!noteContent.includes(source.sourceLabel)) {
+      const headingMatch = noteContent.match(/^#\s+[^\n]+\n+/);
+      if (headingMatch) {
+        noteContent = headingMatch[0] + `${linkLine}\n\n` + noteContent.slice(headingMatch[0].length);
+      } else {
+        noteContent = `${linkLine}\n\n` + noteContent;
+      }
     }
   }
 

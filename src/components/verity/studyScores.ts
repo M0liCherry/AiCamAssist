@@ -71,7 +71,7 @@ export function saveFlashcardSessionScore(
       };
       all[key] = existing;
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-      window.dispatchEvent(new CustomEvent("nitro:scores-updated"));
+      window.dispatchEvent(new CustomEvent("verity:scores-updated"));
     }
   } catch {
     // Ignore storage quota or disabled storage
@@ -106,7 +106,7 @@ export function saveQuizAttemptScore(
 
     all[key] = existing;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-    window.dispatchEvent(new CustomEvent("nitro:scores-updated"));
+    window.dispatchEvent(new CustomEvent("verity:scores-updated"));
   } catch {
     // Ignore storage issues
   }

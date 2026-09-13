@@ -1,13 +1,13 @@
 /**
- * Single source of truth for product identity shown in About, legal pages,
- * and the desktop installer. Publisher fields are read from NEXT_PUBLIC_*
- * variables so a distributor can supply verified business details at build
- * time without editing source. Defaults are deliberately explicit about being
- * unconfigured rather than presenting fabricated company information.
+ * Single source of truth for product identity shown in About and legal pages.
+ * Publisher fields are read from NEXT_PUBLIC_* variables so a distributor can
+ * supply verified business details at build time without editing source.
+ * Defaults are deliberately explicit about being unconfigured rather than
+ * presenting fabricated company information.
  */
 export const APP_NAME = "Verity AI";
 export const APP_VERSION = "1.0.0";
-export const APP_ID = "com.verityai.desktop";
+export const APP_ID = "com.verityai";
 
 export type Publisher = {
   name: string;

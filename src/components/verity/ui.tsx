@@ -45,19 +45,44 @@ export function ConsentField({ id, checked, onChange, children, compact = false 
   );
 }
 
+export function extractYoutubeId(input?: string | null): string | null {
+  if (!input) return null;
+  const shortMatch = input.match(/(?:https?:\/\/)?(?:www\.|m\.)?youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (shortMatch) return shortMatch[1];
+  const longMatch = input.match(/(?:https?:\/\/)?(?:www\.|m\.)?youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^&\s]*&)?v=|embed\/|shorts\/|live\/|v\/)([a-zA-Z0-9_-]{11})/);
+  if (longMatch) return longMatch[1];
+  return null;
+}
+
 export function renderInline(text: string, onCite?: (n: number) => void): ReactNode[] {
   const parts: ReactNode[] = [];
-  const regex = /(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|`[^`]+`|\[\d+(?:\]\[\d+|,\s*\d+)*\])/g;
+  const regex = /(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[\d+(?:\]\[\d+|,\s*\d+)*\]|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))/g;
   let last = 0;
   let key = 0;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(text))) {
     if (match.index > last) parts.push(text.slice(last, match.index));
     const token = match[0];
-    if (token.startsWith("***")) parts.push(<strong key={key++}><em>{token.slice(3, -3)}</em></strong>);
-    else if (token.startsWith("**")) parts.push(<strong key={key++}>{token.slice(2, -2)}</strong>);
-    else if (token.startsWith("`")) parts.push(<code key={key++}>{token.slice(1, -1)}</code>);
-    else {
+    if (token.startsWith("***") && token.endsWith("***")) {
+      parts.push(<strong key={key++}><em>{token.slice(3, -3)}</em></strong>);
+    } else if (token.startsWith("**") && token.endsWith("**")) {
+      parts.push(<strong key={key++}>{token.slice(2, -2)}</strong>);
+    } else if (token.startsWith("*") && token.endsWith("*") && token.length > 2) {
+      parts.push(<em key={key++}>{token.slice(1, -1)}</em>);
+    } else if (token.startsWith("`") && token.endsWith("`")) {
+      parts.push(<code key={key++}>{token.slice(1, -1)}</code>);
+    } else if (token.startsWith("[") && token.includes("](") && token.endsWith(")")) {
+      const linkMatch = token.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
+      if (linkMatch) {
+        parts.push(
+          <a key={key++} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="doc-inline-link">
+            {linkMatch[1]}
+          </a>,
+        );
+      } else {
+        parts.push(token);
+      }
+    } else {
       const numbers = token.replace(/[[\]]/g, " ").split(/[\s,]+/).filter(Boolean).map(Number);
       parts.push(
         <span key={key++} className="cite-group">
@@ -102,7 +127,16 @@ export function MarkdownDocument({ content, onCite, compact = false }: { content
     else if (/^\s*[-*•]\s/.test(line)) blocks.push(<p className="list-line" key={key}><span aria-hidden="true">•</span><span>{renderInline(line.replace(/^\s*[-*•]\s/, ""), onCite)}</span></p>);
     else if (line.startsWith("> ")) blocks.push(<blockquote key={key}>{renderInline(line.slice(2), onCite)}</blockquote>);
     else if (!line.trim()) blocks.push(<div className="doc-spacer" key={key} aria-hidden="true" />);
-    else blocks.push(<p key={key}>{renderInline(line, onCite)}</p>);
+    else if (line.includes("<summary>")) {
+      const summaryText = line.match(/<summary>([^<]*)<\/summary>/i)?.[1] ?? "Expand transcript";
+      blocks.push(
+        <div className="doc-summary-badge" key={key}>
+          <strong>{summaryText}</strong>
+        </div>,
+      );
+    } else if (line.trim() === "<details>" || line.trim() === "</details>") {
+      // skip boundary tags
+    } else blocks.push(<p key={key}>{renderInline(line, onCite)}</p>);
   });
   if (codeBuffer) blocks.push(<pre key="tail"><code>{(codeBuffer as string[]).join("\n")}</code></pre>);
   return <div className={`markdown-document ${compact ? "markdown-document--compact" : ""}`}>{blocks}</div>;

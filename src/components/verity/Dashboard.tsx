@@ -38,8 +38,8 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
 
   useEffect(() => {
     const onScoreUpdate = () => setScoresVersion((v) => v + 1);
-    window.addEventListener("nitro:scores-updated", onScoreUpdate);
-    return () => window.removeEventListener("nitro:scores-updated", onScoreUpdate);
+    window.addEventListener("verity:scores-updated", onScoreUpdate);
+    return () => window.removeEventListener("verity:scores-updated", onScoreUpdate);
   }, []);
 
   const scopeInfo = useMemo(() => {
@@ -68,7 +68,7 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
     return aggregateSubjectScores(activeSubject);
   }, [activeSubject, scoresVersion]);
 
-  // Tree badges must refresh on score changes too (nitro:scores-updated).
+  // Tree badges must refresh on score changes too (verity:scores-updated).
   const treeScores = useMemo(() => {
     void scoresVersion;
     const subs = new Map<number, ReturnType<typeof aggregateSubjectScores>>();
@@ -177,7 +177,7 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
     <div className="dashboard-view page-enter">
       <header className="dashboard-header">
         <div>
-          <div className="title-kicker"><Sparkles size={14} aria-hidden="true" /> Local library</div>
+          <div className="title-kicker"><BookOpen size={14} aria-hidden="true" /> Local library</div>
           <h1>Notes hub</h1>
           <p>{hasLibrary ? `${subjects.length} subject${subjects.length === 1 ? "" : "s"} · ${subjects.reduce((n, s) => n + s.chapters.length, 0)} chapters · ${subjects.reduce((n, s) => n + s.noteCount, 0)} notes stored on this PC` : "Create a subject, add chapters, then import your material."}</p>
         </div>

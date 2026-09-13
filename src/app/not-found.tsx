@@ -1,9 +1,9 @@
-import { ArrowLeft, FileQuestion, Sparkles } from "lucide-react";
+import { ArrowLeft, FileQuestion } from "lucide-react";
 
 export default function NotFound() {
   return (
     <main className="not-found-page">
-      <div className="not-found-brand"><Sparkles size={17} aria-hidden="true" />VerityAI</div>
+      <div className="not-found-brand"><img src="/logo.png" alt="" style={{ width: 20, height: 20, borderRadius: 4, objectFit: "contain" }} />VerityAI</div>
       <section>
         <span aria-hidden="true"><FileQuestion size={34} /></span>
         <p className="eyebrow">404 error</p>

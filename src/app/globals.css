@@ -313,7 +313,7 @@ a {
    Material 3 Application Shell & Navigation Drawer
    ========================================================================== */
 
-.nitro-app {
+.verity-app {
   min-height: 100vh;
   background: var(--bg);
 }
@@ -1733,7 +1733,7 @@ kbd {
   background: var(--md-sys-color-surface-container);
 }
 
-.nitro-orb {
+.verity-badge {
   display: grid;
   width: 36px;
   height: 36px;
@@ -1741,6 +1741,13 @@ kbd {
   border-radius: var(--radius-md);
   background: var(--md-sys-color-primary-container);
   color: var(--md-sys-color-on-primary-container);
+}
+
+.verity-badge-img {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
 }
 
 .assistant-head > div {

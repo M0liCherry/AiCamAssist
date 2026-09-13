@@ -14,13 +14,13 @@ export const dynamic = "force-dynamic";
  * once into the data directory and reused offline afterwards.
  */
 const globalStt = globalThis as typeof globalThis & {
-  __nitroStt?: { model: string; pipe: Promise<AutomaticSpeechRecognitionPipeline> };
+  __verityStt?: { model: string; pipe: Promise<AutomaticSpeechRecognitionPipeline> };
 };
 
 import fs from "node:fs";
 
 async function loadTranscriber(model: string) {
-  if (globalStt.__nitroStt?.model === model) return globalStt.__nitroStt.pipe;
+  if (globalStt.__verityStt?.model === model) return globalStt.__verityStt.pipe;
   const pipe = (async () => {
     const { pipeline, env } = await import("@huggingface/transformers");
     const cacheDir = path.join(dataDirectory(), "models");
@@ -41,18 +41,18 @@ async function loadTranscriber(model: string) {
       );
     }
   })();
-  globalStt.__nitroStt = { model, pipe };
+  globalStt.__verityStt = { model, pipe };
   pipe.catch(() => {
-    globalStt.__nitroStt = undefined;
+    globalStt.__verityStt = undefined;
   });
   return pipe;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const sampleRate = Number(request.headers.get("x-verity-sample-rate") ?? request.headers.get("x-nitro-sample-rate") ?? 0);
+    const sampleRate = Number(request.headers.get("x-verity-sample-rate") ?? 0);
     if (sampleRate !== 16000) throw new HttpError("Audio must be resampled to 16 kHz mono before transcription.");
-    const language = (request.headers.get("x-verity-language") ?? request.headers.get("x-nitro-language") ?? "").trim().toLowerCase().slice(0, 8) || undefined;
+    const language = (request.headers.get("x-verity-language") ?? "").trim().toLowerCase().slice(0, 8) || undefined;
     const buffer = await request.arrayBuffer();
     if (!buffer.byteLength || buffer.byteLength % 4 !== 0) throw new HttpError("The audio payload is empty or malformed.");
     if (buffer.byteLength > 16000 * 4 * 60 * 6) throw new HttpError("Send at most six minutes of audio per request.");

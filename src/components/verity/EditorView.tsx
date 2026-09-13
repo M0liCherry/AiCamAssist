@@ -1,11 +1,11 @@
 "use client";
 
-import { ArrowLeft, AtSign, Check, Clock3, Edit3, Eraser, FileText, FolderInput, History, PanelRightClose, PanelRightOpen, RefreshCw, Save, Send, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, AtSign, Check, Clock3, Cpu, Edit3, Eraser, ExternalLink, FileText, FolderInput, History, PanelRightClose, PanelRightOpen, RefreshCw, Save, Send, ShieldCheck, Sparkles, Trash2, Video, X } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage, formatDate } from "./client";
 import { buildPersonalizationPrompt, getStoredPersonalization } from "./personalization";
 import type { ChatMsg, Citation, NoteFull, NoteSummary, Scope, Subject } from "./types";
-import { AiErrorAlert, EmptyState, ItemMenu, MarkdownDocument, Modal, Spinner } from "./ui";
+import { AiErrorAlert, EmptyState, extractYoutubeId, ItemMenu, MarkdownDocument, Modal, Spinner } from "./ui";
 
 export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiReady, providerName, onBack, onOpenNote, onNoteChanged, onConfigureAi, notify }: {
   noteId: number | null;
@@ -33,8 +33,13 @@ export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiRea
   const [moveOpen, setMoveOpen] = useState(false);
   const [moveTarget, setMoveTarget] = useState("");
   const [assistantOpen, setAssistantOpen] = useState(true);
+  const [videoCollapsed, setVideoCollapsed] = useState(false);
   const [scopeNotes, setScopeNotes] = useState<NoteSummary[]>([]);
   const dirty = note ? title !== note.title || content !== note.content : false;
+
+  const youtubeVideoId = useMemo(() => {
+    return extractYoutubeId(note?.sourceLabel) || extractYoutubeId(note?.content) || extractYoutubeId(content);
+  }, [note?.sourceLabel, note?.content, content]);
 
   const loadNote = useCallback(async () => {
     if (!noteId) {
@@ -138,7 +143,7 @@ export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiRea
     return (
       <main className="study-view page-enter" aria-labelledby="editor-empty-title">
         <h1 id="editor-empty-title" className="sr-only">Document editor</h1>
-        <EmptyState icon={<FileText size={28} />} title="Open a note to start editing" copy={scopeNotes.length ? "Choose one of the notes in the current scope below, or pick another from the Notes hub." : "Import or create a note in the Notes hub, then it will open here with the Nitro assistant beside it."} action={<button type="button" className="primary-button" onClick={onBack}><ArrowLeft size={15} aria-hidden="true" />Go to Notes hub</button>} />
+        <EmptyState icon={<FileText size={28} />} title="Open a note to start editing" copy={scopeNotes.length ? "Choose one of the notes in the current scope below, or pick another from the Notes hub." : "Import or create a note in the Notes hub, then it will open here with the Verity assistant beside it."} action={<button type="button" className="primary-button" onClick={onBack}><ArrowLeft size={15} aria-hidden="true" />Go to Notes hub</button>} />
         {scopeNotes.length > 0 && (
           <ul className="notes-list compact-list" aria-label="Notes in current scope">
             {scopeNotes.map((item) => <li className="note-row" key={item.id}><button type="button" className="note-open" onClick={() => onOpenNote(item.id, item.chapterId)}><span className="note-icon" aria-hidden="true"><FileText size={16} /></span><span className="note-meta"><strong>{item.title}</strong><small>{item.wordCount.toLocaleString()} words · {item.sourceType}</small></span></button></li>)}
@@ -175,17 +180,60 @@ export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiRea
             { label: "Re-index for search", icon: <RefreshCw size={14} aria-hidden="true" />, onSelect: () => void api("/api/notes", { method: "POST", json: { action: "reindex", noteId } }).then(() => { notify("Note re-indexed."); void loadNote(); }).catch((error) => notify(errorMessage(error), "error")) },
             { label: "Delete note", icon: <Trash2 size={14} aria-hidden="true" />, danger: true, onSelect: () => void deleteNote() },
           ]} />
-          <button type="button" className="icon-button panel-toggle" onClick={() => setAssistantOpen((value) => !value)} aria-label={assistantOpen ? "Close Nitro assistant" : "Open Nitro assistant"} aria-expanded={assistantOpen}>{assistantOpen ? <PanelRightClose size={19} aria-hidden="true" /> : <PanelRightOpen size={19} aria-hidden="true" />}</button>
+          <button type="button" className="icon-button panel-toggle" onClick={() => setAssistantOpen((value) => !value)} aria-label={assistantOpen ? "Close Verity assistant" : "Open Verity assistant"} aria-expanded={assistantOpen}>{assistantOpen ? <PanelRightClose size={19} aria-hidden="true" /> : <PanelRightOpen size={19} aria-hidden="true" />}</button>
         </div>
       </header>
 
       <div className="workspace-panels">
         <main className="document-panel" aria-label="Document editor" aria-busy={loading}>
           <div className="doc-context-bar">
-            <span><Sparkles size={14} aria-hidden="true" /> {note ? `${note.subjectName} › ${note.chapterName}` : ""}</span>
+            <span><FileText size={14} aria-hidden="true" /> {note ? `${note.subjectName} › ${note.chapterName}` : ""}</span>
             <span>{note ? `${note.wordCount.toLocaleString()} words` : ""}</span>
           </div>
           {summaryError ? <div className="doc-alert"><AiErrorAlert error={summaryError} onRetry={() => void summarize()} onConfigure={onConfigureAi} /></div> : null}
+          {youtubeVideoId && (
+            <section className="yt-embed-card" aria-label="YouTube Video Player">
+              <div className="yt-embed-header">
+                <div className="yt-embed-header-left">
+                  <span className="yt-embed-badge-icon" aria-hidden="true">
+                    <Video size={14} />
+                  </span>
+                  <span>YouTube Video</span>
+                </div>
+                <div className="yt-embed-header-actions">
+                  <a
+                    href={note?.sourceLabel?.startsWith("http") ? note.sourceLabel : `https://www.youtube.com/watch?v=${youtubeVideoId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="yt-embed-link"
+                    title="Watch on YouTube (opens in new tab)"
+                  >
+                    <span>Watch on YouTube</span>
+                    <ExternalLink size={12} aria-hidden="true" />
+                  </a>
+                  <button
+                    type="button"
+                    className="yt-embed-toggle-btn"
+                    onClick={() => setVideoCollapsed((prev) => !prev)}
+                    aria-label={videoCollapsed ? "Show video player" : "Hide video player"}
+                  >
+                    {videoCollapsed ? "Show video" : "Hide video"}
+                  </button>
+                </div>
+              </div>
+              {!videoCollapsed && (
+                <div className="yt-embed-player-wrap">
+                  <iframe
+                    src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?rel=0`}
+                    title={note?.title || "YouTube video player"}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    className="yt-embed-iframe"
+                  />
+                </div>
+              )}
+            </section>
+          )}
           {note?.summary && !editing && (
             <section className="summary-card" aria-labelledby="summary-title">
               <h2 id="summary-title"><Sparkles size={15} aria-hidden="true" /> AI summary <small>generated by {providerName} · verify against the source</small></h2>
@@ -311,15 +359,15 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
     setRefs((current) => (current.some((r) => r.id === item.id) ? current : [...current, item]));
     setDraft((value) => value.replace(/(^|\s)@[\w-]*$/, "$1"));
     setMentionOpen(false);
-    document.getElementById("nitro-question")?.focus();
+    document.getElementById("verity-question")?.focus();
   };
   const mentionCandidates = scopeNotes.filter((item) => !refs.some((r) => r.id === item.id)).slice(0, 8);
 
   return (
     <aside className="assistant-panel" aria-label="Verity AI assistant">
       <div className="assistant-head">
-        <span className="nitro-orb" aria-hidden="true"><Sparkles size={17} /></span>
-        <div><strong>Nitro</strong><small><span className={`status-dot ${aiReady ? "ok" : "bad"}`} aria-hidden="true" /> {aiReady ? providerName : "No AI backend"}</small></div>
+        <span className="verity-badge" aria-hidden="true"><img src="/logo.png" alt="" className="verity-badge-img" /></span>
+        <div><strong>Verity</strong><small><span className={`status-dot ${aiReady ? "ok" : "bad"}`} aria-hidden="true" /> {aiReady ? providerName : "No AI backend"}</small></div>
         <button type="button" className="text-button" onClick={clear} disabled={!messages.length} aria-label="Clear conversation"><Eraser size={14} aria-hidden="true" /></button>
         <button type="button" className="icon-button assistant-close" onClick={onClose} aria-label="Close assistant"><X size={17} aria-hidden="true" /></button>
       </div>
@@ -340,7 +388,7 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
               <p>I know about a million things</p>
               <p>I&#39;ll do everything</p>
             </div>
-            {!aiReady && <button type="button" className="secondary-button compact" onClick={onConfigureAi}><Sparkles size={14} aria-hidden="true" />Connect an AI backend</button>}
+            {!aiReady && <button type="button" className="secondary-button compact" onClick={onConfigureAi}><Cpu size={14} aria-hidden="true" />Connect an AI backend</button>}
           </div>
         )}
         {messages.map((message) => (
@@ -372,8 +420,8 @@ function AssistantPanel({ scope, scopeTitle, subjects, onScope, scopeNotes, acti
           </div>
         )}
         {refs.length > 0 && <div className="ref-chips" aria-label="Pinned notes">{refs.map((item) => <span className="mention-chip" key={item.id}>@{item.title}<button type="button" onClick={() => setRefs((current) => current.filter((r) => r.id !== item.id))} aria-label={`Remove ${item.title}`}><X size={12} aria-hidden="true" /></button></span>)}</div>}
-        <label htmlFor="nitro-question" className="sr-only">Ask Verity a question</label>
-        <textarea id="nitro-question" value={draft} onChange={(event) => onDraftChange(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void ask(draft.trim(), refs.map((r) => r.id)); } if (event.key === "Escape") setMentionOpen(false); }} placeholder={aiReady ? "Ask about your notes… type @ to reference a note" : "Connect an AI backend in Settings to chat"} rows={2} disabled={sending} />
+        <label htmlFor="verity-question" className="sr-only">Ask Verity a question</label>
+        <textarea id="verity-question" value={draft} onChange={(event) => onDraftChange(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void ask(draft.trim(), refs.map((r) => r.id)); } if (event.key === "Escape") setMentionOpen(false); }} placeholder={aiReady ? "Ask about your notes… type @ to reference a note" : "Connect an AI backend in Settings to chat"} rows={2} disabled={sending} />
         <AiErrorAlert error={error} onRetry={retryLast} onConfigure={onConfigureAi} />
         <div className="composer-actions">
           <div>

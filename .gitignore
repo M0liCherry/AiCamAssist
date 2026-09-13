@@ -1,10 +1,8 @@
 node_modules/
 .next/
 out/
-.nitro/
+.verity/
 data/
-desktop/node_modules/
-desktop/dist/
 *.log
 # Local env (real secrets) — the template .env.example stays tracked.
 .env

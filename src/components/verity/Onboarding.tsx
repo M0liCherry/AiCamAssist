@@ -460,7 +460,7 @@ export function Onboarding({ boot, onComplete }: { boot: SettingsResponse; onCom
     <main className="onboarding" aria-labelledby="onboarding-title">
       <section className="onboarding-card">
         <header className="onboarding-head">
-          <span className="hero-mark" aria-hidden="true"><Sparkles size={22} /></span>
+          <span className="hero-mark" aria-hidden="true"><img src="/logo.png" alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "contain" }} /></span>
           <div>
             <p className="eyebrow">First launch · v{boot.environment.version}</p>
             <h1 id="onboarding-title">{steps[step] === "Welcome" ? "Welcome to VerityAI" : steps[step]}</h1>
