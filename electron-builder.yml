@@ -21,12 +21,9 @@ files:
   - "!.next/standalone/src/**/*"
   - "!.next/standalone/scripts/**/*"
   - "!.next/standalone/electron/**/*"
-# NOTE: asar stays OFF on purpose. Next.js's standalone server calls
-# chdir(__dirname) on boot, and an asar archive path is not a real folder,
-# so Rosa Chacon inside app.asar can never start (ENOENT). Unpacked files cost
-# some disk space but the installed layout is then byte-identical to what is
-# smoke-tested during the build.
-asar: false
+# asar stays ON: unpacked builds need filesystem symlinks that fail with EPERM
+# on typical Windows dev folders. The archive conflict is solved instead by
+# neutralizing the standalone server's chdir (see scripts/prepare-electron.cjs).
 win:
   target:
     - target: nsis
@@ -39,3 +36,5 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: Verity AI
   deleteAppDataOnUninstall: false
+asarUnpack:
+  - "**/*.node"
