@@ -1,7 +1,6 @@
-import { drizzle as drizzleNodePg, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { drizzle as drizzleNodePg, NodePgDatabase } from "drizzle-orm/node-postgres";
 import fs from "node:fs";
 import path from "node:path";
-import { Pool } from "pg";
 import * as schema from "./schema";
 
 /**
@@ -15,7 +14,10 @@ export type Database = NodePgDatabase<typeof schema>;
 
 const globalForDb = globalThis as typeof globalThis & {
   __verityDb?: Promise<Database>;
-  __verityPool?: Pool;
+  // Pool instance is created lazily (see below) so server bundles never
+  // statically link the `pg` driver — required for Electron's asar archive,
+  // where Turbopack's hashed external imports cannot resolve.
+  __verityPool?: { end?: () => Promise<unknown> } | undefined;
 };
 
 /** Local data directory (database, encryption key, model cache, logs). */
@@ -69,9 +71,14 @@ async function createEmbedded(): Promise<Database> {
 
 async function createDatabase(): Promise<Database> {
   if (usesEmbeddedDatabase()) return createEmbedded();
-  const pool = globalForDb.__verityPool ?? new Pool({ connectionString: process.env.DATABASE_URL });
+  // Loaded lazily so the `pg` driver is never part of the static server
+  // bundle (see note on __verityPool above). Only runs with DATABASE_URL set.
+  const [{ Pool }, { drizzle }] = await Promise.all([import("pg"), import("drizzle-orm/node-postgres")]);
+  const pool =
+    (globalForDb.__verityPool as InstanceType<typeof Pool> | undefined) ??
+    new Pool({ connectionString: process.env.DATABASE_URL });
   globalForDb.__verityPool = pool;
-  return drizzleNodePg(pool, { schema });
+  return (drizzle as typeof drizzleNodePg)(pool, { schema });
 }
 
 /** Lazily initialises (and migrates, in embedded mode) the shared database. */

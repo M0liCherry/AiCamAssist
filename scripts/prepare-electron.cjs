@@ -40,6 +40,37 @@ fs.writeFileSync(
   ),
 );
 
+// Next/Turbopack externalizes server packages as hashed alias entries that are
+// ABSOLUTE SYMLINKS into this machine's node_modules:
+//   .next/standalone/.next/node_modules/<pkg>-<hash> -> /abs/path/.../node_modules/<pkg>
+// They resolve on the build machine but dangle everywhere else — including
+// inside app.asar (which is exactly the "Cannot find package '<pkg>-<hash>'"
+// 500 on installed apps). Materialize every link into a real copy.
+function dereferenceAliases(dir) {
+  let replaced = 0;
+  const materialize = (linkPath) => {
+    const target = fs.realpathSync(linkPath);
+    fs.rmSync(linkPath, { recursive: true, force: true });
+    fs.cpSync(target, linkPath, { recursive: true, dereference: true });
+    replaced++;
+  };
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isSymbolicLink()) {
+      materialize(full);
+    } else if (entry.isDirectory()) {
+      for (const sub of fs.readdirSync(full, { withFileTypes: true })) {
+        if (sub.isSymbolicLink()) materialize(path.join(full, sub.name));
+      }
+    }
+  }
+  return replaced;
+}
+
+const aliasRoot = path.join(standalone, ".next", "node_modules");
+const dereferenced = dereferenceAliases(aliasRoot);
+console.log(`dereferenced ${dereferenced} hashed-alias symlinks under .next/node_modules`);
+
 // Syntax-gate the patched bundle: a bad replacement shipped a SyntaxError in
 // v1.0.0. This fails the build instead of the user's first launch.
 execSync(`node --check "${serverJs}"`, { cwd: root, stdio: "inherit" });
