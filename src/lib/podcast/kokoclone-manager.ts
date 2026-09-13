@@ -220,6 +220,16 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
   }
 
   let installSuccess = false;
+  let lastInstallError = "";
+
+  // Full package list. The [gpu] build drags multi-GB CUDA wheels that fail
+  // on CPU-only / low-disk machines — callers retry with the CPU list.
+  const gpuList = `"torch>=2.1.0" "torchaudio>=2.1.0" "kokoro-onnx[gpu]>=0.5.0" "gradio>=6.8.0" "git+https://github.com/frothywater/kanade-tokenizer" soundfile huggingface_hub ninja setuptools "misaki[en,ja,zh]>=0.9.4"`;
+  const cpuList = gpuList.replace(`"kokoro-onnx[gpu]>=0.5.0"`, `"kokoro-onnx>=0.5.0"`);
+  const recordFailure = (err: unknown) => {
+    const text = err instanceof Error ? err.message : String(err);
+    lastInstallError = text.slice(-600);
+  };
 
   // Strategy A: Use uv (natively resolves [tool.uv.sources] git packages like kanade-tokenizer)
   if (uvAvailable) {
@@ -231,13 +241,24 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
       installSuccess = true;
     } catch {
       try {
-        await execAsync(
-          `${uvCommand} pip install --python ${pyBin} "torch>=2.1.0" "torchaudio>=2.1.0" "kokoro-onnx[gpu]>=0.5.0" "gradio>=6.8.0" "git+https://github.com/frothywater/kanade-tokenizer" soundfile huggingface_hub ninja setuptools "misaki[en,ja,zh]>=0.9.4"`,
-          { cwd: updatedPaths.kokoDir, maxBuffer: 15 * 1024 * 1024 },
-        );
+        await execAsync(`${uvCommand} pip install --python ${pyBin} ${gpuList}`, {
+          cwd: updatedPaths.kokoDir,
+          maxBuffer: 15 * 1024 * 1024,
+        });
         installSuccess = true;
-      } catch {
-        installSuccess = false;
+      } catch (err) {
+        recordFailure(err);
+        try {
+          // GPU wheels failed (no NVIDIA / disk space) — retry CPU-only.
+          await execAsync(`${uvCommand} pip install --python ${pyBin} ${cpuList}`, {
+            cwd: updatedPaths.kokoDir,
+            maxBuffer: 15 * 1024 * 1024,
+          });
+          installSuccess = true;
+        } catch (cpuErr) {
+          recordFailure(cpuErr);
+          installSuccess = false;
+        }
       }
     }
   }
@@ -259,11 +280,20 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
         });
       }
 
-      // 2. Install all core PyPI packages (kokoro-onnx, NOT the unrelated "kokoro" PyTorch package)
-      await execAsync(
-        `${pyBin} -m pip install "torch>=2.1.0" "torchaudio>=2.1.0" "kokoro-onnx[gpu]>=0.5.0" "gradio>=6.8.0" soundfile huggingface_hub ninja setuptools "misaki[en,ja,zh]>=0.9.4"`,
-        { cwd: updatedPaths.kokoDir, maxBuffer: 15 * 1024 * 1024 },
-      );
+      // 2. Install all core PyPI packages (kokoro-onnx, NOT the unrelated "kokoro" PyTorch package).
+      // GPU wheels first; CPU-only retry when they fail (no NVIDIA / disk space).
+      try {
+        await execAsync(`${pyBin} -m pip install ${gpuList.replace(` "git+https://github.com/frothywater/kanade-tokenizer"`, "")}`, {
+          cwd: updatedPaths.kokoDir,
+          maxBuffer: 15 * 1024 * 1024,
+        });
+      } catch (err) {
+        recordFailure(err);
+        await execAsync(`${pyBin} -m pip install ${cpuList.replace(` "git+https://github.com/frothywater/kanade-tokenizer"`, "")}`, {
+          cwd: updatedPaths.kokoDir,
+          maxBuffer: 15 * 1024 * 1024,
+        });
+      }
 
       // 3. Install requirements.txt if present
       if (fs.existsSync(path.join(updatedPaths.kokoDir, "requirements.txt"))) {
@@ -298,7 +328,7 @@ export async function setupKokoClone(): Promise<{ ok: boolean; message: string }
   } catch (err) {
     return {
       ok: false,
-      message: `KokoClone dependencies are incomplete (missing kokoro-onnx or friends): ${err instanceof Error ? err.message : String(err)}. Click “Reinstall / Update Dependencies” again.`,
+      message: `KokoClone dependencies are incomplete (missing kokoro-onnx or friends): ${err instanceof Error ? err.message : String(err)}.${lastInstallError ? ` Last installer output: ${lastInstallError}` : ""} Click “Reinstall / Update Dependencies” again (a CPU-only retry runs automatically on machines without NVIDIA GPUs).`,
     };
   }
 
