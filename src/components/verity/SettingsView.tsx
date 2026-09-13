@@ -1,9 +1,9 @@
 "use client";
 
-import { Accessibility, Check, ChevronRight, Cloud, Cpu, Database, Download, Eye, EyeOff, HardDrive, Headphones, Info, Mic, Moon, Palette, Play, Radio, RefreshCw, ShieldCheck, Sparkles, Square, Sun, Trash2, UserCheck, Wand2 } from "lucide-react";
+import { Check, ChevronRight, Cloud, Cpu, Database, Download, Eye, EyeOff, Headphones, Info, Mic, Moon, Palette, Play, Plus, Radio, RefreshCw, ShieldCheck, Sparkles, Square, Sun, Trash2, UserCheck, Wand2 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api, downloadFile, errorMessage } from "./client";
-import { DEFAULT_KOKO_ENDPOINT } from "@/config/app";
+import { CONTRIBUTORS, DEFAULT_KOKO_ENDPOINT, PROJECT_LICENSE, REPO_URL } from "@/config/app";
 import { ProviderForm } from "./Onboarding";
 import {
   AiPersonalization,
@@ -15,7 +15,7 @@ import {
   LEARNING_STYLE_DESCRIPTIONS,
 } from "./personalization";
 import type { PublicSettings, SettingsResponse } from "./types";
-import { applyTheme } from "./theme";
+import { applyTheme, DEFAULT_SEED, normalizeSeed, SEED_PRESETS } from "./theme";
 import { InlineAlert, Modal } from "./ui";
 
 export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify }: {
@@ -262,7 +262,7 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
     try {
       const data = await api<{ settings: PublicSettings }>("/api/settings", { method: "PUT", json: patch });
       onSettings(data.settings);
-      applyTheme(data.settings.theme);
+      applyTheme(data.settings.theme, data.settings.themeSeed);
       notify(message);
     } catch (error) {
       notify(errorMessage(error), "error");
@@ -732,20 +732,64 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
           <div className="settings-card-head">
             <span className="section-head-icon"><Palette size={20} aria-hidden="true" /></span>
             <div>
-              <h2 id="theme-title">Appearance</h2>
-              <p>Google Material 3 dynamic color scheme with accessibility compliance.</p>
+              <h2 id="theme-title">Theme studio</h2>
+              <p>Material You dynamic color — pick a seed and the whole UI re-themes.</p>
             </div>
           </div>
-          <button type="button" className="theme-choice" onClick={() => void update({ theme: settings.theme === "dark" ? "light" : "dark" }, "Theme updated.")}>
-            <span>
-              {settings.theme === "dark" ? <Moon size={22} aria-hidden="true" /> : <Sun size={22} aria-hidden="true" />}
-              <span>
-                <strong>{settings.theme === "dark" ? "Material 3 Dark" : "Material 3 Light"} theme</strong>
-                <small>Switch to {settings.theme === "dark" ? "light" : "dark"} theme</small>
-              </span>
-            </span>
-            <ChevronRight size={18} aria-hidden="true" />
-          </button>
+          <p className="theme-label" id="seed-label">Seed color</p>
+          <div className="seed-grid" role="radiogroup" aria-labelledby="seed-label">
+            {SEED_PRESETS.map((seed) => {
+              const selected = (normalizeSeed(settings.themeSeed) ?? DEFAULT_SEED) === seed;
+              return (
+                <button
+                  key={seed}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  aria-label={`Seed ${seed}`}
+                  title={seed}
+                  className={`seed-swatch${selected ? " selected" : ""}`}
+                  style={{ backgroundColor: seed }}
+                  onClick={() => { applyTheme(settings.theme, seed); void update({ themeSeed: seed }, "Seed color updated."); }}
+                >
+                  {selected && <Check size={20} aria-hidden="true" />}
+                </button>
+              );
+            })}
+            <label
+              className={`seed-swatch seed-custom${SEED_PRESETS.includes(normalizeSeed(settings.themeSeed) ?? DEFAULT_SEED) ? "" : " selected"}`}
+              title="Custom seed color"
+            >
+              <span className="sr-only">Custom seed color</span>
+              <input
+                type="color"
+                aria-label="Custom seed color"
+                value={(normalizeSeed(settings.themeSeed) ?? DEFAULT_SEED).toLowerCase()}
+                onChange={(event) => { const next = normalizeSeed(event.target.value) ?? DEFAULT_SEED; applyTheme(settings.theme, next); void update({ themeSeed: next }, "Seed color updated."); }}
+              />
+              <Plus size={20} aria-hidden="true" className="seed-plus" />
+            </label>
+          </div>
+          <p className="seed-value">Seed: {normalizeSeed(settings.themeSeed) ?? DEFAULT_SEED}</p>
+          <p className="theme-label" id="brightness-label">Brightness</p>
+          <div className="brightness-toggle" role="group" aria-labelledby="brightness-label">
+            <button
+              type="button"
+              aria-pressed={settings.theme === "light"}
+              className={settings.theme === "light" ? "active" : ""}
+              onClick={() => { applyTheme("light", settings.themeSeed); void update({ theme: "light" }, "Theme updated."); }}
+            >
+              <Sun size={15} aria-hidden="true" />Light
+            </button>
+            <button
+              type="button"
+              aria-pressed={settings.theme === "dark"}
+              className={settings.theme === "dark" ? "active" : ""}
+              onClick={() => { applyTheme("dark", settings.themeSeed); void update({ theme: "dark" }, "Theme updated."); }}
+            >
+              <Moon size={15} aria-hidden="true" />Dark
+            </button>
+          </div>
         </section>
 
         <section className="settings-card" aria-labelledby="data-title">
@@ -782,11 +826,22 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
           </div>
           <dl className="data-grid about-grid">
             <div><dt>Publisher</dt><dd>{publisher.name}</dd></div>
-            <div><dt>Legal entity</dt><dd>{publisher.legalEntity}</dd></div>
-            <div><dt>Address</dt><dd>{publisher.address}</dd></div>
+            <div><dt>Repository</dt><dd><a href={REPO_URL} target="_blank" rel="noopener noreferrer">M0liCherry/AiCamAssist</a></dd></div>
+            <div><dt>License</dt><dd>{PROJECT_LICENSE}</dd></div>
             <div><dt>Support</dt><dd><a href={`mailto:${publisher.supportEmail}`}>{publisher.supportEmail}</a></dd></div>
             <div><dt>Privacy requests</dt><dd><a href={`mailto:${publisher.privacyEmail}`}>{publisher.privacyEmail}</a></dd></div>
             <div><dt>Runtime</dt><dd>Node {environment.node} · {environment.platform}</dd></div>
+            <div className="contrib-cell"><dt>Collaborators</dt><dd>
+              <ul className="contrib-list" aria-label="GitHub collaborators">
+                {CONTRIBUTORS.map((person) => (
+                  <li key={person.login}>
+                    <a href={person.url} target="_blank" rel="noopener noreferrer" title={`${person.login} — ${person.role} (opens in a new tab)`}>
+                      <strong>{person.login}</strong><small>{person.role}</small>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </dd></div>
           </dl>
           <InlineAlert tone="info">Publisher fields are read from build-time configuration (NEXT_PUBLIC_PUBLISHER_*). Distributors must supply verified business details and monitored contact addresses before release; the “.example” addresses shown in developer builds are non-deliverable placeholders.</InlineAlert>
           <nav className="settings-links" aria-label="Legal documents">
@@ -794,8 +849,8 @@ export function SettingsView({ boot, onSettings, onReload, onTreeChanged, notify
             <a href="/legal/terms"><span>Terms &amp; Conditions</span><ChevronRight size={16} aria-hidden="true" /></a>
             <a href="/legal/telemetry"><span>Telemetry &amp; Diagnostics Policy</span><ChevronRight size={16} aria-hidden="true" /></a>
             <a href="/legal/license"><span>License, Refunds &amp; Support</span><ChevronRight size={16} aria-hidden="true" /></a>
-            <a href="/legal/accessibility"><span className="link-icon"><Accessibility size={15} aria-hidden="true" />Accessibility Statement</span><ChevronRight size={16} aria-hidden="true" /></a>
-            <a href="/legal/licenses"><span className="link-icon"><HardDrive size={15} aria-hidden="true" />Open-source licenses</span><ChevronRight size={16} aria-hidden="true" /></a>
+            <a href="/legal/accessibility"><span>Accessibility Statement</span><ChevronRight size={16} aria-hidden="true" /></a>
+            <a href="/legal/licenses"><span>Open-source licenses</span><ChevronRight size={16} aria-hidden="true" /></a>
           </nav>
         </section>
       </div>

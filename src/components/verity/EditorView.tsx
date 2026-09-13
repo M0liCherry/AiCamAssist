@@ -5,7 +5,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { api, errorMessage, formatDate } from "./client";
 import { buildPersonalizationPrompt, getStoredPersonalization } from "./personalization";
 import type { ChatMsg, Citation, NoteFull, NoteSummary, Scope, Subject } from "./types";
-import { AiErrorAlert, EmptyState, extractYoutubeId, ItemMenu, MarkdownDocument, Modal, Spinner } from "./ui";
+import { AiErrorAlert, extractYoutubeId, ItemMenu, MarkdownDocument, Modal, Spinner } from "./ui";
 
 export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiReady, providerName, onBack, onOpenNote, onNoteChanged, onConfigureAi, notify }: {
   noteId: number | null;
@@ -142,8 +142,17 @@ export function EditorView({ noteId, subjects, scope, scopeTitle, onScope, aiRea
   if (!noteId || (!loading && !note)) {
     return (
       <main className="study-view page-enter" aria-labelledby="editor-empty-title">
-        <h1 id="editor-empty-title" className="sr-only">Document editor</h1>
-        <EmptyState icon={<FileText size={28} />} title="Open a note to start editing" copy={scopeNotes.length ? "Choose one of the notes in the current scope below, or pick another from the Notes hub." : "Import or create a note in the Notes hub, then it will open here with the Verity assistant beside it."} action={<button type="button" className="primary-button" onClick={onBack}><ArrowLeft size={15} aria-hidden="true" />Go to Notes hub</button>} />
+        <header className="study-header">
+          <span className="study-icon" aria-hidden="true"><FileText size={25} /></span>
+          <p className="eyebrow">Document editor</p>
+          <h1 id="editor-empty-title">Open a note to start editing</h1>
+          <p>{scopeNotes.length ? "Choose one of the notes in the current scope below, or pick another from the Notes hub." : "Import or create a note in the Notes hub, then it will open here with the Verity assistant beside it."}</p>
+        </header>
+        <div className="zero-state">
+          <h2>{scopeNotes.length ? "No note selected" : "Nothing to edit yet"}</h2>
+          <p>{scopeNotes.length ? "Select a note below to open it here for editing." : "Create a subject and import notes in the Notes hub first. Documents you create will open here for editing."}</p>
+          <button type="button" className="primary-button" onClick={onBack}><ArrowLeft size={15} aria-hidden="true" />Go to Notes hub</button>
+        </div>
         {scopeNotes.length > 0 && (
           <ul className="notes-list compact-list" aria-label="Notes in current scope">
             {scopeNotes.map((item) => <li className="note-row" key={item.id}><button type="button" className="note-open" onClick={() => onOpenNote(item.id, item.chapterId)}><span className="note-icon" aria-hidden="true"><FileText size={16} /></span><span className="note-meta"><strong>{item.title}</strong><small>{item.wordCount.toLocaleString()} words · {item.sourceType}</small></span></button></li>)}

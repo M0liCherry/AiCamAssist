@@ -110,6 +110,9 @@ export async function PUT(request: NextRequest) {
       patch.onboardingComplete = body.onboardingComplete;
     }
     if (body.theme === "dark" || body.theme === "light") patch.theme = body.theme;
+    if (typeof body.themeSeed === "string" && /^#[0-9A-Fa-f]{6}$/.test(body.themeSeed.trim())) {
+      patch.themeSeed = body.themeSeed.trim().toUpperCase();
+    }
 
     const [updated] = await db.update(settings).set(patch).where(eq(settings.id, current.id)).returning();
     if (!updated) throw new HttpError("Settings could not be found.", 404);

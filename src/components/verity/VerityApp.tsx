@@ -38,7 +38,7 @@ export function VerityApp() {
   const loadSettings = useCallback(async () => {
     const data = await api<SettingsResponse>("/api/settings");
     setBoot(data);
-    applyTheme(data.settings.theme);
+    applyTheme(data.settings.theme, data.settings.themeSeed);
     return data;
   }, []);
 
@@ -90,7 +90,7 @@ export function VerityApp() {
     async (patch: Record<string, unknown>) => {
       const data = await api<{ settings: PublicSettings }>("/api/settings", { method: "PUT", json: patch });
       setBoot((current) => (current ? { ...current, settings: data.settings } : current));
-      applyTheme(data.settings.theme);
+      applyTheme(data.settings.theme, data.settings.themeSeed);
       return data.settings;
     },
     [],
@@ -99,12 +99,12 @@ export function VerityApp() {
   const toggleTheme = async () => {
     if (!settings) return;
     const next = settings.theme === "dark" ? "light" : "dark";
-    applyTheme(next);
+    applyTheme(next, settings.themeSeed);
     try {
       await updateSettings({ theme: next });
     } catch (error) {
       // Revert the optimistic switch so the UI matches the saved setting.
-      applyTheme(settings.theme);
+      applyTheme(settings.theme, settings.themeSeed);
       notify(errorMessage(error), "error");
     }
   };

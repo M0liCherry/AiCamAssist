@@ -375,9 +375,9 @@ export function Dashboard({ subjects, scope, onScope, onOpenNote, onTreeChanged,
               <div className="import-grid">
                 {IMPORT_CARDS.map(({ type, title, copy, icon: Icon, tone }) => (
                   <button type="button" className="import-card" key={type} onClick={() => setImportType(type)}>
-                    <span className={`icon-badge icon-badge--${tone}`} aria-hidden="true"><Icon size={21} /></span>
+                    <span className={`icon-badge icon-badge--${tone}`} aria-hidden="true"><Icon size={24} /></span>
                     <span><strong>{title}</strong><small>{copy}</small></span>
-                    <ArrowRight size={18} className="import-arrow" aria-hidden="true" />
+                    <ArrowRight size={20} className="import-arrow" aria-hidden="true" />
                   </button>
                 ))}
               </div>

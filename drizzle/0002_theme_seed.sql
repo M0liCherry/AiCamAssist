@@ -1,0 +1,1 @@
+ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "theme_seed" varchar(12) DEFAULT '#6750A4' NOT NULL;

@@ -1,6 +1,7 @@
 import { ArrowLeft, ExternalLink, ShieldCheck } from "lucide-react";
-import { APP_NAME, APP_VERSION, POLICY_EFFECTIVE_DATE, PUBLISHER } from "@/config/app";
+import { APP_NAME, APP_VERSION, CONTRIBUTORS, POLICY_EFFECTIVE_DATE, PROJECT_LICENSE, PUBLISHER, REPO_URL } from "@/config/app";
 import { THIRD_PARTY } from "@/config/licenses";
+import { LegalThemeSync } from "./LegalThemeSync";
 
 export type PolicyKey = "privacy" | "terms" | "telemetry" | "license" | "accessibility" | "licenses";
 
@@ -56,7 +57,7 @@ export const policies: Record<PolicyKey, Policy> = {
       { heading: "3. Refunds", paragraphs: ["Because nothing is charged for this edition, no refund can arise from it. If you obtained VerityAI through a store or reseller, that store's refund policy applies to the transaction. Statutory withdrawal and refund rights in your jurisdiction are never limited by this policy."] },
       { heading: "4. Support", paragraphs: [`Support is provided on a best-effort basis by email at ${PUBLISHER.supportEmail}. Include the app version (shown in Settings → About), your system platform, the AI backend in use, and — if you enabled it — the local diagnostics log. There is no guaranteed response time or uptime commitment for a self-hosted application.`] },
       { heading: "5. Third-party components", paragraphs: ["The application bundles open-source components under MIT, ISC, Apache-2.0, BSD-2-Clause, and similar licences. Their notices are reproduced on the Open-source licenses page and in THIRD_PARTY_NOTICES.md. Model weights downloaded on demand are licensed by their authors."] },
-      { heading: "6. Publisher details", bullets: [`Publisher: ${PUBLISHER.name}`, `Legal entity: ${PUBLISHER.legalEntity}`, `Address: ${PUBLISHER.address}`, `Support: ${PUBLISHER.supportEmail}`, `Version: ${APP_VERSION}`] },
+      { heading: "6. Publisher details", bullets: [`Publisher: ${PUBLISHER.name}`, `Repository: ${REPO_URL}`, `License: ${PROJECT_LICENSE}`, `Support: ${PUBLISHER.supportEmail}`, `Version: ${APP_VERSION}`] },
     ],
   },
   accessibility: {
@@ -81,6 +82,7 @@ export function LegalPage({ policyKey }: { policyKey: PolicyKey }) {
   const policy = policies[policyKey];
   return (
     <main className="legal-page">
+      <LegalThemeSync />
       <header className="legal-topbar">
         <a href="/" className="legal-brand"><img src="/logo.png" alt="" style={{ width: 22, height: 22, borderRadius: 4, objectFit: "contain" }} />{APP_NAME}</a>
         <a href="/" className="secondary-button compact"><ArrowLeft size={15} aria-hidden="true" />Back to workspace</a>
@@ -123,12 +125,12 @@ export function LegalPage({ policyKey }: { policyKey: PolicyKey }) {
             <dl>
               <div><dt>Product</dt><dd>{APP_NAME} {APP_VERSION} for Windows</dd></div>
               <div><dt>Publisher</dt><dd>{PUBLISHER.name}</dd></div>
-              <div><dt>Legal entity</dt><dd>{PUBLISHER.legalEntity}</dd></div>
-              <div><dt>Address</dt><dd>{PUBLISHER.address}</dd></div>
+              <div><dt>Repository</dt><dd><a href={REPO_URL} target="_blank" rel="noreferrer">M0liCherry/AiCamAssist</a></dd></div>
+              <div><dt>License</dt><dd>{PROJECT_LICENSE}</dd></div>
               <div><dt>Support</dt><dd>{PUBLISHER.supportEmail}</dd></div>
               <div><dt>Privacy</dt><dd>{PUBLISHER.privacyEmail}</dd></div>
             </dl>
-            <p>Publisher fields come from build configuration. Developer builds intentionally show unconfigured values instead of fabricated company details.</p>
+            <p>Built by {CONTRIBUTORS.map((c) => c.login).join(", ")}. Publisher fields come from build configuration.</p>
           </section>
           <footer className="policy-footer"><span>© 2026 {PUBLISHER.name}</span><a href="/legal/licenses">Open-source licenses</a></footer>
         </article>

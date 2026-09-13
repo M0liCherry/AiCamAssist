@@ -152,6 +152,7 @@ export function publicSettings(row: Settings) {
     providerConsentAt: row.providerConsentAt,
     diagnosticsOptIn: row.diagnosticsOptIn,
     theme: row.theme === "light" ? "light" : "dark",
+    themeSeed: /^#[0-9A-Fa-f]{6}$/.test(row.themeSeed ?? "") ? (row.themeSeed as string).toUpperCase() : "#6750A4",
   };
 }
 

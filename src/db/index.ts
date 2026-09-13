@@ -54,6 +54,7 @@ async function createEmbedded(): Promise<Database> {
         ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "elevenlabs_host_voice" varchar(80) DEFAULT '21m00Tcm4TlvDq8ikWAM' NOT NULL;
         ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "elevenlabs_guest_voice" varchar(80) DEFAULT 'pNInz6obpgDQGcFmaJgB' NOT NULL;
         ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "kokoclone_endpoint" varchar(255) DEFAULT 'http://127.0.0.1:7860' NOT NULL;
+        ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "theme_seed" varchar(12) DEFAULT '#6750A4' NOT NULL;
       `);
     } catch {
       // Ignored if table not created yet or already up to date

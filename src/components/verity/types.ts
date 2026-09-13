@@ -34,6 +34,7 @@ export type PublicSettings = {
   providerConsentAt: string | null;
   diagnosticsOptIn: boolean;
   theme: "dark" | "light";
+  themeSeed: string;
 };
 
 export type Environment = { dataDir: string; database: string; version: string; platform: string; node: string; logPath: string };
