@@ -6,7 +6,7 @@
  * presenting fabricated company information.
  */
 export const APP_NAME = "Verity AI";
-export const APP_VERSION = "1.0.0";
+export const APP_VERSION = "1.0.1";
 export const APP_ID = "com.verityai";
 
 export type Publisher = {

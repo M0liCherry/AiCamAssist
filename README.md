@@ -21,7 +21,7 @@ your own machine.
 
 | Platform | Get it |
 | --- | --- |
-| **Windows 10/11 (x64)** | [**Verity AI Setup 1.0.0.exe**](https://github.com/M0liCherry/AiCamAssist/releases/latest) — double-click to install, runs from the taskbar tray, fully offline |
+| **Windows 10/11 (x64)** | [**Verity AI Setup 1.0.1.exe**](https://github.com/M0liCherry/AiCamAssist/releases/latest) — assisted setup (location + shortcuts), fully offline, quits cleanly on close |
 
 No installer? Run from source below. No Windows? Deploy the hosted target to
 Vercel ([instructions](#deploying-to-vercel-target-b)).
@@ -67,7 +67,7 @@ shortcuts, then the app just runs; closing its window quits everything, and
 all data lives under `%APPDATA%\Verity AI`:
 
 ```bash
-npm run dist:win     # produces dist/Verity AI Setup 1.0.0.exe
+npm run dist:win     # produces dist/Verity AI Setup 1.0.1.exe
 ```
 
 For development, run `npm run dev` in one terminal and
